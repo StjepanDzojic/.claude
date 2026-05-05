@@ -1,0 +1,10 @@
+# Ignore everything by default
+/*
+
+# Un-ignore safe, sync-worthy items
+!/.gitignore
+!/README.md
+!/CLAUDE.md
+!/agents/
+!/skills/
+!/settings.json
