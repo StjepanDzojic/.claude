@@ -1,7 +1,0 @@
-export default function HidroingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <>{children}</>;
-}

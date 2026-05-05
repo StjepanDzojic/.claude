@@ -1,7 +1,0 @@
-import { atom } from "jotai";
-
-const isLocked = atom<boolean>(false);
-
-export const ScreenLockAtoms = {
-  isLocked,
-};
