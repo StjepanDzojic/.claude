@@ -1,6 +1,6 @@
 ---
 name: notion-create-task
-description: Create a Notion task under a specific project. Searches for the project inside the General > Projects section of Notion, verifies it exists, then creates a task. Trigger on: "create a notion task", "add a task in notion", "notion task for <project>".
+description: 'Create a Notion task under a specific project. Searches for the project inside the General > Projects section of Notion, verifies it exists, then creates a task. Trigger on: create a notion task, add a task in notion, notion task for a project.'
 ---
 
 # Notion Create Task
