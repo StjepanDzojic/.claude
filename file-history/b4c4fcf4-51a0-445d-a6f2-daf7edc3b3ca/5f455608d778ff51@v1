@@ -1,0 +1,196 @@
+import type {
+  EventTimelineItem,
+  RoomInterface,
+  TaskHandleInterface,
+  TimelineInterface,
+} from "@unomed/react-native-matrix-sdk";
+import {
+  DateDividerMode,
+  RoomMessageEventMessageType,
+  TimelineDiff_Tags,
+  TimelineFilter,
+  TimelineFocus,
+  TimelineReadReceiptTracking,
+} from "@unomed/react-native-matrix-sdk";
+import { getEventId } from "modules/matrix-client/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+//TODO: Make a timeline module
+
+interface UseMediaTimelineProps {
+  room: RoomInterface | undefined;
+  roomId: string;
+}
+
+export const useMediaTimeline = ({ room, roomId }: UseMediaTimelineProps) => {
+  const [mediaItems, setMediaItems] = useState<EventTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const eventIdsRef = useRef<Set<string>>(new Set());
+  const timelineRef = useRef<TimelineInterface | null>(null);
+
+  const upsertMediaItems = useCallback((incoming: EventTimelineItem[]) => {
+    setMediaItems((prev) => {
+      const next = [...prev];
+      for (const event of incoming) {
+        const id = getEventId(event);
+        if (!id || eventIdsRef.current.has(id)) continue;
+
+        eventIdsRef.current.add(id);
+        next.push(event);
+      }
+      return next.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!room) return;
+
+    setLoading(true);
+    setMediaItems([]);
+    eventIdsRef.current.clear();
+
+    let timelineListenerHandle: TaskHandleInterface | null = null;
+
+    const initMediaTimeline = async () => {
+      try {
+        const timeline = await room.timelineWithConfiguration({
+          focus: new TimelineFocus.Live({ hideThreadedEvents: false }),
+          filter: new TimelineFilter.OnlyMessage({
+            types: [
+              RoomMessageEventMessageType.Image,
+              RoomMessageEventMessageType.Video,
+              RoomMessageEventMessageType.File,
+              RoomMessageEventMessageType.Audio,
+            ],
+          }),
+          internalIdPrefix: "media_",
+          dateDividerMode: DateDividerMode.Daily,
+          trackReadReceipts: TimelineReadReceiptTracking.Disabled,
+          reportUtds: false,
+        });
+
+        timelineRef.current = timeline;
+
+        // Set up timeline listener for updates
+        timelineListenerHandle = await timeline.addListener({
+          onUpdate: (diffs) => {
+            diffs.forEach((diff) => {
+              const change = diff.tag;
+              switch (change) {
+                case TimelineDiff_Tags.Append: {
+                  const newItems = diff.inner.values;
+                  if (newItems.length) {
+                    const eventItems = newItems
+                      .map((i) => i.asEvent())
+                      .filter((i): i is EventTimelineItem => !!i);
+                    if (eventItems.length > 0) upsertMediaItems(eventItems);
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Insert:
+                case TimelineDiff_Tags.PushFront:
+                case TimelineDiff_Tags.PushBack: {
+                  const { value } = diff.inner;
+                  const ev = value.asEvent();
+                  if (ev) upsertMediaItems([ev]);
+                  break;
+                }
+                case TimelineDiff_Tags.Set: {
+                  const { value } = diff.inner;
+                  const ev = value.asEvent();
+                  if (ev) {
+                    const id = getEventId(ev);
+                    if (!id) break;
+
+                    setMediaItems((prev) => {
+                      const existingIndex = prev.findIndex(
+                        (item) => getEventId(item) === id,
+                      );
+                      if (existingIndex >= 0) {
+                        const next = [...prev];
+                        next[existingIndex] = ev;
+                        return next;
+                      }
+                      return prev;
+                    });
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Remove: {
+                  const { index: removeIndex } = diff.inner;
+                  setMediaItems((prev) => {
+                    const next = prev.filter((_, idx) => idx !== removeIndex);
+                    eventIdsRef.current = new Set(
+                      next
+                        .map((item) => getEventId(item))
+                        .filter(Boolean) as string[],
+                    );
+                    return next;
+                  });
+                  break;
+                }
+                case TimelineDiff_Tags.Reset: {
+                  const resetItems = diff.inner.values;
+                  if (resetItems.length) {
+                    const eventItems = resetItems
+                      .map((i) => i.asEvent())
+                      .filter((i): i is EventTimelineItem => !!i);
+
+                    const seenIds = new Set<string>();
+                    const newMediaItems: EventTimelineItem[] = [];
+
+                    for (const event of eventItems) {
+                      const id = getEventId(event);
+                      if (id && !seenIds.has(id)) {
+                        seenIds.add(id);
+                        newMediaItems.push(event);
+                      }
+                    }
+
+                    eventIdsRef.current = seenIds;
+                    setMediaItems(
+                      newMediaItems.sort(
+                        (a, b) => Number(b.timestamp) - Number(a.timestamp),
+                      ),
+                    );
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Clear: {
+                  eventIdsRef.current.clear();
+                  setMediaItems([]);
+                  break;
+                }
+                default:
+                  break;
+              }
+            });
+          },
+        });
+
+        // Paginate backwards until we reach the start of the timeline
+        let reachedStart = false;
+        while (!reachedStart) {
+          reachedStart = await timeline.paginateBackwards(100);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to initialize media timeline:", error);
+        setLoading(false);
+      }
+    };
+
+    initMediaTimeline();
+
+    return () => {
+      timelineListenerHandle?.cancel?.();
+      timelineRef.current = null;
+    };
+  }, [roomId, room, upsertMediaItems]);
+
+  return {
+    mediaItems,
+    loading,
+  };
+};

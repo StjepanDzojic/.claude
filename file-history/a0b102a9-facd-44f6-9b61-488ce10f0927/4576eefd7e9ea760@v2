@@ -1,0 +1,153 @@
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+import { Placeholder } from 'modules/hidroing/components/Placeholder';
+
+interface Props {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: 'Services' });
+  return { title: t('seoTitle'), description: t('seoDescription') };
+}
+
+function Phase({ idx, title, desc }: { idx: string; title: string; desc: string }) {
+  return (
+    <div className="phase">
+      <div className="p-idx">{idx}</div>
+      <div>
+        <div className="p-t">{title}</div>
+        <div className="p-d">{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function ServicesPage() {
+  const t = useTranslations('Services');
+
+  const services = [
+    {
+      id: 'water-supply', idx: '01', tag: t('s1Tag'), title: t('s1Title'),
+      lede: t('s1Lede'), imgLabel: t('s1ImgLabel'), imgVariant: 'blue' as const,
+      phases: [
+        { idx: 'a', title: t('s1aTitle'), desc: t('s1aDesc') },
+        { idx: 'b', title: t('s1bTitle'), desc: t('s1bDesc') },
+        { idx: 'c', title: t('s1cTitle'), desc: t('s1cDesc') },
+        { idx: 'd', title: t('s1dTitle'), desc: t('s1dDesc') },
+      ],
+    },
+    {
+      id: 'treatment', idx: '02', tag: t('s2Tag'), title: t('s2Title'),
+      lede: t('s2Lede'), imgLabel: t('s2ImgLabel'), imgVariant: 'green' as const,
+      phases: [
+        { idx: 'a', title: t('s2aTitle'), desc: t('s2aDesc') },
+        { idx: 'b', title: t('s2bTitle'), desc: t('s2bDesc') },
+        { idx: 'c', title: t('s2cTitle'), desc: t('s2cDesc') },
+      ],
+    },
+    {
+      id: 'rivers', idx: '03', tag: t('s3Tag'), title: t('s3Title'),
+      lede: t('s3Lede'), imgLabel: t('s3ImgLabel'), imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s3aTitle'), desc: t('s3aDesc') },
+        { idx: 'b', title: t('s3bTitle'), desc: t('s3bDesc') },
+      ],
+    },
+    {
+      id: 'irrigation', idx: '04', tag: t('s4Tag'), title: t('s4Title'),
+      lede: t('s4Lede'), imgLabel: t('s4ImgLabel'), imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s4aTitle'), desc: t('s4aDesc') },
+        { idx: 'b', title: t('s4bTitle'), desc: t('s4bDesc') },
+      ],
+    },
+    {
+      id: 'ports', idx: '05', tag: t('s5Tag'), title: t('s5Title'),
+      lede: t('s5Lede'), imgLabel: t('s5ImgLabel'), imgVariant: 'dark' as const,
+      phases: [
+        { idx: 'a', title: t('s5aTitle'), desc: t('s5aDesc') },
+        { idx: 'b', title: t('s5bTitle'), desc: t('s5bDesc') },
+      ],
+    },
+    {
+      id: 'eia', idx: '06', tag: t('s6Tag'), title: t('s6Title'),
+      lede: t('s6Lede'), imgLabel: null, imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s6aTitle'), desc: t('s6aDesc') },
+        { idx: 'b', title: t('s6bTitle'), desc: t('s6bDesc') },
+        { idx: 'c', title: t('s6cTitle'), desc: t('s6cDesc') },
+      ],
+    },
+  ];
+
+  const licenses = [
+    { k: 'HKIG', v: t('lic1v'), s: '6×' },
+    { k: 'HKIG', v: t('lic2v'), s: '3×' },
+    { k: 'MGIPU', v: t('lic3v'), s: '2018. →' },
+    { k: 'ISO 9001', v: t('lic4v'), s: '2016. →' },
+  ];
+
+  return (
+    <main>
+      <section className="page-hero wrap">
+        <div className="crumbs">
+          <Link href="/">Hidroing</Link>
+          <span className="sep">/</span>
+          <span>{t('crumb')}</span>
+        </div>
+        <h1 className="h1">{t('title')}</h1>
+        <p className="body-lg" style={{ marginTop: 32, maxWidth: '66ch' }}>{t('desc')}</p>
+      </section>
+
+      <section className="wrap section">
+        {services.map((svc) => (
+          <div key={svc.id} className="svc-block" id={svc.id}>
+            <div className="idx">{svc.idx}</div>
+            <div>
+              <div className="tag">{svc.tag}</div>
+              <h3>{svc.title}</h3>
+              <p className="lede">{svc.lede}</p>
+              {svc.imgLabel && (
+                <div className="frame">
+                  <Placeholder
+                    variant={svc.imgVariant}
+                    corner={`S-0${svc.idx}`}
+                    label={svc.imgLabel}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="phases">
+              {svc.phases.map((ph) => (
+                <Phase key={ph.idx} idx={ph.idx} title={ph.title} desc={ph.desc} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="wrap section">
+        <div className="sec-head">
+          <div className="num">{t('licNum')}</div>
+          <h2 className="h1">{t('licTitle')}</h2>
+          <p className="lede">{t('licDesc')}</p>
+        </div>
+
+        <div className="licenses">
+          {licenses.map((lic, i) => (
+            <div key={i} className="lic">
+              <div className="k">{lic.k}</div>
+              <div className="v">{lic.v}</div>
+              <div className="s">{lic.s}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}

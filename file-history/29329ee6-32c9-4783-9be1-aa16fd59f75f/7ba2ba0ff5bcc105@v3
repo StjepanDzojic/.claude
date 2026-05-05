@@ -1,0 +1,38 @@
+import { Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Linking } from "react-native";
+import { Colors, TextSize } from "shared/styles";
+import { tokenizeLinks } from "shared/utils";
+
+interface Props {
+  body: string;
+}
+
+const handleLinkPress = (url: string) => {
+  Linking.openURL(url).catch(() => {});
+};
+
+export const LinkifiedText: FC<Props> = ({ body }) => {
+  const tokens = tokenizeLinks(body);
+
+  return (
+    <Text size={TextSize.small} color={Colors.white}>
+      {tokens.map((token, i) => {
+        if (token.type === "link") {
+          return (
+            <Text
+              key={i}
+              size={TextSize.small}
+              color={Colors.link}
+              font="InstrumentSans-Semibold"
+              onPress={() => handleLinkPress(token.value)}
+            >
+              {token.value}
+            </Text>
+          );
+        }
+        return token.value;
+      })}
+    </Text>
+  );
+};

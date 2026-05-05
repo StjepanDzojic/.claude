@@ -1,0 +1,26 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { StyleSheet } from "react-native";
+import { Colors } from "shared/styles";
+
+interface Props {
+  label: string;
+  value: string;
+}
+
+export const InfoRow: FC<Props> = ({ label, value }) => (
+  <Block flexDirection="row" gap={12} align="flex-start">
+    <Text color={Colors.white50} style={styles.label}>
+      {label}
+    </Text>
+    <Text color={Colors.white} flex={1} numberOfLines={3}>
+      {value}
+    </Text>
+  </Block>
+);
+
+const styles = StyleSheet.create({
+  label: {
+    width: 72,
+  },
+});

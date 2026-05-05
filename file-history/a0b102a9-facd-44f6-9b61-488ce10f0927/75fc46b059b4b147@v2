@@ -1,0 +1,54 @@
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+
+export function Footer() {
+  const t = useTranslations('Footer');
+
+  return (
+    <footer className="footer">
+      <div className="footer__top">
+        <div className="footer__brand">
+          <div className="footer__wordmark">
+            hidroing<span className="dot">.</span>
+          </div>
+          <p>{t('tagline')}</p>
+        </div>
+
+        <div>
+          <h4>{t('navTitle')}</h4>
+          <ul>
+            <li><Link href="/">{t('home')}</Link></li>
+            <li><Link href="/services">{t('services')}</Link></li>
+            <li><Link href="/projects">{t('projects')}</Link></li>
+            <li><Link href="/team">{t('team')}</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>{t('companyTitle')}</h4>
+          <ul>
+            <li><Link href="/about">{t('about')}</Link></li>
+            <li><Link href="/about">{t('history')}</Link></li>
+            <li><Link href="/about">{t('awards')}</Link></li>
+            <li><Link href="/about">{t('quality')}</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>{t('contactTitle')}</h4>
+          <ul>
+            <li>Tadije Smičiklasa 1<br />31000 Osijek, HR</li>
+            <li><a href="tel:+38531200200">+385 31 200 200</a></li>
+            <li><a href="mailto:info@hidroing.hr">info@hidroing.hr</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="footer__bottom">
+        <div>{t('copyright')}</div>
+        <div>{t('vat')}</div>
+        <div>{t('madeIn')}</div>
+      </div>
+    </footer>
+  );
+}

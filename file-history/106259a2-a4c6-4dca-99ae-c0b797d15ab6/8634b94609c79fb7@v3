@@ -1,0 +1,45 @@
+import { Block, Screen } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DebugHelpers } from "modules/matrix-client/helpers";
+import { useState } from "react";
+import { isIpad } from "shared/utils";
+import {
+  Filters,
+  Header,
+  IpadRoomPane,
+  NewChatButton,
+  NoRoomWrapper,
+  ProtectAccountMessage,
+  Rooms,
+  Search,
+  SecurityFilter,
+} from "./fragments";
+
+export const Home: React.FC<NativeStackScreenProps<Routes, "home">> = () => {
+  const [search, setSearch] = useState<string>("");
+
+  if (isIpad()) {
+    return (
+      <Screen hideTopSafeArea>
+        <IpadRoomPane />
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <Block flex={1}>
+        <Header />
+        <DebugHelpers />
+        <ProtectAccountMessage />
+        <NoRoomWrapper>
+          <Filters />
+          <Search search={search} setSearch={setSearch} />
+          <SecurityFilter />
+          <NewChatButton />
+        </NoRoomWrapper>
+        <Rooms search={search} />
+      </Block>
+    </Screen>
+  );
+};

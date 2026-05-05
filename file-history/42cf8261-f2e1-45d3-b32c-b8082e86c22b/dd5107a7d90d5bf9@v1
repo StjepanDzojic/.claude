@@ -1,0 +1,316 @@
+import {
+  MessageLikeEventContent_Tags,
+  type NotificationClientInterface,
+  NotificationEvent_Tags,
+  type NotificationItem,
+  NotificationProcessSetup,
+  NotificationStatus_Tags,
+  TimelineEventType_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { MATRIX_ENDPOINTS, SygnalURL } from "../../matrix-client/const";
+import { MatrixCore } from "../../matrix-client/services/MatrixCore";
+
+const APP_ID = "com.prototyp.cloak";
+const VOIP_APP_ID = "com.prototyp.cloak.ios.voip";
+
+export class MatrixNotificationService {
+  private static notificationClient: NotificationClientInterface | null = null;
+
+  private static isRtcNotificationExpired = (
+    item: NotificationItem,
+  ): boolean => {
+    if (item.event.tag !== NotificationEvent_Tags.Timeline) return false;
+
+    const eventType = item.event.inner.event.eventType();
+    if (eventType.tag !== TimelineEventType_Tags.MessageLike) return false;
+
+    const content = eventType.inner.content;
+    if (content.tag !== MessageLikeEventContent_Tags.RtcNotification) {
+      return false;
+    }
+
+    const expirationTs = content.inner?.expirationTs;
+    if (expirationTs === undefined || expirationTs === null) return false;
+
+    const nowMs = Date.now();
+
+    if (typeof expirationTs === "bigint") {
+      return BigInt(nowMs) >= expirationTs;
+    }
+
+    if (typeof expirationTs === "number") {
+      return nowMs >= expirationTs;
+    }
+
+    if (typeof expirationTs === "string") {
+      try {
+        return BigInt(nowMs) >= BigInt(expirationTs);
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
+  };
+
+  public static isNotificationExpiredCall = (
+    item: NotificationItem,
+  ): boolean => {
+    return this.isRtcNotificationExpired(item);
+  };
+
+  public static getNotificationClient = () => this.notificationClient;
+
+  public static ensureNotificationClient =
+    async (): Promise<NotificationClientInterface | null> => {
+      if (this.notificationClient) return this.notificationClient;
+      if (!MatrixCore.instance) return null;
+
+      try {
+        this.notificationClient = await MatrixCore.instance.notificationClient(
+          new NotificationProcessSetup.MultipleProcesses(),
+        );
+        return this.notificationClient;
+      } catch (error) {
+        console.warn("Failed to create notification client:", error);
+        return null;
+      }
+    };
+
+  public static initNotificationClientForBackground =
+    async (): Promise<void> => {
+      const client = MatrixCore.getClient();
+      this.notificationClient = await client.notificationClient(
+        new NotificationProcessSetup.MultipleProcesses(),
+      );
+    };
+
+  public static getNotificationContent = async (
+    roomId: string,
+    eventId: string,
+  ): Promise<NotificationItem | null> => {
+    try {
+      if (!this.notificationClient) {
+        console.warn("Notification client not initialized");
+        return null;
+      }
+
+      const status = await this.notificationClient.getNotification(
+        roomId,
+        eventId,
+      );
+
+      if (status.tag !== NotificationStatus_Tags.Event) {
+        console.warn("Notification status:", status.tag);
+        return null;
+      }
+
+      const item = status.inner.item;
+      if (this.isRtcNotificationExpired(item)) return null;
+
+      return item;
+    } catch (error) {
+      console.warn("Failed to get notification content:", error);
+      return null;
+    }
+  };
+
+  /**
+   * Returns true if the event was filtered out by the user's push rules.
+   * This means the SDK explicitly determined no notification should be shown.
+   */
+  public static isNotificationFilteredOut = async (
+    roomId: string,
+    eventId: string,
+  ): Promise<boolean> => {
+    try {
+      if (!this.notificationClient) return false;
+      const status = await this.notificationClient.getNotification(
+        roomId,
+        eventId,
+      );
+      return status.tag === NotificationStatus_Tags.EventFilteredOut;
+    } catch {
+      return false;
+    }
+  };
+
+  public static getPushers = async () => {
+    const client = MatrixCore.getClient();
+    const session = client.session();
+    if (!session) throw new Error("No active session");
+
+    try {
+      const response = await fetch(
+        `${session.homeserverUrl}${MATRIX_ENDPOINTS.PUSHERS_GET}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to get pushers: ${response.status} - ${errorText}`,
+        );
+      }
+
+      const data = await response.json();
+      return data.pushers || [];
+    } catch (error) {
+      console.error("Failed to get pushers:", error);
+      throw error;
+    }
+  };
+
+  public static isPusherRegistered = async (pushToken: string) => {
+    try {
+      const pushers = await this.getPushers();
+      const session = MatrixCore.getClient().session();
+      if (!session) throw new Error("No active session");
+
+      return pushers.some(
+        (pusher: {
+          pushkey: string;
+          app_id: string;
+          device_display_name: string;
+        }) =>
+          pusher.pushkey === pushToken &&
+          pusher.app_id === APP_ID &&
+          pusher.device_display_name === session.deviceId,
+      );
+    } catch (error) {
+      console.error("Failed to check pusher registration:", error);
+      return false;
+    }
+  };
+
+  public static setPusher = async (pushToken: string) => {
+    const client = MatrixCore.getClient();
+    const session = client.session();
+    if (!session) throw new Error("No active session");
+
+    const pusherData = {
+      pushkey: pushToken,
+      kind: "http",
+      app_id: APP_ID,
+      app_display_name: "Cloak",
+      device_display_name: session.deviceId || "Mobile Device",
+      profile_tag: "",
+      lang: "en",
+      data: {
+        url: `${SygnalURL}/${MATRIX_ENDPOINTS.PUSH_GATEWAY_URL}`,
+      },
+    };
+
+    try {
+      const response = await fetch(
+        `${session.homeserverUrl}${MATRIX_ENDPOINTS.PUSHERS_SET}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(pusherData),
+        },
+      );
+
+      if (!response.ok) {
+        console.log("Failed to set pusher:", response);
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to set pusher: ${response.status} - ${errorText}`,
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to register pusher:", error);
+      throw error;
+    }
+  };
+
+  public static setVoIPPusher = async (pushToken: string) => {
+    const client = MatrixCore.getClient();
+    const session = client.session();
+    if (!session) throw new Error("No active session");
+
+    const pusherData = {
+      pushkey: pushToken,
+      kind: "http",
+      app_id: VOIP_APP_ID,
+      app_display_name: "Cloak",
+      device_display_name: session.deviceId || "Mobile Device",
+      profile_tag: "",
+      lang: "en",
+      data: {
+        url: `${SygnalURL}/${MATRIX_ENDPOINTS.PUSH_GATEWAY_URL}`,
+      },
+    };
+
+    const response = await fetch(
+      `${session.homeserverUrl}${MATRIX_ENDPOINTS.PUSHERS_SET}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify(pusherData),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to set VoIP pusher: ${response.status} - ${errorText}`,
+      );
+    }
+
+    return true;
+  };
+
+  public static removePusher = async (pushToken: string) => {
+    const client = MatrixCore.getClient();
+    const session = client.session();
+    if (!session) throw new Error("No active session");
+
+    const pusherData = {
+      pushkey: pushToken,
+      kind: null,
+      app_id: APP_ID,
+    };
+
+    try {
+      const response = await fetch(
+        `${session.homeserverUrl}${MATRIX_ENDPOINTS.PUSHERS_SET}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(pusherData),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to remove pusher: ${response.status} - ${errorText}`,
+        );
+      }
+
+      console.log("Pusher removed successfully from homeserver");
+      return true;
+    } catch (error) {
+      console.error("Failed to remove pusher:", error);
+      throw error;
+    }
+  };
+}

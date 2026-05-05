@@ -1,0 +1,29 @@
+import { Metadata } from 'next';
+import { Home } from './(index)/Home';
+import { getTranslations } from 'next-intl/server';
+
+interface Props {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { lang } = await props.params;
+
+  const t = await getTranslations({
+    locale: lang,
+    namespace: 'Home',
+  });
+
+  return {
+    title: t('seoTitle'),
+    description: t('seoDescription'),
+  };
+}
+
+export default function Page() {
+  return (
+    <>
+      <Home />
+    </>
+  );
+}

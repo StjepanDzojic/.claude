@@ -1,0 +1,210 @@
+import type { MediaSourceInterface } from "@unomed/react-native-matrix-sdk";
+import { MatrixBaseURL } from "modules/matrix-client/const";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { fetchMedia } from "modules/matrix-client/utils";
+import ReactNativeBlobUtil from "react-native-blob-util";
+import { MMKV } from "react-native-mmkv";
+import { decryptFile, encryptFile } from "./media-encryption";
+
+const CipherDir = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/encrypted-videos`;
+const TmpDir = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/decrypted-videos-tmp`;
+const PlaintextVideoCacheDir = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/videos`;
+
+const PrefixlessCipherDir = CipherDir.replace("file://", "");
+const PrefixlessTmpDir = TmpDir.replace("file://", "");
+const PrefixlessOldDir = PlaintextVideoCacheDir.replace("file://", "");
+
+const MIGRATION_MMKV_ID = "video-cache-migration";
+const MIGRATION_KEY = "v1-encrypted";
+
+// Videos are large; keep the session-wide LRU small so we don't pile up
+// hundreds of MB of decrypted tmp files.
+const LRU_MAX = 4;
+
+const MIME_TO_EXT: Record<string, string> = {
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
+  "video/webm": ".webm",
+  "video/x-matroska": ".mkv",
+  "video/ogg": ".ogv",
+  "video/3gpp": ".3gp",
+  "video/3gpp2": ".3g2",
+};
+
+export function extFromMimeType(mimeType: string): string {
+  return MIME_TO_EXT[mimeType] ?? ".mp4";
+}
+
+const InFlight = new Map<string, Promise<string | null>>();
+const DecryptedLRU = new Map<string, string>();
+
+let initPromise: Promise<void> | null = null;
+
+function hashKey(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function getCipherPath(cacheKey: string) {
+  return `${PrefixlessCipherDir}/${hashKey(cacheKey)}`;
+}
+
+function getTmpPath(cacheKey: string, ext: string) {
+  return `${PrefixlessTmpDir}/${hashKey(cacheKey)}${ext}`;
+}
+
+async function init(): Promise<void> {
+  try {
+    const tmpExists = await ReactNativeBlobUtil.fs.exists(PrefixlessTmpDir);
+    if (tmpExists) await ReactNativeBlobUtil.fs.unlink(PrefixlessTmpDir);
+  } catch {}
+  await ReactNativeBlobUtil.fs.mkdir(PrefixlessTmpDir);
+
+  const cipherExists = await ReactNativeBlobUtil.fs.exists(PrefixlessCipherDir);
+  if (!cipherExists) await ReactNativeBlobUtil.fs.mkdir(PrefixlessCipherDir);
+
+  // One-time migration: purge the legacy plaintext video cache.
+  try {
+    const mmkv = new MMKV({ id: MIGRATION_MMKV_ID });
+    if (!mmkv.getBoolean(MIGRATION_KEY)) {
+      const oldExists = await ReactNativeBlobUtil.fs.exists(PrefixlessOldDir);
+      if (oldExists) await ReactNativeBlobUtil.fs.unlink(PrefixlessOldDir);
+      mmkv.set(MIGRATION_KEY, true);
+    }
+  } catch (e) {
+    console.warn("Encrypted video cache migration failed:", e);
+  }
+}
+
+async function ensureInitialized(): Promise<void> {
+  if (!initPromise) initPromise = init();
+  return initPromise;
+}
+
+async function evictLRUIfNeeded(): Promise<void> {
+  while (DecryptedLRU.size > LRU_MAX) {
+    const oldest = DecryptedLRU.keys().next().value;
+    if (!oldest) return;
+    const path = DecryptedLRU.get(oldest);
+    DecryptedLRU.delete(oldest);
+    if (path) {
+      try {
+        await ReactNativeBlobUtil.fs.unlink(path);
+      } catch {}
+    }
+  }
+}
+
+interface ResolveProps {
+  cacheKey: string;
+  mediaSource: MediaSourceInterface;
+  mimeType?: string;
+}
+
+/**
+ * Returns a `file://` URI to a plaintext copy of the video for playback.
+ * Encrypts at rest with AES-256-GCM under a Keychain-stored key. The returned
+ * path points to a decrypted copy in the tmp dir, wiped on app start and
+ * bounded by a small in-memory LRU during the session.
+ */
+export async function resolveEncryptedVideo({
+  cacheKey,
+  mediaSource,
+  mimeType = "video/mp4",
+}: ResolveProps): Promise<string | null> {
+  const inFlight = InFlight.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const task = (async (): Promise<string | null> => {
+    try {
+      await ensureInitialized();
+
+      const ext = extFromMimeType(mimeType);
+
+      const existingTmp = DecryptedLRU.get(cacheKey);
+      if (existingTmp) {
+        const stillThere = await ReactNativeBlobUtil.fs.exists(existingTmp);
+        if (stillThere) {
+          DecryptedLRU.delete(cacheKey);
+          DecryptedLRU.set(cacheKey, existingTmp);
+          return `file://${existingTmp}`;
+        }
+        DecryptedLRU.delete(cacheKey);
+      }
+
+      const cipherPath = getCipherPath(cacheKey);
+      const tmpPath = getTmpPath(cacheKey, ext);
+
+      const fetchAndEncrypt = async () => {
+        const plainFromSdk = await fetchMedia({
+          serverUrl:
+            MatrixCore.instance?.session().homeserverUrl || MatrixBaseURL,
+          mediaSource,
+          mimeType,
+        });
+        if (!plainFromSdk) return false;
+        await encryptFile(plainFromSdk, cipherPath);
+        try {
+          await ReactNativeBlobUtil.fs.unlink(
+            plainFromSdk.replace(/^file:\/\//, ""),
+          );
+        } catch {}
+        return true;
+      };
+
+      if (!(await ReactNativeBlobUtil.fs.exists(cipherPath))) {
+        if (!(await fetchAndEncrypt())) return null;
+      }
+
+      try {
+        await decryptFile(cipherPath, tmpPath);
+      } catch (e) {
+        console.warn("Video decrypt failed, re-fetching:", e);
+        try {
+          await ReactNativeBlobUtil.fs.unlink(cipherPath);
+        } catch {}
+        if (!(await fetchAndEncrypt())) return null;
+        await decryptFile(cipherPath, tmpPath);
+      }
+
+      DecryptedLRU.set(cacheKey, tmpPath);
+      await evictLRUIfNeeded();
+
+      return `file://${tmpPath}`;
+    } catch (e) {
+      console.warn("resolveEncryptedVideo failed:", e);
+      return null;
+    } finally {
+      InFlight.delete(cacheKey);
+    }
+  })();
+
+  InFlight.set(cacheKey, task);
+  return task;
+}
+
+/**
+ * Removes all encrypted video ciphertext and decrypted tmp copies.
+ * The encryption key itself is shared with the image cache — wipe it once via
+ * `clearMediaEncryptionKey()` after both caches are cleared.
+ */
+export async function clearEncryptedVideoCache(): Promise<void> {
+  try {
+    const cipherExists =
+      await ReactNativeBlobUtil.fs.exists(PrefixlessCipherDir);
+    if (cipherExists) await ReactNativeBlobUtil.fs.unlink(PrefixlessCipherDir);
+  } catch (e) {
+    console.warn("Failed to wipe encrypted video cache:", e);
+  }
+  try {
+    const tmpExists = await ReactNativeBlobUtil.fs.exists(PrefixlessTmpDir);
+    if (tmpExists) await ReactNativeBlobUtil.fs.unlink(PrefixlessTmpDir);
+  } catch {}
+  InFlight.clear();
+  DecryptedLRU.clear();
+  initPromise = null;
+}

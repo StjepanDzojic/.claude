@@ -1,0 +1,92 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  type ProfileDetails,
+  ProfileDetails_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "shared/components";
+
+import { UserImage } from "shared/components/user-image/UserImage";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  sender: ProfileDetails | null;
+  isUser: boolean;
+  senderId: string | null;
+  isPreviousSameSender: boolean;
+  onMemberPress?: (member: MemberDetailsPayload) => void;
+}
+
+export const MessageSender: FC<Props> = ({
+  sender,
+  isUser,
+  senderId,
+  isPreviousSameSender,
+  onMemberPress,
+}) => {
+  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const senderIdFormatted = useMemo(() => {
+    return senderId?.replace("@", "");
+  }, [senderId]);
+
+  useEffect(() => {
+    setDisplayName(undefined);
+    setAvatarUrl(null);
+
+    const fetch = async () => {
+      if (
+        sender?.tag === ProfileDetails_Tags.Ready &&
+        sender.inner.displayName
+      ) {
+        setDisplayName(sender.inner.displayName);
+        setAvatarUrl(sender.inner.avatarUrl || null);
+
+        return;
+      }
+
+      if (senderId && MatrixCore.instance) {
+        const profile = await MatrixCore.instance.getProfile(senderId);
+        setDisplayName(profile.displayName);
+        setAvatarUrl(profile.avatarUrl || null);
+      }
+    };
+
+    fetch();
+  }, [sender, senderId]);
+
+  const handlePress = useCallback(() => {
+    if (!senderId || !onMemberPress) return;
+    onMemberPress({
+      userId: senderId,
+      displayName: displayName ?? "Unknown",
+      avatarUrl,
+    });
+  }, [senderId, displayName, avatarUrl, onMemberPress]);
+
+  if (!sender || isUser || isPreviousSameSender) return null;
+
+  return (
+    <Button.Wrapper onPress={handlePress}>
+      <Block
+        margins={{ marginBottom: 0, marginLeft: -12 }}
+        flexDirection="row"
+        gap={4}
+        align="center"
+      >
+        <UserImage
+          avatarUrl={avatarUrl}
+          displayName={
+            displayName || senderIdFormatted?.charAt(0).toUpperCase()
+          }
+          width={20}
+          height={20}
+        />
+        <Text size={TextSize.tiny} color={Colors.white50}>
+          {displayName || senderIdFormatted || "Unknown"}
+        </Text>
+      </Block>
+    </Button.Wrapper>
+  );
+};

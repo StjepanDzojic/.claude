@@ -1,0 +1,127 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { FlashList, type ListRenderItem } from "@shopify/flash-list";
+import {
+  Membership,
+  type RoomInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { useAtomValue } from "jotai";
+import { MatrixAtoms } from "modules/matrix-client/jotai";
+import { type FC, useCallback, useMemo } from "react";
+import { Image } from "react-native";
+import { Loading } from "shared/components";
+import { SharedAtoms } from "shared/jotai";
+import { TextSize } from "shared/styles";
+import { RoomsListItem } from "../rooms-list-item";
+
+interface Props {
+  search: string;
+}
+
+export const Rooms: FC<Props> = ({ search }) => {
+  const activeFilter = useAtomValue(SharedAtoms.activeFilter);
+  const securityFilter = useAtomValue(SharedAtoms.securityFilter);
+  const rooms = useAtomValue(MatrixAtoms.roomList);
+  const roomInfoMap = useAtomValue(MatrixAtoms.roomInfoMap);
+  const isLoading = useAtomValue(MatrixAtoms.roomListLoading);
+  const filteredRooms = useMemo(() => {
+    const filtered = rooms.filter((room) => {
+      if (!room?.displayName()?.toLowerCase()?.includes(search.toLowerCase()))
+        return false;
+
+      // For now there is no secure chats, so we show all chats
+      if (securityFilter === "secure") return false;
+
+      if (securityFilter === "unsecure") return true;
+
+      return true;
+    });
+
+    if (activeFilter === "all") return filtered;
+
+    if (activeFilter === "unread") {
+      return filtered.filter((room) => {
+        const info = roomInfoMap.get(room.id());
+        return !!Number(info?.numUnreadNotifications) || !!info?.isMarkedUnread;
+      });
+    }
+
+    if (activeFilter === "favorites") {
+      return filtered.filter(
+        (room) => !!roomInfoMap.get(room.id())?.isFavourite,
+      );
+    }
+
+    if (activeFilter === "direct") {
+      return filtered.filter((room) => !!roomInfoMap.get(room.id())?.isDirect);
+    }
+
+    if (activeFilter === "rooms") {
+      return filtered.filter((room) => {
+        const info = roomInfoMap.get(room.id());
+        return !info?.isDirect && room.membership() !== Membership.Invited;
+      });
+    }
+
+    if (activeFilter === "invites") {
+      return filtered.filter(
+        (room) => room.membership() === Membership.Invited,
+      );
+    }
+
+    return filtered;
+  }, [search, rooms, roomInfoMap, activeFilter, securityFilter]);
+
+  const emptyText = useMemo(() => {
+    if (activeFilter === "unread") return "No Unread Messages";
+    if (activeFilter === "favorites") return "No Favorite Rooms";
+    if (activeFilter === "direct") return "No Direct Messages";
+    if (activeFilter === "rooms") return "No Rooms Found";
+    if (activeFilter === "invites") return "No Pending Invites";
+    return "No Messages Found";
+  }, [activeFilter]);
+
+  const keyExtractor = useCallback((item: RoomInterface) => item.id(), []);
+
+  const renderItem = useCallback<ListRenderItem<RoomInterface>>(
+    ({ item }) => <RoomsListItem room={item} />,
+    [],
+  );
+
+  const listEmptyComponent = useMemo(
+    () => (
+      <Block
+        align="center"
+        justify="center"
+        paddings={20}
+        margins={{ marginVertical: "auto" }}
+      >
+        <Image
+          source={require("assets/images/envelope.png")}
+          width={100}
+          height={100}
+        />
+        <Text
+          size={TextSize.large}
+          textAlign="center"
+          margins={{ marginBottom: 8, marginTop: 40 }}
+        >
+          {emptyText}
+        </Text>
+      </Block>
+    ),
+    [emptyText],
+  );
+
+  if (isLoading && !rooms.length) return <Loading text="Syncing..." />;
+
+  if (!rooms.length) return null;
+
+  return (
+    <FlashList
+      data={filteredRooms}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      ListEmptyComponent={listEmptyComponent}
+    />
+  );
+};

@@ -1,0 +1,50 @@
+import { PROJECT_CATEGORY_MAP } from '@app/_const/project-categories';
+import { Query, filter as prismicFilter } from '@prismicio/client';
+import { createClient } from 'prismicio';
+import { ProjectDocument } from 'prismicio-types';
+
+interface Props {
+  filter?: string;
+  limit?: number;
+  page?: number;
+}
+
+export async function getProjects({ filter, limit = 9, page = 1 }: Props) {
+  try {
+    let projects: Query<ProjectDocument<string>>;
+    const client = createClient();
+
+    if (!filter || filter === 'all') {
+      projects = await client.getByType('project', {
+        orderings: {
+          field: 'my.project.date',
+          direction: 'desc',
+        },
+        pageSize: limit,
+        page,
+      });
+    } else {
+      projects = await client.getByType('project', {
+        orderings: {
+          field: 'my.project.date',
+          direction: 'desc',
+        },
+        filters: [
+          prismicFilter.at(
+            'my.project.category',
+            PROJECT_CATEGORY_MAP[filter] ?? '',
+          ),
+        ],
+        pageSize: limit,
+        page,
+      });
+    }
+
+    return {
+      projects: projects.results,
+      totalPages: projects.total_pages || 1,
+    };
+  } catch {
+    return { projects: [], totalPages: 1 };
+  }
+}

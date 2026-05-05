@@ -1,0 +1,187 @@
+---
+name: component-extraction
+description: >
+  Enforces Beni's component and utility file organization rules. Use this skill
+  whenever you are about to write, review, or refactor any React component or utility
+  in this project — especially when: (1) a file contains or would contain more than one
+  component, (2) you are deciding where to place a new component (screen fragment vs shared),
+  (3) you are writing a helper/utility function and need to decide where it should live,
+  or (4) reviewing existing code for structural violations. Trigger on phrases like
+  "add a component", "extract this", "where should I put", "create a new component",
+  "refactor this file", "add a util", "helper function", "how should I organize".
+---
+
+# Component & Utility Organization Rules
+
+This project follows strict file organization conventions. Before writing or moving any
+component or utility, apply the rules below.
+
+---
+
+## Rule 1: One component per file
+
+A file must contain **exactly one exported React component**. If you find yourself writing
+a second component in the same file, stop and extract it immediately.
+
+This applies to all components — screens, fragments, shared components, and provider
+sub-components. No exceptions.
+
+---
+
+## Rule 2: Where to place a new component
+
+When extracting or creating a component, choose **one** of two locations:
+
+### A) Screen fragment — for screen-specific UI
+
+If the component is only meaningful in the context of one screen, place it as a fragment
+of that screen:
+
+```
+src/screens/<screen-name>/fragments/<fragment-name>/
+├── <FragmentName>.tsx      ← the component
+└── index.ts                ← re-exports the component
+```
+
+**Fragment index.ts template:**
+```ts
+export * from "./<FragmentName>";
+```
+
+The parent screen's `fragments/index.ts` should also export it:
+```ts
+// src/screens/<screen-name>/fragments/index.ts
+export * from "./<fragment-name>";
+```
+
+Fragments can nest. If a fragment itself grows complex, add a `fragments/` subfolder inside it:
+```
+src/screens/home/fragments/rooms-list-item/
+├── RoomsListItem.tsx
+├── index.ts
+└── fragments/
+    ├── room-context-menu/
+    │   ├── RoomContextMenu.tsx
+    │   └── index.ts
+    └── index.ts
+```
+
+### B) Shared component — for reusable UI
+
+If the component is (or will be) used by more than one screen or module, place it in shared:
+
+```
+src/shared/components/<component-name>/
+├── <ComponentName>.tsx     ← the component
+└── index.ts                ← re-exports the component
+```
+
+For complex shared components with variants, use a `fragments/` subfolder and a namespace export:
+```
+src/shared/components/button/
+├── index.tsx               ← namespace export: export const Button = { Primary, Secondary }
+├── button.types.ts
+└── fragments/
+    ├── Primary.tsx
+    ├── Secondary.tsx
+    └── index.ts
+```
+
+**When in doubt:** prefer a screen fragment first. Promote to shared only once a second
+screen genuinely needs it. Don't over-generalize prematurely.
+
+---
+
+## Rule 3: Utility function placement
+
+The rule is simple: **a util lives where it is used**.
+
+### Case A: Used by exactly one component → keep it in that component's file
+
+If a helper function is only needed by one component, define it in the same `.tsx` file,
+above the component. No separate file, no export.
+
+```tsx
+// RoomsListItem.tsx
+const formatLastMessage = (event: MatrixEvent): string => {
+  // ...
+};
+
+export const RoomsListItem = () => {
+  const label = formatLastMessage(event);
+  // ...
+};
+```
+
+### Case B: Needs to be shared across multiple components → move to a utils/ folder
+
+If the same logic is genuinely needed in multiple places, extract it to the appropriate
+`utils/` directory — never export it directly from a component file.
+
+- For module-level utils: `src/modules/<module>/utils/<util-name>.ts`
+- For truly shared utils: `src/shared/utils/<util-name>.ts`
+
+Each utils file should be re-exported from the folder's `index.ts`:
+```ts
+// src/modules/matrix-client/utils/index.ts
+export * from "./getEventId";
+export * from "./formatLastMessage";
+```
+
+### What's NOT allowed
+
+```ts
+// ❌ WRONG: exporting a util from a component file for use elsewhere
+// Filters.tsx
+export const formatRoomName = (name: string) => name.trim();
+
+// Home.tsx
+import { formatRoomName } from "./fragments/filters/Filters"; // ❌
+```
+
+If you notice this pattern, the fix is to move the util to the relevant `utils/` folder,
+not to keep exporting it from a component.
+
+---
+
+## Checklist before creating or editing any component file
+
+- [ ] Does this file contain only one exported React component?
+- [ ] Is the component in the right place (fragment if screen-specific, shared if reused)?
+- [ ] Does the fragment folder have its own `index.ts` that re-exports it?
+- [ ] Is the parent's `fragments/index.ts` updated to include the new fragment?
+- [ ] Are utility functions used only here defined in this file (not exported)?
+- [ ] Are utility functions used in multiple places in a proper `utils/` folder?
+- [ ] Is anything being exported from a component file for use as a util elsewhere? (Fix it.)
+
+---
+
+## Quick reference: project structure
+
+```
+src/
+├── screens/
+│   └── <screen>/
+│       ├── <Screen>.tsx
+│       ├── index.ts
+│       └── fragments/
+│           ├── <fragment-name>/
+│           │   ├── <Fragment>.tsx
+│           │   └── index.ts
+│           └── index.ts        ← barrel for all fragments
+├── shared/
+│   ├── components/
+│   │   └── <component-name>/
+│   │       ├── <Component>.tsx
+│   │       └── index.ts
+│   └── utils/
+│       ├── <util-name>.ts
+│       └── index.ts
+└── modules/
+    └── <module>/
+        ├── utils/
+        │   ├── <util-name>.ts
+        │   └── index.ts
+        └── components/
+            └── <Component>.tsx
+```

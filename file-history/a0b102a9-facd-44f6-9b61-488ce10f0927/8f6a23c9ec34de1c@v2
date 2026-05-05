@@ -1,0 +1,53 @@
+import { getRequestConfig } from 'next-intl/server';
+import { defineRouting } from 'next-intl/routing';
+
+import { hasLocale } from 'next-intl';
+
+export const locales = ['en', 'hr'] as const;
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale;
+
+  return {
+    locale,
+    messages: await import(`../../../translations/${locale}.json`),
+  };
+});
+
+export const routing = defineRouting({
+  locales,
+  localePrefix: 'as-needed',
+  defaultLocale: 'hr',
+  pathnames: {
+    '/': '/',
+    '/styleguide': '/styleguide',
+    '/form': '/form',
+    '/services': {
+      en: '/services',
+      hr: '/usluge',
+    },
+    '/projects': {
+      en: '/projects',
+      hr: '/projekti',
+    },
+    '/projects/[slug]': {
+      en: '/projects/[slug]',
+      hr: '/projekti/[slug]',
+    },
+    '/team': {
+      en: '/team',
+      hr: '/tim',
+    },
+    '/about': {
+      en: '/about',
+      hr: '/o-nama',
+    },
+    '/contact': {
+      en: '/contact',
+      hr: '/kontakt',
+    },
+  },
+});

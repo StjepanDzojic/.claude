@@ -1,0 +1,302 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAtomValue, useSetAtom } from "jotai";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { TimelineAtoms } from "modules/timeline/jotai/atoms";
+import { UserService } from "modules/user/service/UserService";
+import { useState } from "react";
+import { ActivityIndicator, Image, Modal, StyleSheet } from "react-native";
+import type { Asset } from "react-native-image-picker";
+import Toast from "react-native-toast-message";
+import { SingleSendItem } from "screens/room/fragments/single-send-item";
+import {
+  Button,
+  GoBackHeader,
+  Input,
+  Loading,
+  ScreenLayout,
+  UserImage,
+} from "shared/components";
+import { useUploadPhoto } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+export const UserProfile: React.FC<
+  NativeStackScreenProps<Routes, "userProfile">
+> = () => {
+  const user = useAtomValue(StorageAtoms.cachedProfile);
+  const [userImageUri, setUserImageUri] = useState<string | undefined>(
+    user?.avatarUrl,
+  );
+  const {
+    isLoading,
+    selectedAsset,
+    isListOpen,
+    setSelectedAsset,
+    setIsListOpen,
+    handleChoosePhoto,
+    handleTakePhoto,
+  } = useUploadPhoto();
+  const [displayName, setDisplayName] = useState<string | undefined>(
+    user?.displayName,
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [shouldRemoveAvatar, setShouldRemoveAvatar] = useState(false);
+  const setImageViewerPayload = useSetAtom(TimelineAtoms.imageViewerPayload);
+
+  const handleRemove = () => {
+    setUserImageUri(undefined);
+    setSelectedAsset(null);
+    setShouldRemoveAvatar(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      let avatarToUpload: Asset | null | undefined;
+
+      if (shouldRemoveAvatar) {
+        avatarToUpload = null; // User wants to remove avatar
+      } else if (selectedAsset) avatarToUpload = selectedAsset;
+
+      const updated = await UserService.updateProfile(
+        displayName,
+        avatarToUpload,
+      );
+
+      setShouldRemoveAvatar(false);
+      setSelectedAsset(null);
+
+      // The user state will be automatically updated via the atom
+      setUserImageUri(updated?.avatarUrl);
+      setDisplayName(updated?.displayName);
+
+      Toast.show({
+        type: "success",
+        text1: "Profile updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      offlineToastHelper("Failed to update profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const rightComponent = () => {
+    const shouldShow =
+      shouldRemoveAvatar || selectedAsset || displayName !== user?.displayName;
+
+    if (!shouldShow) return null;
+
+    return (
+      <Button.Wrapper onPress={handleSave} disabled={isSaving}>
+        <Text>{isSaving ? "Saving..." : "Save"}</Text>
+      </Button.Wrapper>
+    );
+  };
+
+  return (
+    <ScreenLayout paddings={{ paddingHorizontal: 16 }}>
+      {isSaving && <Loading text="Saving..." />}
+      <Block align="center">
+        <GoBackHeader
+          margins={{ marginBottom: 40 }}
+          title="Profile"
+          rightComp={rightComponent()}
+        />
+        <Block margins={{ marginBottom: 8 }}>
+          {isLoading ? (
+            <Block width={120} height={120} align="center" justify="center">
+              <ActivityIndicator />
+            </Block>
+          ) : selectedAsset?.uri ? (
+            <Button.Wrapper
+              onPress={() =>
+                selectedAsset.uri &&
+                setImageViewerPayload({ uri: selectedAsset.uri })
+              }
+            >
+              <Block
+                width={120}
+                height={120}
+                align="center"
+                justify="center"
+                border={{ borderRadius: 999 }}
+                overflow="hidden"
+              >
+                <Image
+                  source={{ uri: selectedAsset.uri }}
+                  width={120}
+                  height={120}
+                />
+              </Block>
+            </Button.Wrapper>
+          ) : (
+            <UserImage
+              avatarUrl={userImageUri}
+              displayName={user?.displayName}
+              width={120}
+              height={120}
+              borderRadius={999}
+              onPress={(uri) => setImageViewerPayload({ uri })}
+            />
+          )}
+        </Block>
+        <Block
+          flexDirection="row"
+          align="center"
+          gap={12}
+          margins={{ marginBottom: 40 }}
+        >
+          <Button.Wrapper
+            onPress={() => setIsListOpen(true)}
+            disabled={isLoading || isSaving}
+          >
+            <Block
+              flexDirection="row"
+              align="center"
+              gap={12}
+              paddings={[16, 12]}
+            >
+              <Image
+                source={require("assets/icons/upload-simple-large.png")}
+                width={16}
+                height={16}
+                tintColor={Colors.primary}
+                style={styles.icon}
+              />
+              <Text size={TextSize.small} color={Colors.primary}>
+                Upload
+              </Text>
+            </Block>
+          </Button.Wrapper>
+          <Button.Wrapper onPress={handleRemove} disabled={isSaving}>
+            <Block
+              flexDirection="row"
+              align="center"
+              gap={12}
+              paddings={[16, 12]}
+            >
+              <Image
+                source={require("assets/icons/trash.png")}
+                width={16}
+                height={16}
+                style={styles.icon}
+              />
+              <Text size={TextSize.small}>Remove</Text>
+            </Block>
+          </Button.Wrapper>
+        </Block>
+      </Block>
+      <Block>
+        <Text margins={{ marginBottom: 20 }}>Contact info</Text>
+        <Block gap={20}>
+          <Block gap={8}>
+            <Text
+              size={TextSize.tiny}
+              color={Colors.white50}
+              paddings={[0, 16]}
+            >
+              Display name
+            </Text>
+            <Input
+              placeholder="Display name"
+              value={displayName}
+              background={Colors.white5}
+              onChangeText={(value) => setDisplayName(value)}
+            />
+            <Text
+              size={TextSize.small}
+              color={Colors.white50}
+              paddings={[0, 16]}
+            >
+              This is what others will see whenever you’re signed in.
+            </Text>
+          </Block>
+          <Block gap={8}>
+            <Text
+              size={TextSize.tiny}
+              color={Colors.white50}
+              paddings={[0, 16]}
+            >
+              Username
+            </Text>
+            <Block
+              border={{
+                borderRadius: 40,
+              }}
+              paddings={[10, 16]}
+              background={Colors.white5}
+            >
+              <Text
+                font="InstrumentSans-Regular"
+                size={TextSize.small}
+                color={Colors.white50}
+              >
+                {user?.userId}
+              </Text>
+            </Block>
+          </Block>
+        </Block>
+      </Block>
+      <Modal
+        visible={isListOpen}
+        transparent={true}
+        presentationStyle="overFullScreen"
+        animationType="fade"
+      >
+        <Block
+          width="100%"
+          height="100%"
+          justify="flex-end"
+          align="center"
+          background={Colors.black70}
+          paddings={[40, 20]}
+        >
+          {isLoading && <Loading />}
+          <Block maxWidth={600} width="100%" gap={8}>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Chose photo"
+                showSeparator
+                onPress={handleChoosePhoto}
+              />
+              <SingleSendItem
+                title="Take a photo"
+                showSeparator
+                onPress={handleTakePhoto}
+              />
+            </Block>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Cancel"
+                onPress={() => setIsListOpen(false)}
+              />
+            </Block>
+          </Block>
+        </Block>
+      </Modal>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  icon: {
+    width: 16,
+    height: 16,
+  },
+  delete: {
+    width: "100%",
+    marginTop: 40,
+  },
+});

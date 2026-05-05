@@ -1,0 +1,334 @@
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import type { RoomInterface } from "@unomed/react-native-matrix-sdk";
+import { TimelineItemContent_Tags } from "@unomed/react-native-matrix-sdk";
+import { useAtom } from "jotai";
+import {
+  addDateDividers,
+  getEventId,
+  getItemUniqueKey,
+  groupInfoEvents,
+} from "modules/matrix-client/utils";
+import { useRoomIdentityViolations } from "modules/room/hooks";
+import { useRoomTimeline } from "modules/timeline/hooks";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { filterSameStateKey } from "modules/timeline/utils";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  KeyboardAvoidingView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  StyleSheet,
+} from "react-native";
+import { MemberDetailsBottomSheet, SeenByBottomSheet } from "shared/components";
+import { useMemberDetails } from "shared/hooks";
+import { DateDivider } from "../date-divider";
+import { FailedEchoBottomSheet } from "../failed-echo-bottom-sheet";
+import { GroupedInfoMessages } from "../grouped-info-messages";
+import { ImageInfoBottomSheet } from "../image-info-bottom-sheet";
+import { MessageContentBottomSheet } from "../message-content-bottom-sheet";
+import { NewMessagesButton } from "../new-messages-button";
+import { ReactionsBottomSheet } from "../reactions-bottom-sheet";
+import { RoomIdentityBanner } from "../room-identity-banner";
+import { RoomInput } from "../room-input";
+import { ScrollToBottomButton } from "../scroll-to-bottom-button";
+import { ShieldModal } from "../shield-modal";
+import { SingleMessageType } from "../single-message-type";
+
+interface Props {
+  room: RoomInterface;
+  roomId: string;
+}
+
+export const RoomTimeline: FC<Props> = ({ room, roomId }) => {
+  const flashListRef = useRef<FlashListRef<TimelineListItem>>(null);
+  const isAtBottomRef = useRef(true);
+  const suppressScrollDownRef = useRef(false);
+  const lastEventKeyRef = useRef<string | undefined>(undefined);
+  const visibleHeightRef = useRef(0);
+  const [showNewMessageArrived, setShowNewMessageArrived] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const {
+    events,
+    isPaginatingRef,
+    reachedStartRef,
+    isDirect,
+    loadMoreMessages,
+    markAsRead,
+  } = useRoomTimeline({
+    room,
+    roomId,
+  });
+  const [scrollToEventId, setScrollToEventId] = useAtom(
+    TimelineAtoms.scrollToEventId,
+  );
+  const [seenByUsers, setSeenByUsers] = useAtom(TimelineAtoms.seenByUsers);
+  const [reactionsPayload, setReactionsPayload] = useAtom(
+    TimelineAtoms.reactionsPayload,
+  );
+  const [shieldPayload, setShieldPayload] = useAtom(
+    TimelineAtoms.shieldPayload,
+  );
+  const { isPinViolatingUsersLoading, violatingUsers, pinViolatingUsers } =
+    useRoomIdentityViolations(room);
+  const {
+    selectedMember,
+    isBottomSheetOpen,
+    openMemberDetails,
+    closeMemberDetails,
+  } = useMemberDetails();
+
+  const sortedEvents = useMemo(() => {
+    const sorted = [...events].sort(
+      (a, b) => Number(a.timestamp) - Number(b.timestamp),
+    );
+
+    return filterSameStateKey(sorted);
+  }, [events]);
+
+  const eventsWithDividers = useMemo(() => {
+    const items = groupInfoEvents(addDateDividers(sortedEvents));
+
+    // Pre-compute isPreviousSameSender so it's not recalculated per-item during render
+    let prevSender: string | null = null;
+    for (const item of items) {
+      if (item.type !== "event") {
+        prevSender = null;
+        continue;
+      }
+      const isMsgLike =
+        item.data.content.tag === TimelineItemContent_Tags.MsgLike;
+      if (!isMsgLike) {
+        prevSender = null;
+        continue;
+      }
+      item.isPreviousSameSender =
+        isDirect || (prevSender !== null && prevSender === item.data.sender);
+      prevSender = item.data.sender;
+    }
+
+    return items;
+  }, [sortedEvents, isDirect]);
+
+  // Reverse for inverted FlashList: [newest, ..., oldest]
+  const reversedEvents = useMemo(
+    () => [...eventsWithDividers].reverse(),
+    [eventsWithDividers],
+  );
+
+  const handleScrollToEvent = useCallback(
+    (eventId: string) => {
+      const index = reversedEvents.findIndex(
+        (item) => item.type === "event" && getEventId(item.data) === eventId,
+      );
+      if (index === -1) return;
+
+      flashListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    },
+    [reversedEvents],
+  );
+
+  useEffect(() => {
+    if (!scrollToEventId) return;
+    handleScrollToEvent(scrollToEventId);
+    setScrollToEventId(null);
+  }, [scrollToEventId, handleScrollToEvent, setScrollToEventId]);
+
+  const handleScrollDown = useCallback(() => {
+    // In inverted list, offset 0 is the visual bottom (newest messages)
+    suppressScrollDownRef.current = true;
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setShowNewMessageArrived(false);
+    setShowScrollDown(false);
+  }, []);
+
+  const handleOnScroll = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+      visibleHeightRef.current = layoutMeasurement.height;
+
+      // Inverted list: large contentOffset.y = near oldest messages (visual top)
+      // Paginate when within 2x visible height of the oldest content
+      const distanceFromTop =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      const nearTop = distanceFromTop < layoutMeasurement.height * 2;
+      if (nearTop && !isPaginatingRef.current && !reachedStartRef.current) {
+        loadMoreMessages();
+      }
+
+      // Inverted list: contentOffset.y near 0 = at visual bottom (newest messages)
+      const paddingToBottom = 100;
+      const atBottom = contentOffset.y <= paddingToBottom;
+      isAtBottomRef.current = atBottom;
+
+      if (!suppressScrollDownRef.current) setShowScrollDown(!atBottom);
+
+      if (!atBottom) return;
+      suppressScrollDownRef.current = false;
+      setShowNewMessageArrived(false);
+      markAsRead();
+    },
+    [loadMoreMessages, markAsRead],
+  );
+
+  const handleContentSizeChange = useCallback(
+    (_w: number, contentHeight: number) => {
+      // Auto-paginate if content doesn't fill the viewport (initial fill)
+      if (
+        contentHeight > 0 &&
+        visibleHeightRef.current > 0 &&
+        contentHeight < visibleHeightRef.current &&
+        !isPaginatingRef.current &&
+        !reachedStartRef.current
+      ) {
+        loadMoreMessages();
+      }
+    },
+    [loadMoreMessages],
+  );
+
+  // Unified new-message handler: scroll to bottom or show "new messages" button
+  useEffect(() => {
+    const lastEvent = sortedEvents[sortedEvents.length - 1];
+    const lastEventKey = lastEvent
+      ? (getItemUniqueKey(lastEvent) ?? undefined)
+      : undefined;
+    const isNewEvent = lastEventKey !== lastEventKeyRef.current;
+    lastEventKeyRef.current = lastEventKey;
+
+    if (!isNewEvent) return;
+
+    if (lastEvent?.isOwn || isAtBottomRef.current) {
+      // Scroll to bottom for own messages or when already at bottom
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setShowNewMessageArrived(false);
+    } else setShowNewMessageArrived(true);
+  }, [sortedEvents]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: TimelineListItem }) => {
+      if (item.type === "divider") {
+        return <DateDivider date={item.date} />;
+      }
+
+      if (item.type === "group") {
+        return <GroupedInfoMessages events={item.events} roomId={roomId} />;
+      }
+
+      return (
+        <SingleMessageType
+          roomId={roomId}
+          event={item.data}
+          isPreviousSameSender={item.isPreviousSameSender}
+          onMemberPress={openMemberDetails}
+        />
+      );
+    },
+    [roomId, openMemberDetails],
+  );
+
+  const keyExtractor = useCallback((item: TimelineListItem) => {
+    if (item.type === "divider") return item.id;
+    if (item.type === "group") return item.id;
+
+    return getItemUniqueKey(item.data) ?? "";
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      setReactionsPayload(null);
+      setSeenByUsers(null);
+      setScrollToEventId(null);
+      setShieldPayload(null);
+    };
+  }, []);
+
+  return (
+    <>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        {!!violatingUsers.length && (
+          <RoomIdentityBanner
+            users={violatingUsers}
+            isLoading={isPinViolatingUsersLoading}
+            onDismiss={pinViolatingUsers}
+          />
+        )}
+        <FlashList
+          ref={flashListRef}
+          data={reversedEvents}
+          inverted
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContent}
+          onContentSizeChange={handleContentSizeChange}
+          onScroll={handleOnScroll}
+          renderItem={renderItem}
+        />
+
+        <RoomInput roomId={roomId} />
+      </KeyboardAvoidingView>
+
+      <MessageContentBottomSheet roomId={roomId} />
+
+      <ImageInfoBottomSheet />
+
+      <FailedEchoBottomSheet />
+
+      <MemberDetailsBottomSheet
+        isBottomSheetOpen={isBottomSheetOpen}
+        selectedMember={selectedMember}
+        roomId={roomId}
+        onClose={closeMemberDetails}
+      />
+
+      <NewMessagesButton
+        visible={showNewMessageArrived}
+        onPress={handleScrollDown}
+      />
+
+      <ScrollToBottomButton
+        visible={showScrollDown && !showNewMessageArrived}
+        onPress={handleScrollDown}
+      />
+
+      <SeenByBottomSheet
+        isOpen={!!seenByUsers}
+        users={seenByUsers ?? []}
+        onClose={() => setSeenByUsers(null)}
+      />
+
+      <ReactionsBottomSheet
+        isOpen={!!reactionsPayload}
+        reactions={reactionsPayload ?? []}
+        onClose={() => setReactionsPayload(null)}
+      />
+
+      <ShieldModal
+        visible={!!shieldPayload}
+        onClose={() => setShieldPayload(null)}
+        isRed={shieldPayload?.isRed ?? false}
+        message={shieldPayload?.message ?? ""}
+      />
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+});

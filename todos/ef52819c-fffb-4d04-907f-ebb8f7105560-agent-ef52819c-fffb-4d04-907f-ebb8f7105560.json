@@ -1,0 +1,17 @@
+[
+  {
+    "content": "Update TeamSection type in project.d.ts with new hierarchical structure",
+    "status": "in_progress",
+    "activeForm": "Updating TeamSection type definition"
+  },
+  {
+    "content": "Update SetupProjectForm.tsx to handle sections and subsections",
+    "status": "pending",
+    "activeForm": "Updating SetupProjectForm component"
+  },
+  {
+    "content": "Update CreativeTeam.tsx to display new structure",
+    "status": "pending",
+    "activeForm": "Updating CreativeTeam component"
+  }
+]

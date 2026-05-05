@@ -1,0 +1,46 @@
+import { Block } from "@prototyp/skeletor";
+import { DebugHelpers } from "modules/matrix-client/helpers";
+import { useState } from "react";
+import { StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Colors } from "shared/styles";
+import {
+  Filters,
+  Header,
+  NewChatButton,
+  NoRoomWrapper,
+  ProtectAccountMessage,
+  Rooms,
+  Search,
+  SecurityFilter,
+} from "../index";
+
+export const IpadSidebar: React.FC = () => {
+  const [search, setSearch] = useState<string>("");
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Block
+      absolute
+      offsets={{ top: 0, left: 0, bottom: 0 }}
+      paddings={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      width={440}
+      background={Colors.black}
+      border={{
+        borderRightWidth: StyleSheet.hairlineWidth,
+        borderRightColor: Colors.white10,
+      }}
+    >
+      <Header />
+      <DebugHelpers />
+      <ProtectAccountMessage />
+      <NoRoomWrapper>
+        <Filters />
+        <Search search={search} setSearch={setSearch} />
+        <SecurityFilter />
+        <NewChatButton />
+      </NoRoomWrapper>
+      <Rooms search={search} />
+    </Block>
+  );
+};

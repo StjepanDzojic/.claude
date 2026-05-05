@@ -1,0 +1,209 @@
+import {
+  Membership,
+  type RoomInterface,
+  type RoomListEntriesUpdate,
+  RoomListEntriesUpdate_Tags,
+  type RoomListEntriesWithDynamicAdaptersResultInterface,
+  type RoomListInterface,
+  RoomListServiceState,
+  type TaskHandleInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { useAtomValue, useSetAtom } from "jotai";
+import { useEffect, useRef } from "react";
+import Toast from "react-native-toast-message";
+import { MatrixJotaiStore } from "../const/matrx-jotai-store";
+import { MatrixAtoms } from "../jotai";
+import { MatrixCore } from "../services/MatrixCore";
+import { updateRoomTimestampAndSort } from "../utils";
+
+export const RoomListProvider = () => {
+  const client = useAtomValue(MatrixAtoms.matrixClient);
+  const syncService = useAtomValue(MatrixAtoms.syncService);
+  const setIsLoading = useSetAtom(MatrixAtoms.roomListLoading);
+
+  // Unfiltered rooms matching the SDK's index space — required for correct diff application
+  const roomsRef = useRef<RoomInterface[]>([]);
+  const hasShownInitialSyncToast = useRef(false);
+
+  const roomListRef = useRef<RoomListInterface | null>(null);
+  const entriesResultRef =
+    useRef<RoomListEntriesWithDynamicAdaptersResultInterface | null>(null);
+
+  useEffect(() => {
+    if (!client || !syncService) return;
+
+    let streamHandle: TaskHandleInterface | null = null;
+    let stateHandle: TaskHandleInterface | null = null;
+
+    const applyDiffsAndPublish = (
+      updates: RoomListEntriesUpdate[],
+    ): RoomInterface[] => {
+      const rooms = [...roomsRef.current];
+
+      for (const update of updates) {
+        switch (update.tag) {
+          case RoomListEntriesUpdate_Tags.Reset:
+            rooms.splice(0, rooms.length, ...update.inner.values);
+            break;
+          case RoomListEntriesUpdate_Tags.Append:
+            rooms.push(...update.inner.values);
+            break;
+          case RoomListEntriesUpdate_Tags.Clear:
+            rooms.splice(0, rooms.length);
+            break;
+          case RoomListEntriesUpdate_Tags.Insert:
+            rooms.splice(update.inner.index, 0, update.inner.value);
+            break;
+          case RoomListEntriesUpdate_Tags.Set:
+            rooms[update.inner.index] = update.inner.value;
+            break;
+          case RoomListEntriesUpdate_Tags.Remove:
+            rooms.splice(update.inner.index, 1);
+            break;
+          case RoomListEntriesUpdate_Tags.PushFront:
+            rooms.unshift(update.inner.value);
+            break;
+          case RoomListEntriesUpdate_Tags.PushBack:
+            rooms.push(update.inner.value);
+            break;
+          case RoomListEntriesUpdate_Tags.PopFront:
+            rooms.shift();
+            break;
+          case RoomListEntriesUpdate_Tags.PopBack:
+            rooms.pop();
+            break;
+          case RoomListEntriesUpdate_Tags.Truncate:
+            rooms.splice(update.inner.length);
+            break;
+        }
+      }
+
+      roomsRef.current = rooms;
+
+      const filtered = rooms.filter((room) => {
+        const m = room.membership();
+        return (
+          m !== Membership.Banned &&
+          m !== Membership.Left &&
+          m !== Membership.Knocked
+        );
+      });
+
+      MatrixJotaiStore.set(MatrixAtoms.roomList, filtered);
+      return filtered;
+    };
+
+    const updateRoomInfoForDiffs = async (updates: RoomListEntriesUpdate[]) => {
+      const addedOrUpdated = updates.flatMap((u) => {
+        switch (u.tag) {
+          case RoomListEntriesUpdate_Tags.Reset:
+            return u.inner.values;
+          case RoomListEntriesUpdate_Tags.Append:
+            return u.inner.values;
+          case RoomListEntriesUpdate_Tags.Insert:
+            return [u.inner.value];
+          case RoomListEntriesUpdate_Tags.Set:
+            return [u.inner.value];
+          case RoomListEntriesUpdate_Tags.PushFront:
+            return [u.inner.value];
+          case RoomListEntriesUpdate_Tags.PushBack:
+            return [u.inner.value];
+          default:
+            return [];
+        }
+      });
+
+      if (addedOrUpdated.length === 0) return;
+
+      const currentMap = MatrixJotaiStore.get(MatrixAtoms.roomInfoMap);
+      const newMap = new Map(currentMap);
+
+      await Promise.allSettled(
+        addedOrUpdated.map(async (room: RoomInterface) => {
+          try {
+            const [info, latestEvent] = await Promise.all([
+              room.roomInfo(),
+              room.latestEvent(),
+            ]);
+            newMap.set(room.id(), info);
+            // latestEvent is only populated after subscribeToRooms() is called
+            // for visible rooms — undefined on initial append, real value on .set diffs
+            if (latestEvent?.timestamp !== undefined) {
+              updateRoomTimestampAndSort(room.id(), latestEvent.timestamp);
+            }
+          } catch {
+            // ignore per-room failures
+          }
+        }),
+      );
+
+      MatrixJotaiStore.set(MatrixAtoms.roomInfoMap, newMap);
+    };
+
+    const init = async () => {
+      try {
+        const roomListService = syncService.roomListService();
+        if (!roomListService) return;
+
+        roomListRef.current = await roomListService.allRooms();
+
+        // Listener stored at module scope to prevent GC — onUpdate must be synchronous
+        entriesResultRef.current =
+          roomListRef.current.entriesWithDynamicAdaptersWith(500, true, {
+            onUpdate: (updates) => {
+              // Sync update — no await here
+              applyDiffsAndPublish(updates);
+              // Fire-and-forget async room info
+              updateRoomInfoForDiffs(updates).catch(console.warn);
+            },
+          });
+
+        streamHandle = entriesResultRef.current.entriesStream();
+
+        // State listener — fallback refresh + loading indicator
+        stateHandle = roomListService.state({
+          onUpdate: (state: RoomListServiceState) => {
+            if (
+              state === RoomListServiceState.SettingUp ||
+              state === RoomListServiceState.Recovering
+            ) {
+              setIsLoading(true);
+              if (!hasShownInitialSyncToast.current) {
+                hasShownInitialSyncToast.current = true;
+                Toast.show({
+                  type: "info",
+                  text1: "Syncing rooms...",
+                  autoHide: false,
+                });
+              }
+            }
+
+            if (state === RoomListServiceState.Running) {
+              // Fallback: refresh from client in case subscription missed any diffs
+              MatrixCore.refreshRoomList().then(() => {
+                setIsLoading(false);
+                Toast.hide();
+              });
+            }
+          },
+        });
+      } catch (error) {
+        console.error("[RoomListProvider] init failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      streamHandle?.cancel?.();
+      stateHandle?.cancel?.();
+      roomsRef.current = [];
+      roomListRef.current = null;
+      entriesResultRef.current = null;
+    };
+  }, [client, syncService]);
+
+  return <></>;
+};

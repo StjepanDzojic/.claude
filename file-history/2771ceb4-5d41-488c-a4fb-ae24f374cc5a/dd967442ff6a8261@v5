@@ -1,0 +1,143 @@
+import { loadEnvConfig } from '@next/env';
+
+loadEnvConfig(process.cwd());
+
+import { INVESTMENT_TIERS } from '../const/investment-tiers';
+import {
+  createProduct,
+  createProductPrice,
+} from '../lib/easy-api/products';
+import type { EasyApiResponse } from '../lib/easy-api/server';
+
+const BOOTSTRAP_ID = 'beni-investment-v1';
+const PRODUCT_NAME = 'Beni Investment';
+const PRODUCT_DESCRIPTION =
+  'Investment in a Beni Capital project. The specific project is identified per-payment via the payment-link tags.';
+const PRODUCT_IMAGE_URL = '';
+const CURRENCY = 'USD';
+
+function arg(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+
+const FORCE = process.argv.includes('--force');
+const SMOKE = process.argv.includes('--smoke');
+const REUSE_PRODUCT_ID = arg('--product-id');
+
+function fail(msg: string, detail?: unknown): never {
+  console.error(msg);
+  if (detail !== undefined) {
+    console.error(JSON.stringify(detail, null, 2));
+  }
+  process.exit(1);
+}
+
+function logResponse<T>(res: EasyApiResponse<T>): void {
+  if (res.ok) {
+    console.log(`  -> OK ${JSON.stringify(res.data)}`);
+  } else {
+    console.error(`  -> FAIL HTTP ${res.status}`);
+    console.error(JSON.stringify(res.envelope ?? res.error, null, 2));
+  }
+}
+
+async function main() {
+  if (
+    process.env.EASY_API_PRODUCT_ID &&
+    !FORCE &&
+    !REUSE_PRODUCT_ID &&
+    !SMOKE
+  ) {
+    fail(
+      'EASY_API_PRODUCT_ID is already set in env — bootstrap appears to have run.\n' +
+        'Pass --product-id <uuid> to reuse it for prices, or --force to create new entities.',
+    );
+  }
+
+  let productId: string;
+
+  if (REUSE_PRODUCT_ID) {
+    productId = REUSE_PRODUCT_ID;
+    console.log(`Reusing existing product: ${productId}`);
+  } else {
+    console.log(`Creating Easy API product "${PRODUCT_NAME}"...`);
+    const productResult = await createProduct({
+      name: PRODUCT_NAME,
+      description: PRODUCT_DESCRIPTION,
+      active: true,
+      metadata: { bootstrap_id: BOOTSTRAP_ID, app: 'beni-capital' },
+      image_url: PRODUCT_IMAGE_URL,
+    });
+    logResponse(productResult);
+    if (!productResult.ok) {
+      fail('Aborting — product creation failed.');
+    }
+    productId = productResult.data.id;
+  }
+
+  if (SMOKE) {
+    console.log('\n--smoke: firing example body + pricing_model=per_unit...');
+    const smokeResult = await createProductPrice({
+      product_id: productId,
+      currency: 'USD',
+      unit_amount: 2500,
+      recurring: false,
+      active: true,
+      tax_behavior: 'exclusive',
+      description: 'One-time purchase',
+      pricing_model: 'per_unit',
+    });
+    logResponse(smokeResult);
+    if (!smokeResult.ok) {
+      console.error(
+        '\nSmoke test failed with the spec example body. The endpoint or our request shape is wrong.',
+      );
+      process.exit(1);
+    }
+    console.log(
+      '\nSmoke test passed. Re-run without --smoke to create the 6 real price tiers.',
+    );
+    return;
+  }
+
+  const priceIds: Record<string, string> = {};
+
+  for (const tier of INVESTMENT_TIERS) {
+    const label = `$${tier.dollars.toLocaleString()}`;
+    console.log(`Creating ${label} price (unit_amount=${tier.cents})...`);
+    const priceResult = await createProductPrice({
+      product_id: productId,
+      currency: CURRENCY,
+      unit_amount: tier.cents,
+      recurring: false,
+      active: true,
+      tax_behavior: 'exclusive',
+      description: `Investment of ${label}`,
+      pricing_model: 'per_unit',
+    });
+    logResponse(priceResult);
+    if (!priceResult.ok) {
+      fail(`Aborting — ${label} price creation failed.`);
+    }
+    priceIds[tier.envKey] = priceResult.data.id;
+  }
+
+  console.log('\nBootstrap complete. Add the following to .env.local:\n');
+  console.log(`EASY_API_PRODUCT_ID=${productId}`);
+  for (const [envKey, id] of Object.entries(priceIds)) {
+    console.log(`${envKey}=${id}`);
+  }
+  console.log();
+  console.log(
+    'Sanity check: each unit_amount echoed above should match the cents value.',
+  );
+  console.log(
+    'If a $5,000 price returned unit_amount=5000 (not 500000), Easy API treats unit_amount as dollars and the constants need updating.',
+  );
+}
+
+main().catch((err) => {
+  console.error('Bootstrap failed:', err);
+  process.exit(1);
+});

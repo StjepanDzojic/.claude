@@ -1,0 +1,166 @@
+'use client';
+
+import { ArchiveItem } from '@app/_shared/ArchiveItem';
+import { Grid } from '@app/_shared/Grid';
+import { Section } from '@app/_shared/Section';
+import { SkeletonNewsArticle } from '@app/_shared/SkeletonNewsArticle';
+import { getProjects } from '@app/_shared/utils/getProjects';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@app/components/ui/pagination';
+import { cn } from '@app/lib/utils';
+import { ProjectDocument } from 'prismicio-types';
+import { FC, useEffect, useState } from 'react';
+
+const getPaginationItems = (currentPage: number, totalPages: number) => {
+  const items: Array<{ type: 'page' | 'ellipsis'; value: number }> = [];
+
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) {
+      items.push({ type: 'page', value: i });
+    }
+  } else {
+    items.push({ type: 'page', value: 1 });
+
+    if (currentPage <= 4) {
+      for (let i = 2; i <= 5; i++) {
+        items.push({ type: 'page', value: i });
+      }
+      items.push({ type: 'ellipsis', value: 0 });
+      items.push({ type: 'page', value: totalPages });
+    } else if (currentPage >= totalPages - 3) {
+      items.push({ type: 'ellipsis', value: 0 });
+      for (let i = totalPages - 4; i <= totalPages; i++) {
+        items.push({ type: 'page', value: i });
+      }
+    } else {
+      items.push({ type: 'ellipsis', value: 0 });
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+        items.push({ type: 'page', value: i });
+      }
+      items.push({ type: 'ellipsis', value: 0 });
+      items.push({ type: 'page', value: totalPages });
+    }
+  }
+
+  return items;
+};
+
+export const Archive: FC = () => {
+  const [projects, setProjects] = useState<ProjectDocument<string>[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getProjects({ page: currentPage })
+      .then((data) => {
+        setProjects(data.projects);
+        setTotalPages(data.totalPages);
+      })
+      .catch(() => setProjects([]))
+      .finally(() => {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 300);
+      });
+  }, [currentPage]);
+
+  return (
+    <Section title="Arhiva projekata">
+      {isLoading ? (
+        <Grid Wrapper="ul" className="gap-12 md:gap-24">
+          {[...Array(9)].map((_, index) => {
+            const col =
+              index % 3 === 0
+                ? 'col-span-24 sm:col-span-12 md:col-[1/9]'
+                : index % 3 === 1
+                  ? 'col-span-24 sm:col-span-12 md:col-[9/17]'
+                  : 'col-span-24 sm:col-span-12 md:col-[17/25]';
+
+            return (
+              <li key={index} className={cn('w-full h-full max-h-max', col)}>
+                <SkeletonNewsArticle className="aspect-[340/244]" />
+              </li>
+            );
+          })}
+        </Grid>
+      ) : (
+        <>
+          {projects.length > 0 ? (
+            <Grid Wrapper="ul" className="gap-12 md:gap-24">
+              {projects.map((project, index) => {
+                const col =
+                  index % 3 === 0
+                    ? 'col-span-24 sm:col-span-12 md:col-[1/9]'
+                    : index % 3 === 1
+                      ? 'col-span-24 sm:col-span-12 md:col-[9/17]'
+                      : 'col-span-24 sm:col-span-12 md:col-[17/25]';
+
+                return (
+                  <li key={index} className={cn('w-full h-full max-h-max', col)}>
+                    <ArchiveItem
+                      title={project.data.title}
+                      date={project.data.date}
+                      image={project.data.hero_image?.url}
+                      uid={project.uid}
+                      sport={project.data.category as string}
+                      basePath="/projekti"
+                    />
+                  </li>
+                );
+              })}
+            </Grid>
+          ) : (
+            <div className="col-span-24 w-full h-full flex justify-center items-center py-40">
+              <p className="text-2xl font-medium text-white">
+                Nema projekata za prikaz
+              </p>
+            </div>
+          )}
+        </>
+      )}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center w-full mt-80 overflow-hidden">
+          <Pagination>
+            <PaginationContent>
+              <PaginationPrevious
+                className="gap-1 px-2.5 sm:pr-2.5"
+                size="default"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+              />
+              {getPaginationItems(currentPage, totalPages).map((item, index) => (
+                <PaginationItem key={index}>
+                  {item.type === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      isActive={currentPage === item.value}
+                      onClick={() => setCurrentPage(item.value)}>
+                      {item.value}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationNext
+                className="gap-1 px-2.5 sm:pr-2.5"
+                aria-label="Go to next page"
+                size="default"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              />
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+    </Section>
+  );
+};

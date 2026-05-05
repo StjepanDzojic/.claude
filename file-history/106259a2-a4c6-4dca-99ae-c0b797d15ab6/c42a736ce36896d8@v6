@@ -1,0 +1,73 @@
+import { animateParallel, Block } from "@prototyp/skeletor";
+import { useAtomValue } from "jotai";
+import { MatrixAtoms } from "modules/matrix-client/jotai";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { NavigationAtoms } from "modules/navigation/jotai";
+import { type PropsWithChildren, useEffect, useRef, useState } from "react";
+import { Easing } from "react-native";
+import { isIpad } from "shared/utils";
+import { IpadSidebar } from "../ipad-sidebar";
+
+const SIDEBAR_WIDTH = 440;
+
+const FULLSCREEN_ROUTES: (keyof Routes)[] = [
+  "splash",
+  "welcome",
+  "login",
+  "onboarding",
+  "notificationsIntro",
+  "serverSelect",
+  "confirmIdentity",
+  "cantConfirm",
+  "verifyUser",
+  "verifyPin",
+  "setupScreenLock",
+  "enterRecoveryKey",
+  "deactivateAccount",
+  "oidcResetWebView",
+];
+
+export const IpadLayoutWrapper: React.FC<PropsWithChildren> = ({
+  children,
+}) => {
+  const ipad = isIpad();
+  const splashFinished = useAtomValue(NavigationAtoms.splashFinished);
+  const matrixClient = useAtomValue(MatrixAtoms.matrixClient);
+  const [currentRoute, setCurrentRoute] = useState<string | undefined>(
+    () => NavigationContainerRef?.getCurrentRoute()?.name,
+  );
+
+  useEffect(() => {
+    return NavigationContainerRef?.addListener("state", () => {
+      setCurrentRoute(NavigationContainerRef?.getCurrentRoute()?.name);
+    });
+  }, []);
+
+  const showSidebar =
+    ipad &&
+    splashFinished &&
+    matrixClient !== null &&
+    !FULLSCREEN_ROUTES.includes(currentRoute as keyof Routes);
+
+  const transition = useRef(
+    animateParallel(
+      { marginLeft: [0, SIDEBAR_WIDTH] },
+      { duration: 350, easing: Easing.out(Easing.cubic), native: false },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showSidebar) {
+      setTimeout(() => transition.start(), 200);
+    } else transition.reverse();
+  }, [showSidebar]);
+
+  return (
+    <Block flex={1}>
+      <Block flex={1} animations={transition.animations}>
+        {children}
+      </Block>
+      {showSidebar && <IpadSidebar />}
+    </Block>
+  );
+};

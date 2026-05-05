@@ -1,0 +1,198 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { Block, Text } from "@prototyp/skeletor";
+import { useIsFocused } from "@react-navigation/native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAtomValue } from "jotai";
+import { AuthService } from "modules/auth/service/AuthService";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { UserService } from "modules/user/service/UserService";
+import { useEffect, useState } from "react";
+import { Image, type ImageSourcePropType, StyleSheet } from "react-native";
+import { Button, GoBackHeader, ScreenLayout } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import {
+  SettingsListItem,
+  SignOutBottomSheet,
+  UserInfoItem,
+} from "./fragments";
+
+type SettingsRouteName =
+  | "notifications"
+  | "screenLock"
+  | "encryption"
+  | "about"
+  | "reportProblem";
+
+const ITEMS: {
+  title: string;
+  icon: ImageSourcePropType;
+  routeName: SettingsRouteName;
+}[] = [
+  {
+    title: "Notifications",
+    icon: require("assets/icons/bell.png"),
+    routeName: "notifications",
+  },
+  {
+    title: "Screen Lock",
+    icon: require("assets/icons/lock-key.png"),
+    routeName: "screenLock",
+  },
+  {
+    title: "Encryption",
+    icon: require("assets/icons/key.png"),
+    routeName: "encryption",
+  },
+  {
+    title: "About",
+    icon: require("assets/icons/info.png"),
+    routeName: "about",
+  },
+];
+
+export const Settings: React.FC<NativeStackScreenProps<Routes, "settings">> = ({
+  navigation,
+}) => {
+  const [isSignOutBottomSheetOpen, setIsSignOutBottomSheetOpen] =
+    useState(false);
+  const screenLockPin = useAtomValue(StorageAtoms.screenLockPin);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const canDeactivateAccount = AuthService.canDeactivateAccount();
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    UserService.getBlockedUsers().then(setBlockedUserIds).catch(console.error);
+  }, [isFocused]);
+
+  const handleOnPress = (routeName: SettingsRouteName) => {
+    if (routeName === "screenLock") {
+      if (screenLockPin) {
+        navigation.navigate("verifyPin");
+      } else navigation.navigate("setupScreenLock");
+
+      return;
+    }
+    navigation.navigate(routeName);
+  };
+
+  return (
+    <BottomSheetModalProvider>
+    <ScreenLayout>
+      <Block align="center" gap={40}>
+        <GoBackHeader title="Settings" margins={0} />
+        <UserInfoItem />
+        <Block
+          border={{ borderRadius: 16 }}
+          width="100%"
+          background={Colors.white5}
+        >
+          {ITEMS.slice(0, 3).map((item, index, array) => (
+            <SettingsListItem
+              key={item.title}
+              title={item.title}
+              icon={item.icon}
+              onPress={() => handleOnPress(item.routeName)}
+              showSeparator={
+                index !== array.length - 1 || !!blockedUserIds.length
+              }
+            />
+          ))}
+          {!!blockedUserIds.length && (
+            <SettingsListItem
+              title="Blocked Users"
+              icon={require("assets/icons/ban.png")}
+              onPress={() =>
+                navigation.navigate("blockedUsers", { blockedUserIds })
+              }
+              showSeparator={false}
+            />
+          )}
+        </Block>
+        <Block
+          border={{ borderRadius: 16 }}
+          width="100%"
+          background={Colors.white5}
+        >
+          {ITEMS.slice(3).map((item, index, array) => (
+            <SettingsListItem
+              key={item.title}
+              title={item.title}
+              icon={item.icon}
+              onPress={() => handleOnPress(item.routeName)}
+              showSeparator={index !== array.length - 1}
+            />
+          ))}
+        </Block>
+        <Block
+          border={{ borderRadius: 16 }}
+          width="100%"
+          background={Colors.white5}
+        >
+          <Button.Wrapper
+            onPress={() => setIsSignOutBottomSheetOpen(true)}
+            style={styles.button}
+          >
+            <Block
+              flexDirection="row"
+              align="center"
+              gap={12}
+              paddings={[20, 12]}
+              width="100%"
+              border={{ borderRadius: 16 }}
+            >
+              <Image
+                source={require("assets/icons/sign-out.png")}
+                width={24}
+                height={24}
+                tintColor={Colors.warning}
+              />
+              <Text size={TextSize.base} color={Colors.warning}>
+                Sign Out
+              </Text>
+            </Block>
+          </Button.Wrapper>
+          {canDeactivateAccount && (
+            <Button.Wrapper
+              onPress={() => navigation.navigate("deactivateAccount")}
+              style={styles.button}
+            >
+              <Block
+                flexDirection="row"
+                align="center"
+                gap={12}
+                paddings={[20, 12]}
+                width="100%"
+                border={{
+                  borderRadius: 16,
+                  borderTopWidth: 1,
+                  borderColor: Colors.white5,
+                }}
+              >
+                <Image
+                  source={require("assets/icons/warning-triangle.png")}
+                  width={24}
+                  height={24}
+                  tintColor={Colors.warning}
+                />
+                <Text size={TextSize.base} color={Colors.warning}>
+                  Deactivate Account
+                </Text>
+              </Block>
+            </Button.Wrapper>
+          )}
+        </Block>
+      </Block>
+      <SignOutBottomSheet
+        isBottomSheetOpen={isSignOutBottomSheetOpen}
+        setIsBottomSheetOpen={() => setIsSignOutBottomSheetOpen(false)}
+      />
+    </ScreenLayout>
+    </BottomSheetModalProvider>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    width: "100%",
+  },
+});

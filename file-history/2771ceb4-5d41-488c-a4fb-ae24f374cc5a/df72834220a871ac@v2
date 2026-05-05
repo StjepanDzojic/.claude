@@ -1,0 +1,15 @@
+---
+name: Easy API replaces Stripe for investment payments
+description: Beni Capital is an investment platform; Easy API is the chosen payment provider (in place of Stripe) for the invest → pay → record flow.
+type: project
+originSessionId: 2771ceb4-5d41-488c-a4fb-ae24f374cc5a
+---
+Beni Capital lets users invest in creative projects (theatre / film / TV / music). The Easy API integration exists to enable real-money investment payments — it is taking the role Stripe usually plays.
+
+**Why:** The user is building out a payment flow and chose Easy API over Stripe; payment endpoints are the primary driver of this integration, not generic CRUD.
+
+**How to apply:**
+- When the user shares a new Easy API endpoint, treat it as part of the invest → pay → confirm → record flow first; only fall back to generic CRUD framing if it clearly isn't payment-related.
+- A new endpoint typically lands changes across multiple layers: `lib/easy-api/*` (domain method), `types/project.d.ts` or `types/transaction.ts` (new fields), `firestore.rules` + `lib/firebase/*-actions.ts` (data shape + rules), and the dashboard UI (`app/(dashboard)/`, `modules/dashboard/`). Walk this list and ask which layers move — don't just wire the HTTP call.
+- Full integration brief lives in [EASY_API_INTEGRATION.md](EASY_API_INTEGRATION.md) at repo root — read it before starting endpoint work. The Easy API service itself is at `lib/easy-api/server.ts`.
+- Firebase Auth still owns user identity; the Easy API server key is a backend secret. Client never calls Easy API directly — always through `app/api/*` route handlers that verify the Firebase ID token first.

@@ -1,0 +1,194 @@
+type JsonPrimitive = string | number | boolean | null;
+
+export type EasyApiQuery = Record<string, JsonPrimitive | undefined>;
+
+export type EasyApiRequestOptions = {
+  query?: EasyApiQuery;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+  cache?: RequestCache;
+  next?: NextFetchRequestConfig;
+};
+
+export type EasyApiBodyOptions = EasyApiRequestOptions & {
+  body?: unknown;
+};
+
+export type EasyApiErrorBody = {
+  code: string;
+  message: string;
+  details?: unknown;
+};
+
+export type EasyApiErrorEnvelope = {
+  success: false;
+  timestamp: string;
+  error: EasyApiErrorBody;
+};
+
+export type EasyApiResponse<TData, TError = EasyApiErrorBody> =
+  | { ok: true; status: number; data: TData }
+  | { ok: false; status: number; error: TError; envelope?: EasyApiErrorEnvelope };
+
+type EasyApiSuccessEnvelope<T> = {
+  success: true;
+  timestamp: string;
+  data: T;
+  message?: string;
+};
+
+const isSuccessEnvelope = (
+  body: unknown,
+): body is EasyApiSuccessEnvelope<unknown> =>
+  typeof body === 'object' &&
+  body !== null &&
+  'success' in body &&
+  (body as { success: unknown }).success === true &&
+  'data' in body;
+
+const isErrorEnvelope = (body: unknown): body is EasyApiErrorEnvelope =>
+  typeof body === 'object' &&
+  body !== null &&
+  'success' in body &&
+  (body as { success: unknown }).success === false &&
+  'error' in body;
+
+export class EasyApiNetworkError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'EasyApiNetworkError';
+  }
+}
+
+const API_KEY_HEADER = 'x-easy-api-key';
+
+type EasyApiConfig = { baseUrl: string; apiKey: string };
+
+const readConfig = (): EasyApiConfig => {
+  const baseUrl = process.env.API_BASE_URL;
+  const apiKey = process.env.API_SECRET_KEY;
+
+  if (!baseUrl) {
+    throw new Error('Missing API_BASE_URL environment variable.');
+  }
+  if (!apiKey) {
+    throw new Error('Missing API_SECRET_KEY environment variable.');
+  }
+
+  return { baseUrl, apiKey };
+};
+
+const joinUrl = (base: string, path: string, query?: EasyApiQuery) => {
+  const cleanBase = base.replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  let url = `${cleanBase}${cleanPath}`;
+
+  if (query) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null) continue;
+      params.append(key, String(value));
+    }
+    const qs = params.toString();
+    if (qs) url += `?${qs}`;
+  }
+
+  return url;
+};
+
+const parseBody = async (response: Response): Promise<unknown> => {
+  if (
+    response.status === 204 ||
+    response.headers.get('content-length') === '0'
+  ) {
+    return null;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+  return response.text();
+};
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export class EasyApiService {
+  async request<TData, TError = EasyApiErrorBody>(
+    method: HttpMethod,
+    path: string,
+    options: EasyApiBodyOptions = {},
+  ): Promise<EasyApiResponse<TData, TError>> {
+    const { baseUrl, apiKey } = readConfig();
+    const { query, headers, signal, cache, next, body } = options;
+
+    const url = joinUrl(baseUrl, path, query);
+    const hasBody = body !== undefined;
+
+    const init: RequestInit & { next?: NextFetchRequestConfig } = {
+      method,
+      headers: {
+        Accept: 'application/json',
+        [API_KEY_HEADER]: apiKey,
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+        ...headers,
+      },
+      signal,
+      cache,
+      next,
+    };
+
+    if (hasBody) {
+      init.body = JSON.stringify(body);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      throw new EasyApiNetworkError(
+        `Easy API request failed: ${method} ${path}`,
+        { cause: error },
+      );
+    }
+
+    const parsed = await parseBody(response);
+
+    if (response.ok) {
+      const data = isSuccessEnvelope(parsed) ? parsed.data : parsed;
+      return { ok: true, status: response.status, data: data as TData };
+    }
+
+    if (isErrorEnvelope(parsed)) {
+      return {
+        ok: false,
+        status: response.status,
+        error: parsed.error as TError,
+        envelope: parsed,
+      };
+    }
+    return { ok: false, status: response.status, error: parsed as TError };
+  }
+
+  get<TData, TError = EasyApiErrorBody>(path: string, options?: EasyApiRequestOptions) {
+    return this.request<TData, TError>('GET', path, options);
+  }
+
+  post<TData, TError = EasyApiErrorBody>(path: string, options?: EasyApiBodyOptions) {
+    return this.request<TData, TError>('POST', path, options);
+  }
+
+  put<TData, TError = EasyApiErrorBody>(path: string, options?: EasyApiBodyOptions) {
+    return this.request<TData, TError>('PUT', path, options);
+  }
+
+  patch<TData, TError = EasyApiErrorBody>(path: string, options?: EasyApiBodyOptions) {
+    return this.request<TData, TError>('PATCH', path, options);
+  }
+
+  delete<TData, TError = EasyApiErrorBody>(path: string, options?: EasyApiBodyOptions) {
+    return this.request<TData, TError>('DELETE', path, options);
+  }
+}
+
+export const easyApi = new EasyApiService();

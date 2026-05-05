@@ -1,0 +1,106 @@
+import { z } from 'zod';
+import { buildUrl, isWriteMethod, parseResponse } from './http-internal';
+
+/**
+ * Browser-safe HTTP client. Sends the PUBLISHABLE key.
+ *
+ * Use this from:
+ *   - Client components
+ *   - Hooks / event handlers
+ *   - ANY code that might run in the browser bundle
+ *
+ * For endpoints that require the secret key, use `httpServer` from
+ * `./http-server` instead — importing that module from client code throws.
+ *
+ * Env:
+ *   NEXT_PUBLIC_API_BASE_URL         — e.g. https://api.example.com/v1
+ *   NEXT_PUBLIC_API_PUBLISHABLE_KEY  — safe to expose to browsers
+ *
+ * `RequestOptions` / `HttpMethod` are global (see `types/http-service.d.ts`).
+ */
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_API_PUBLISHABLE_KEY ?? '';
+
+export { ApiError, envelope } from './http-internal';
+
+const getAuthHeaders = (apiKey: string): HeadersInit => {
+  if (!apiKey) return {};
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'x-api-key': apiKey,
+    'api-key': apiKey,
+  };
+};
+
+async function request<TBody = unknown>(
+  options: RequestOptions<TBody>,
+): Promise<unknown> {
+  const {
+    path,
+    method = 'GET',
+    query,
+    body,
+    headers,
+    idempotencyKey,
+    signal,
+    cache,
+    next,
+  } = options;
+
+  const hasBody = body !== undefined && method !== 'GET' && method !== 'DELETE';
+
+  const response = await fetch(buildUrl(BASE_URL, path, query), {
+    method,
+    signal,
+    cache,
+    next,
+    headers: {
+      Accept: 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...getAuthHeaders(PUBLISHABLE_KEY),
+      ...(idempotencyKey && isWriteMethod(method)
+        ? { 'Idempotency-Key': idempotencyKey }
+        : {}),
+      ...headers,
+    },
+    body: hasBody ? JSON.stringify(body) : undefined,
+  });
+
+  return parseResponse(response);
+}
+
+async function send<TSchema extends z.ZodTypeAny, TBody = unknown>(
+  schema: TSchema,
+  options: RequestOptions<TBody>,
+): Promise<z.infer<TSchema>> {
+  const raw = await request<TBody>(options);
+  return schema.parse(raw) as z.infer<TSchema>;
+}
+
+export const http = {
+  get: <TSchema extends z.ZodTypeAny>(
+    schema: TSchema,
+    options: Omit<RequestOptions, 'method' | 'body'>,
+  ) => send(schema, { ...options, method: 'GET' }),
+
+  post: <TSchema extends z.ZodTypeAny, TBody = unknown>(
+    schema: TSchema,
+    options: Omit<RequestOptions<TBody>, 'method'>,
+  ) => send<TSchema, TBody>(schema, { ...options, method: 'POST' }),
+
+  put: <TSchema extends z.ZodTypeAny, TBody = unknown>(
+    schema: TSchema,
+    options: Omit<RequestOptions<TBody>, 'method'>,
+  ) => send<TSchema, TBody>(schema, { ...options, method: 'PUT' }),
+
+  patch: <TSchema extends z.ZodTypeAny, TBody = unknown>(
+    schema: TSchema,
+    options: Omit<RequestOptions<TBody>, 'method'>,
+  ) => send<TSchema, TBody>(schema, { ...options, method: 'PATCH' }),
+
+  delete: <TSchema extends z.ZodTypeAny>(
+    schema: TSchema,
+    options: Omit<RequestOptions, 'method' | 'body'>,
+  ) => send(schema, { ...options, method: 'DELETE' }),
+};

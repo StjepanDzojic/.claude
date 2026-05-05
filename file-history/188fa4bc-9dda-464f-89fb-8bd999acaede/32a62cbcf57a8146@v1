@@ -1,0 +1,381 @@
+import type {
+  EventTimelineItem,
+  RoomInterface,
+  TaskHandleInterface,
+  TimelineInterface,
+  TimelineItemInterface,
+} from "@unomed/react-native-matrix-sdk";
+import {
+  DateDividerMode,
+  ReceiptType,
+  TimelineDiff_Tags,
+  TimelineFilter,
+  TimelineFocus,
+  TimelineReadReceiptTracking,
+} from "@unomed/react-native-matrix-sdk";
+import { useSetAtom } from "jotai";
+import {
+  getItemUniqueKey,
+  getTransactionId,
+} from "modules/matrix-client/utils";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { TimelineAtoms } from "modules/timeline";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import { offlineToastHelper } from "shared/utils";
+
+//TODO: Update verification requests if needed or remove
+/** Maximum age for a verification request to be considered valid (5 minutes) */
+// const VERIFICATION_REQUEST_MAX_AGE_MS = 5 * 60 * 1000;
+
+// /** Check if an event is a verification request */
+// const isVerificationRequest = (event: EventTimelineItem): boolean => {
+//   if (event.content.tag !== TimelineItemContent_Tags.MsgLike) return false;
+//   const kind = event.content.inner.content.kind;
+//   if (kind?.tag !== MsgLikeKind_Tags.Message) return false;
+//   const msgType = kind.inner.content.msgType;
+//   return (
+//     msgType?.tag === MessageType_Tags.Other &&
+//     msgType.inner.msgtype === "m.key.verification.request"
+//   );
+// };
+
+// /** Check if a verification request is recent enough to be handled */
+// const isRecentVerificationRequest = (event: EventTimelineItem): boolean => {
+//   const eventTimestamp = Number(event.timestamp);
+//   const now = Date.now();
+//   const age = now - eventTimestamp;
+//   return age < VERIFICATION_REQUEST_MAX_AGE_MS;
+// };
+
+interface Props {
+  room: RoomInterface | undefined;
+  roomId: string;
+}
+
+const TIMELINE_PAGE_SIZE = 20;
+const ENABLE_TIMELINE_DEBUG = __DEV__;
+
+export const useRoomTimeline = ({ room, roomId }: Props) => {
+  const [events, setEvents] = useState<EventTimelineItem[]>([]);
+  /** Track processed verification request IDs to avoid duplicates */
+  // const processedVerificationRequestsRef = useRef<Set<string>>(new Set());
+  const eventIdsRef = useRef<Set<string>>(new Set());
+  const timelineItemsRef = useRef<Array<EventTimelineItem | null>>([]);
+  const timelineRef = useRef<TimelineInterface | null>(null);
+  const isPaginatingRef = useRef(false);
+  const reachedStartRef = useRef(false);
+  // const setVerificationStatus = useSetAtom(MatrixAtoms.verificationStatus);
+  const setPinnedEventIds = useSetAtom(TimelineAtoms.pinnedEventIds);
+  const [isDirect, setIsDirect] = useState(false);
+  /** FIFO queue of transactionIds for in-flight own messages, used to match the final echo Set diff */
+  const pendingTransactionIdsQueue = useRef<string[]>([]);
+  const rebuildTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const toEventItem = (item: TimelineItemInterface): EventTimelineItem | null =>
+    item.asEvent() ?? null;
+
+  const rebuildEventsFromTimelineItems = useCallback(() => {
+    const seenIds = new Set<string>();
+    const nextEvents: EventTimelineItem[] = [];
+
+    for (const item of timelineItemsRef.current) {
+      if (!item) continue;
+      const key = getItemUniqueKey(item);
+      if (key) {
+        if (seenIds.has(key)) continue;
+        seenIds.add(key);
+      }
+      nextEvents.push(item);
+    }
+
+    eventIdsRef.current = seenIds;
+    setEvents(nextEvents);
+  }, []);
+
+  //Remove for now verification requests
+  // const handleVerificationRequest = (info: {
+  //   senderId: string;
+  //   flowId: string;
+  // }) => {
+  //   setVerificationStatus("incomingRequest");
+  //   NavigationContainerRef.navigate("verifyUser", {
+  //     userId: info.senderId,
+  //     flowId: info.flowId,
+  //   });
+  // };
+
+  // const checkForVerificationRequests = useCallback(
+  //   (incoming: EventTimelineItem[]) => {
+  //     for (const event of incoming) {
+  //       if (event.isOwn) continue;
+
+  //       if (
+  //         !isVerificationRequest(event) ||
+  //         !isRecentVerificationRequest(event)
+  //       ) {
+  //         continue;
+  //       }
+
+  //       const flowId = getEventId(event);
+  //       if (!flowId) continue;
+
+  //       if (processedVerificationRequestsRef.current.has(flowId)) continue;
+
+  //       processedVerificationRequestsRef.current.add(flowId);
+
+  //       handleVerificationRequest({
+  //         senderId: event.sender,
+  //         flowId,
+  //       });
+
+  //       // Only handle one at a time
+  //       break;
+  //     }
+  //   },
+  //   [],
+  // );
+
+  const markAsRead = useCallback(async () => {
+    if (!room) return;
+    if (AppState.currentState !== "active") return;
+
+    try {
+      await room.markAsRead(ReceiptType.Read);
+    } catch (error) {
+      console.error("Failed to mark room as read:", error);
+    }
+  }, [room]);
+
+  const loadMoreMessages = useCallback(async () => {
+    if (!timelineRef.current || isPaginatingRef.current || reachedStartRef.current) return;
+
+    isPaginatingRef.current = true;
+    console.log(`[TimelineDebug][${roomId}] paginateBackwards started`);
+
+    try {
+      const hitStart = await timelineRef.current.paginateBackwards(TIMELINE_PAGE_SIZE);
+      console.log(
+        `[TimelineDebug][${roomId}] paginateBackwards done: hitStart=${hitStart}, items=${timelineItemsRef.current.length}`,
+      );
+      if (hitStart) {
+        reachedStartRef.current = true;
+      }
+    } catch (error) {
+      console.error("Failed to load more messages:", error);
+    } finally {
+      isPaginatingRef.current = false;
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!room) return;
+    setPinnedEventIds([]);
+    TimelineService.getPinnedEventIds(roomId)
+      .then(setPinnedEventIds)
+      .catch(console.error);
+  }, [room, roomId, setPinnedEventIds]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    // Reset state when room changes
+    setEvents([]);
+    timelineItemsRef.current = [];
+    eventIdsRef.current.clear();
+    pendingTransactionIdsQueue.current = [];
+
+    let timelineListenerHandle: TaskHandleInterface | null = null;
+
+    const initRoomTimeline = async () => {
+      try {
+        const timeline = await room.timelineWithConfiguration({
+          focus: new TimelineFocus.Live({ hideThreadedEvents: false }),
+          filter: new TimelineFilter.All(),
+          internalIdPrefix: undefined,
+          dateDividerMode: DateDividerMode.Daily,
+          trackReadReceipts: TimelineReadReceiptTracking.AllEvents,
+          reportUtds: false,
+        });
+
+        // Store timeline in ref for reuse in pagination
+        timelineRef.current = timeline;
+
+        // Set up listener BEFORE paginateBackwards so the SDK's initial
+        // cached diffs (from SQLite) are received immediately — no network needed.
+        // Set up timeline listener for real-time updates
+        timelineListenerHandle = await timeline.addListener({
+          onUpdate: (diffs) => {
+            const beforeCount = timelineItemsRef.current.length;
+            diffs.forEach((diff) => {
+              const change = diff.tag;
+              const timelineItems = timelineItemsRef.current;
+              switch (change) {
+                case TimelineDiff_Tags.Append: {
+                  if (diff.inner.values.length > 0) {
+                    timelineItems.push(...diff.inner.values.map(toEventItem));
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Insert: {
+                  const { index, value } = diff.inner;
+                  timelineItems.splice(index, 0, toEventItem(value));
+                  break;
+                }
+                case TimelineDiff_Tags.Set: {
+                  const { index, value } = diff.inner;
+                  const ev = toEventItem(value);
+                  timelineItems[index] = ev;
+
+                  // transactionId -> eventId transition can arrive in an order where
+                  // a stale local echo still exists elsewhere in the list.
+                  if (
+                    ev?.isOwn &&
+                    !ev.localSendState &&
+                    pendingTransactionIdsQueue.current.length > 0
+                  ) {
+                    const txId = pendingTransactionIdsQueue.current.shift();
+                    if (txId) {
+                      const txIndex = timelineItems.findIndex((item) => {
+                        if (!item) return false;
+                        return getItemUniqueKey(item) === txId;
+                      });
+                      if (txIndex !== -1) {
+                        timelineItems[txIndex] = ev;
+                      }
+                    }
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Remove: {
+                  const { index: removeIndex } = diff.inner;
+                  if (removeIndex >= 0 && removeIndex < timelineItems.length) {
+                    timelineItems.splice(removeIndex, 1);
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.PushFront: {
+                  const { value } = diff.inner;
+                  timelineItems.unshift(toEventItem(value));
+                  break;
+                }
+                case TimelineDiff_Tags.PushBack: {
+                  const { value } = diff.inner;
+                  const ev = toEventItem(value);
+                  timelineItems.push(ev);
+                  if (ev) {
+                    const txId = getTransactionId(ev);
+                    if (txId) {
+                      pendingTransactionIdsQueue.current.push(txId);
+                    }
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.PopFront: {
+                  timelineItems.shift();
+                  break;
+                }
+                case TimelineDiff_Tags.PopBack: {
+                  timelineItems.pop();
+                  break;
+                }
+                case TimelineDiff_Tags.Reset: {
+                  const resetItems = diff.inner.values;
+                  pendingTransactionIdsQueue.current = [];
+                  timelineItemsRef.current = resetItems.map(toEventItem);
+
+                  const eventItems = timelineItemsRef.current.filter(
+                    (i): i is EventTimelineItem => !!i,
+                  );
+                  pendingTransactionIdsQueue.current = eventItems
+                    .map(getTransactionId)
+                    .filter((id): id is string => !!id);
+                  break;
+                }
+                case TimelineDiff_Tags.Truncate: {
+                  const { length: cut } = diff.inner;
+                  timelineItems.length = cut;
+                  break;
+                }
+                case TimelineDiff_Tags.Clear: {
+                  timelineItemsRef.current = [];
+                  pendingTransactionIdsQueue.current = [];
+                  eventIdsRef.current = new Set();
+                  setEvents([]);
+                  break;
+                }
+                default:
+                  console.log("Unknown timeline change type:", change);
+              }
+            });
+
+            if (diffs.some((diff) => diff.tag !== TimelineDiff_Tags.Clear)) {
+              if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+              rebuildTimerRef.current = setTimeout(
+                rebuildEventsFromTimelineItems,
+                0,
+              );
+            }
+
+            if (ENABLE_TIMELINE_DEBUG) {
+              const afterCount = timelineItemsRef.current.length;
+              const tags = diffs.map((d) => d.tag).join(", ");
+              console.log(
+                `[TimelineDebug][${roomId}] diffs=[${tags}] items ${beforeCount}->${afterCount}`,
+              );
+            }
+
+          },
+        });
+
+        // The SDK delivers cached items via a Reset diff when the listener
+        // attaches. If the cache is empty (or thin), paginate once to fill
+        // at least TIMELINE_PAGE_SIZE events from the server.
+        setTimeout(() => {
+          const cachedCount = timelineItemsRef.current.length;
+          console.log(
+            `[TimelineDebug][${roomId}] initial check: cachedCount=${cachedCount}, threshold=${TIMELINE_PAGE_SIZE}`,
+          );
+          if (cachedCount < TIMELINE_PAGE_SIZE) {
+            console.log(`[TimelineDebug][${roomId}] cache thin — triggering eager pagination`);
+            loadMoreMessages();
+          } else {
+            console.log(`[TimelineDebug][${roomId}] cache sufficient — skipping eager pagination`);
+          }
+        }, 0);
+      } catch (error) {
+        console.error("Failed to initialize room timeline:", error);
+        offlineToastHelper("Failed to load the messages. Please try again.");
+        NavigationContainerRef.goBack();
+        return null;
+      }
+    };
+
+    initRoomTimeline();
+
+    return () => {
+      timelineListenerHandle?.cancel?.();
+      if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+      timelineRef.current = null;
+      timelineItemsRef.current = [];
+      isPaginatingRef.current = false;
+      reachedStartRef.current = false;
+    };
+  }, [rebuildEventsFromTimelineItems, room, roomId]);
+
+  useEffect(() => {
+    markAsRead().catch(console.error);
+    room?.isDirect().then(setIsDirect).catch(console.error);
+  }, [room, markAsRead]);
+
+  return {
+    events,
+    timelineRef,
+    isPaginatingRef,
+    reachedStartRef,
+    isDirect,
+    loadMoreMessages,
+    markAsRead,
+  };
+};

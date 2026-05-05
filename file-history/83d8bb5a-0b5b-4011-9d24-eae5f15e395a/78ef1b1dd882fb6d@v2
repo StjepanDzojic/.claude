@@ -1,0 +1,15 @@
+// External 3rd-party API types (see services/)
+type PaymentLinkAmountType = import('./payment-link.server.service').PaymentLinkAmountType;
+type PaymentLinkProductPrice = import('./payment-link.server.service').PaymentLinkProductPrice;
+type PaymentLinkProduct = import('./payment-link.server.service').PaymentLinkProduct;
+type PaymentLinkPaymentMethod = import('./payment-link.server.service').PaymentLinkPaymentMethod;
+type PaymentLinkBuyerDetails = import('./payment-link.server.service').PaymentLinkBuyerDetails;
+type PaymentLinkAdditionalDetails = import('./payment-link.server.service').PaymentLinkAdditionalDetails;
+type CreatePaymentLinkBody = import('./payment-link.server.service').CreatePaymentLinkBody;
+type PaymentLink = import('./payment-link.server.service').PaymentLink;
+
+// Internal Route Handler (/api/payment-link) contract (see ../types.ts)
+type CreatePaymentLinkRequest = import('../types').CreatePaymentLinkRequest;
+type CreatePaymentLinkData = import('../types').CreatePaymentLinkData;
+type CreatePaymentLinkResponse = import('../types').CreatePaymentLinkResponse;
+type CreatePaymentLinkErrorResponse = import('../types').CreatePaymentLinkErrorResponse;

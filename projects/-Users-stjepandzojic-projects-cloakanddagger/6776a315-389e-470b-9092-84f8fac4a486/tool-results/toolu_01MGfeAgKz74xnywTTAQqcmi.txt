@@ -1,0 +1,202 @@
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:144:export enum RoomPinnedEventsChange {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:159:const FfiConverterTypeRoomPinnedEventsChange = (() => {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:161:  type TypeName = RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:166:          return RoomPinnedEventsChange.Added;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:168:          return RoomPinnedEventsChange.Removed;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:170:          return RoomPinnedEventsChange.Changed;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:177:        case RoomPinnedEventsChange.Added:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:179:        case RoomPinnedEventsChange.Removed:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:181:        case RoomPinnedEventsChange.Changed:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:399:    FfiConverterTypeRoomPinnedEventsChange,
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:75:export let RoomPinnedEventsChange = /*#__PURE__*/function (RoomPinnedEventsChange) {
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:76:  RoomPinnedEventsChange[RoomPinnedEventsChange["Added"] = 0] = "Added";
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:77:  RoomPinnedEventsChange[RoomPinnedEventsChange["Removed"] = 1] = "Removed";
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:78:  RoomPinnedEventsChange[RoomPinnedEventsChange["Changed"] = 2] = "Changed";
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:79:  return RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:81:const FfiConverterTypeRoomPinnedEventsChange = (() => {
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:87:          return RoomPinnedEventsChange.Added;
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:89:          return RoomPinnedEventsChange.Removed;
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:91:          return RoomPinnedEventsChange.Changed;
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:98:        case RoomPinnedEventsChange.Added:
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:100:        case RoomPinnedEventsChange.Removed:
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:102:        case RoomPinnedEventsChange.Changed:
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ui.js:284:    FfiConverterTypeRoomPinnedEventsChange,
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:6:exports.default = exports.TimelineReadReceiptTracking = exports.SpaceRoomListPaginationState_Tags = exports.SpaceRoomListPaginationState = exports.RoomPinnedEventsChange = exports.EventItemOrigin = void 0;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:80:let RoomPinnedEventsChange = exports.RoomPinnedEventsChange = /*#__PURE__*/function (RoomPinnedEventsChange) {
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:81:  RoomPinnedEventsChange[RoomPinnedEventsChange["Added"] = 0] = "Added";
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:82:  RoomPinnedEventsChange[RoomPinnedEventsChange["Removed"] = 1] = "Removed";
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:83:  RoomPinnedEventsChange[RoomPinnedEventsChange["Changed"] = 2] = "Changed";
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:84:  return RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:86:const FfiConverterTypeRoomPinnedEventsChange = (() => {
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:92:          return RoomPinnedEventsChange.Added;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:94:          return RoomPinnedEventsChange.Removed;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:96:          return RoomPinnedEventsChange.Changed;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:103:        case RoomPinnedEventsChange.Added:
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:105:        case RoomPinnedEventsChange.Removed:
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:107:        case RoomPinnedEventsChange.Changed:
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ui.js:289:    FfiConverterTypeRoomPinnedEventsChange,
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3004:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3040:     */[uniffiTypeNameSymbol]='OtherState';tag=OtherState_Tags.RoomName;constructor(inner){super('OtherState','RoomName');this.inner=Object.freeze(inner);}static new(inner){return new RoomName_(inner);}static instanceOf(obj){return obj.tag===OtherState_Tags.RoomName;}}class RoomPinnedEvents_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3043:     */[uniffiTypeNameSymbol]='OtherState';tag=OtherState_Tags.RoomPinnedEvents;constructor(inner){super('OtherState','RoomPinnedEvents');this.inner=Object.freeze(inner);}static new(inner){return new RoomPinnedEvents_(inner);}static instanceOf(obj){return obj.tag===OtherState_Tags.RoomPinnedEvents;}}class RoomPowerLevels_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3067:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3068:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3069:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3873:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3912:     */[uniffiTypeNameSymbol]='StateEventContent';tag=StateEventContent_Tags.RoomName;constructor(){super('StateEventContent','RoomName');}static new(){return new RoomName_();}static instanceOf(obj){return obj.tag===StateEventContent_Tags.RoomName;}}class RoomPinnedEvents_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3915:     */[uniffiTypeNameSymbol]='StateEventContent';tag=StateEventContent_Tags.RoomPinnedEvents;constructor(){super('StateEventContent','RoomPinnedEvents');}static new(){return new RoomPinnedEvents_();}static instanceOf(obj){return obj.tag===StateEventContent_Tags.RoomPinnedEvents;}}class RoomPowerLevels_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3936:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3937:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:3938:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4051:export let TimelineFocus_Tags=/*#__PURE__*/function(TimelineFocus_Tags){TimelineFocus_Tags["Live"]="Live";TimelineFocus_Tags["Event"]="Event";TimelineFocus_Tags["Thread"]="Thread";TimelineFocus_Tags["PinnedEvents"]="PinnedEvents";return TimelineFocus_Tags;}({});export const TimelineFocus=(()=>{class Live_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4060:     */[uniffiTypeNameSymbol]='TimelineFocus';tag=TimelineFocus_Tags.Thread;constructor(inner){super('TimelineFocus','Thread');this.inner=Object.freeze(inner);}static new(inner){return new Thread_(inner);}static instanceOf(obj){return obj.tag===TimelineFocus_Tags.Thread;}}class PinnedEvents_ extends UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4063:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4064:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:4065:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:5824:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/module/generated/matrix_sdk_ffi.js:5866:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:26:export declare enum RoomPinnedEventsChange {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:151:        FfiConverterTypeRoomPinnedEventsChange: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:152:            read(from: RustBuffer): RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:153:            write(value: RoomPinnedEventsChange, into: RustBuffer): void;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:154:            allocationSize(value: RoomPinnedEventsChange): number;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:155:            lift(value: UniffiByteArray): RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ui.d.ts:156:            lower(value: RoomPinnedEventsChange): UniffiByteArray;
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3004:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3040:     */[_uniffiBindgenReactNative.uniffiTypeNameSymbol]='OtherState';tag=OtherState_Tags.RoomName;constructor(inner){super('OtherState','RoomName');this.inner=Object.freeze(inner);}static new(inner){return new RoomName_(inner);}static instanceOf(obj){return obj.tag===OtherState_Tags.RoomName;}}class RoomPinnedEvents_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3043:     */[_uniffiBindgenReactNative.uniffiTypeNameSymbol]='OtherState';tag=OtherState_Tags.RoomPinnedEvents;constructor(inner){super('OtherState','RoomPinnedEvents');this.inner=Object.freeze(inner);}static new(inner){return new RoomPinnedEvents_(inner);}static instanceOf(obj){return obj.tag===OtherState_Tags.RoomPinnedEvents;}}class RoomPowerLevels_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3067:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3068:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3069:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3873:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3912:     */[_uniffiBindgenReactNative.uniffiTypeNameSymbol]='StateEventContent';tag=StateEventContent_Tags.RoomName;constructor(){super('StateEventContent','RoomName');}static new(){return new RoomName_();}static instanceOf(obj){return obj.tag===StateEventContent_Tags.RoomName;}}class RoomPinnedEvents_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3915:     */[_uniffiBindgenReactNative.uniffiTypeNameSymbol]='StateEventContent';tag=StateEventContent_Tags.RoomPinnedEvents;constructor(){super('StateEventContent','RoomPinnedEvents');}static new(){return new RoomPinnedEvents_();}static instanceOf(obj){return obj.tag===StateEventContent_Tags.RoomPinnedEvents;}}class RoomPowerLevels_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3936:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3937:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:3938:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4051:let TimelineFocus_Tags=exports.TimelineFocus_Tags=/*#__PURE__*/function(TimelineFocus_Tags){TimelineFocus_Tags["Live"]="Live";TimelineFocus_Tags["Event"]="Event";TimelineFocus_Tags["Thread"]="Thread";TimelineFocus_Tags["PinnedEvents"]="PinnedEvents";return TimelineFocus_Tags;}({});const TimelineFocus=exports.TimelineFocus=(()=>{class Live_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4060:     */[_uniffiBindgenReactNative.uniffiTypeNameSymbol]='TimelineFocus';tag=TimelineFocus_Tags.Thread;constructor(inner){super('TimelineFocus','Thread');this.inner=Object.freeze(inner);}static new(inner){return new Thread_(inner);}static instanceOf(obj){return obj.tag===TimelineFocus_Tags.Thread;}}class PinnedEvents_ extends _uniffiBindgenReactNative.UniffiEnum{/**
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4063:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4064:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:4065:[Omitted long matching line]
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:5824:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/commonjs/generated/matrix_sdk_ffi.js:5866:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:5:import { EventItemOrigin, RoomPinnedEventsChange, SpaceRoomListPaginationState, TimelineReadReceiptTracking } from './matrix_sdk_ui';
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:14817:    RoomPinnedEvents = "RoomPinnedEvents",
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15206:    RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15208:            change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15210:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15212:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15221:            change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15223:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15225:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15234:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:15236:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:21821:    RoomPinnedEvents = "RoomPinnedEvents",
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:22188:    RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:22190:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:22198:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:22206:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:22426:    RoomPinnedEvents = 14,
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:23327:    PinnedEvents = "PinnedEvents"
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:23480:    PinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:23485:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:23500:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:23512:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:30062:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:30143:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:30252:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/commonjs/src/generated/matrix_sdk_ffi.d.ts:30333:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:26:export declare enum RoomPinnedEventsChange {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:151:        FfiConverterTypeRoomPinnedEventsChange: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:152:            read(from: RustBuffer): RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:153:            write(value: RoomPinnedEventsChange, into: RustBuffer): void;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:154:            allocationSize(value: RoomPinnedEventsChange): number;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:155:            lift(value: UniffiByteArray): RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ui.d.ts:156:            lower(value: RoomPinnedEventsChange): UniffiByteArray;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:95:  RoomPinnedEventsChange,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:174:  FfiConverterTypeRoomPinnedEventsChange,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:25933:  RoomPinnedEvents = 'RoomPinnedEvents',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26272:  type RoomPinnedEvents__interface = {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26273:    tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26274:    inner: Readonly<{ change: RoomPinnedEventsChange }>;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26277:  class RoomPinnedEvents_
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26279:    implements RoomPinnedEvents__interface
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26286:    readonly tag = OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26287:    readonly inner: Readonly<{ change: RoomPinnedEventsChange }>;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26288:    constructor(inner: { change: RoomPinnedEventsChange }) {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26289:      super('OtherState', 'RoomPinnedEvents');
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26293:    static new(inner: { change: RoomPinnedEventsChange }): RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26294:      return new RoomPinnedEvents_(inner);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26297:    static instanceOf(obj: any): obj is RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26298:      return obj.tag === OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26544:    RoomPinnedEvents: RoomPinnedEvents_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26603:          return new OtherState.RoomPinnedEvents({
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26604:            change: FfiConverterTypeRoomPinnedEventsChange.read(from),
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26698:        case OtherState_Tags.RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26701:          FfiConverterTypeRoomPinnedEventsChange.write(inner.change, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26807:        case OtherState_Tags.RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26810:          size += FfiConverterTypeRoomPinnedEventsChange.allocationSize(
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35355:  RoomPinnedEvents = 'RoomPinnedEvents',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35710:  type RoomPinnedEvents__interface = {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35711:    tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35714:  class RoomPinnedEvents_
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35716:    implements RoomPinnedEvents__interface
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35723:    readonly tag = StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35725:      super('StateEventContent', 'RoomPinnedEvents');
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35728:    static new(): RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35729:      return new RoomPinnedEvents_();
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35732:    static instanceOf(obj: any): obj is RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35733:      return obj.tag === StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35933:    RoomPinnedEvents: RoomPinnedEvents_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35985:          return new StateEventContent.RoomPinnedEvents();
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36063:        case StateEventContent_Tags.RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36149:        case StateEventContent_Tags.RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36199:  RoomPinnedEvents,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36244:          return StateEventType.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36293:        case StateEventType.RoomPinnedEvents:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37591:  PinnedEvents = 'PinnedEvents',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37721:  type PinnedEvents__interface = {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37722:    tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37729:  class PinnedEvents_ extends UniffiEnum implements PinnedEvents__interface {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37735:    readonly tag = TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37744:      super('TimelineFocus', 'PinnedEvents');
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37751:    }): PinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37752:      return new PinnedEvents_(inner);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37755:    static instanceOf(obj: any): obj is PinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37756:      return obj.tag === TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37769:    PinnedEvents: PinnedEvents_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37799:          return new TimelineFocus.PinnedEvents({
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37829:        case TimelineFocus_Tags.PinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37863:        case TimelineFocus_Tags.PinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:59553:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:59674:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:60224:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:60779:   * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:5:import { EventItemOrigin, RoomPinnedEventsChange, SpaceRoomListPaginationState, TimelineReadReceiptTracking } from './matrix_sdk_ui';
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:14817:    RoomPinnedEvents = "RoomPinnedEvents",
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15206:    RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15208:            change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15210:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15212:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15221:            change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15223:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15225:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15234:            readonly tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:15236:                change: RoomPinnedEventsChange;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:21821:    RoomPinnedEvents = "RoomPinnedEvents",
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:22188:    RoomPinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:22190:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:22198:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:22206:            readonly tag: StateEventContent_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:22426:    RoomPinnedEvents = 14,
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:23327:    PinnedEvents = "PinnedEvents"
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:23480:    PinnedEvents: {
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:23485:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:23500:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:23512:            readonly tag: TimelineFocus_Tags.PinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:30062:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:30143:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:30252:     * Adds a new pinned event by sending an updated `m.room.pinned_events`
+node_modules/@unomed/react-native-matrix-sdk/lib/typescript/module/src/generated/matrix_sdk_ffi.d.ts:30333:     * Adds a new pinned event by sending an updated `m.room.pinned_events`

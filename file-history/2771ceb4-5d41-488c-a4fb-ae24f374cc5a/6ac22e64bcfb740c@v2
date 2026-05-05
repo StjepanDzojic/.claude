@@ -1,0 +1,31 @@
+export const INVESTMENT_TIERS = [
+  { dollars: 5000, cents: 500_000, envKey: 'EASY_API_PRICE_ID_5K' },
+  { dollars: 10000, cents: 1_000_000, envKey: 'EASY_API_PRICE_ID_10K' },
+  { dollars: 25000, cents: 2_500_000, envKey: 'EASY_API_PRICE_ID_25K' },
+  { dollars: 50000, cents: 5_000_000, envKey: 'EASY_API_PRICE_ID_50K' },
+  { dollars: 100000, cents: 10_000_000, envKey: 'EASY_API_PRICE_ID_100K' },
+  { dollars: 250000, cents: 25_000_000, envKey: 'EASY_API_PRICE_ID_250K' },
+] as const;
+
+export type InvestmentTier = (typeof INVESTMENT_TIERS)[number];
+export type TierDollars = InvestmentTier['dollars'];
+
+export const isTierDollars = (value: number): value is TierDollars =>
+  INVESTMENT_TIERS.some((t) => t.dollars === value);
+
+export const getTierByDollars = (dollars: TierDollars): InvestmentTier => {
+  const tier = INVESTMENT_TIERS.find((t) => t.dollars === dollars);
+  if (!tier) throw new Error(`Unknown investment tier: ${dollars}`);
+  return tier;
+};
+
+export const getPriceIdForTier = (dollars: TierDollars): string => {
+  const tier = getTierByDollars(dollars);
+  const id = process.env[tier.envKey];
+  if (!id) {
+    throw new Error(
+      `Missing ${tier.envKey} env var. Run \`yarn setup:easy-api\` to bootstrap Easy API products.`,
+    );
+  }
+  return id;
+};

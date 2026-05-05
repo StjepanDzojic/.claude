@@ -1,0 +1,394 @@
+import { Block, Text, useAndroidBackHandler } from "@prototyp/skeletor";
+import { MembershipState_Tags } from "@unomed/react-native-matrix-sdk";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { RoomService } from "modules/room/service/RoomService";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Image, StyleSheet } from "react-native";
+import Toast from "react-native-toast-message";
+import { Button, Loading } from "shared/components";
+import {
+  AppBottomSheet,
+  type AppBottomSheetRef,
+  AppBottomSheetScrollView,
+} from "shared/components/bottom-sheet";
+import { UserImage } from "shared/components/user-image/UserImage";
+import { usePreventSwipeBack } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  isBottomSheetOpen: boolean;
+  selectedMember: MemberDetailsPayload | null;
+  roomId: string;
+  onClose: () => void;
+  onMemberAction?: (userId: string, action: "remove" | "ban" | "unban") => void;
+}
+
+export const MemberDetailsBottomSheet: React.FC<Props> = ({
+  isBottomSheetOpen,
+  selectedMember,
+  roomId,
+  onClose,
+  onMemberAction,
+}) => {
+  const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [userPowerLevel, setUserPowerLevel] = useState<number | null>(null);
+  const [memberPowerLevel, setMemberPowerLevel] = useState<number | null>(null);
+  const [kickLevel, setKickLevel] = useState(50);
+  const [banLevel, setBanLevel] = useState(50);
+
+  const canRemove = useMemo(
+    () =>
+      userPowerLevel !== null &&
+      memberPowerLevel !== null &&
+      userPowerLevel >= kickLevel &&
+      userPowerLevel > memberPowerLevel,
+    [userPowerLevel, memberPowerLevel, kickLevel],
+  );
+  const canBan = useMemo(
+    () =>
+      userPowerLevel !== null &&
+      memberPowerLevel !== null &&
+      userPowerLevel >= banLevel &&
+      userPowerLevel > memberPowerLevel,
+    [userPowerLevel, memberPowerLevel, banLevel],
+  );
+  const isUser = useMemo(
+    () => selectedMember?.userId === MatrixCore.instance?.userId(),
+    [selectedMember],
+  );
+  const isBanned = useMemo(
+    () => selectedMember?.membershipTag === MembershipState_Tags.Ban,
+    [selectedMember],
+  );
+  const [activeAction, setActiveAction] = useState<
+    "remove" | "ban" | "unban" | null
+  >(null);
+
+  const handleClose = useCallback(() => {
+    sheetRef.current?.close();
+  }, []);
+
+  const handleViewProfile = useCallback(() => {
+    sheetRef.current?.close();
+
+    if (isUser) {
+      NavigationContainerRef.navigate("userProfile");
+      return;
+    }
+    if (!selectedMember) return;
+
+    NavigationContainerRef.navigate("profile", {
+      userId: selectedMember.userId,
+      initialProfile: {
+        userId: selectedMember.userId,
+        displayName: selectedMember.displayName,
+        avatarUrl: selectedMember.avatarUrl ?? undefined,
+      },
+    });
+  }, [isUser, selectedMember]);
+
+  const handleConfirmAction = useCallback(
+    async (action: "remove" | "ban" | "unban", reason: string) => {
+      if (!selectedMember) return;
+      try {
+        setActiveAction(action);
+
+        onMemberAction?.(selectedMember.userId, action);
+
+        sheetRef.current?.close();
+
+        if (action === "ban") {
+          await RoomService.banUserFromRoom(
+            roomId,
+            selectedMember.userId,
+            reason || undefined,
+          );
+        } else if (action === "unban") {
+          await RoomService.unbanUserFromRoom(
+            roomId,
+            selectedMember.userId,
+            reason || undefined,
+          );
+        } else {
+          await RoomService.removeUserFromRoom(
+            roomId,
+            selectedMember.userId,
+            reason || undefined,
+          );
+        }
+
+        Toast.show({
+          type: "success",
+          text1: `User ${action === "ban" ? "banned" : action === "unban" ? "unbanned" : "removed"} successfully`,
+        });
+        NavigationContainerRef.goBack();
+      } catch (error) {
+        console.error(`Failed to ${action} user:`, error);
+        offlineToastHelper(`Failed to ${action} user`);
+      } finally {
+        setActiveAction(null);
+      }
+    },
+    [selectedMember, roomId, onMemberAction],
+  );
+
+  const handleUserAction = useCallback(
+    (action: "remove" | "ban" | "unban") => {
+      if (!selectedMember) return;
+
+      const actionText = action === "ban" ? "banning" : "removing";
+      const actionTitle = action === "ban" ? "Ban User" : "Remove User";
+      const confirmButtonText =
+        action === "ban" ? "Ban" : action === "unban" ? "Unban" : "Remove";
+
+      if (action === "unban") {
+        Alert.alert(
+          "Unban User",
+          `Are you sure you want to unban ${selectedMember.displayName}?`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Unban",
+              onPress: () => handleConfirmAction("unban", ""),
+            },
+          ],
+        );
+        return;
+      }
+
+      Alert.prompt(
+        actionTitle,
+        `Enter a reason for ${actionText} ${selectedMember.displayName} (optional):`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Continue",
+            onPress: (reason?: string) => {
+              Alert.alert(
+                "Are you sure?",
+                `Are you sure you want to ${action} ${selectedMember.displayName} from this room?`,
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: confirmButtonText,
+                    style: "destructive",
+                    onPress: () => handleConfirmAction(action, reason || ""),
+                  },
+                ],
+              );
+            },
+          },
+        ],
+        "plain-text",
+      );
+    },
+    [selectedMember, handleConfirmAction],
+  );
+
+  const handleRemoveUser = useCallback(
+    () => handleUserAction("remove"),
+    [handleUserAction],
+  );
+
+  const handleBanUser = useCallback(
+    () => handleUserAction("ban"),
+    [handleUserAction],
+  );
+
+  const handleUnbanUser = useCallback(
+    () => handleUserAction("unban"),
+    [handleUserAction],
+  );
+
+  useAndroidBackHandler({
+    handlePress: handleClose,
+    enabled: isBottomSheetOpen,
+    disableDefault: isBottomSheetOpen,
+  });
+
+  usePreventSwipeBack(isBottomSheetOpen);
+
+  useEffect(() => {
+    if (!isBottomSheetOpen || !selectedMember) return;
+    RoomService.getUserPowerLevel(roomId)
+      .then(setUserPowerLevel)
+      .catch(console.error);
+    RoomService.getUserPowerLevel(roomId, selectedMember.userId)
+      .then(setMemberPowerLevel)
+      .catch(console.error);
+    RoomService.getRoomPowerLevels(roomId)
+      .then((pl) => {
+        if (!pl) return;
+        const vals = pl.values();
+        setKickLevel(Number(vals.kick));
+        setBanLevel(Number(vals.ban));
+      })
+      .catch(console.error);
+  }, [isBottomSheetOpen, selectedMember]);
+
+  if (!selectedMember) return null;
+
+  return (
+    <>
+      {activeAction && (
+        <Loading
+          text={
+            activeAction === "ban"
+              ? "Banning user..."
+              : activeAction === "unban"
+                ? "Unbanning user..."
+                : "Removing user..."
+          }
+        />
+      )}
+      <AppBottomSheet
+        ref={sheetRef}
+        isOpen={isBottomSheetOpen}
+        enableContentPanningGesture={false}
+        onClose={onClose}
+      >
+        <AppBottomSheetScrollView scrollEnabled={false}>
+          <Block
+            justify="space-between"
+            flexDirection="column"
+            flex={1}
+            width="100%"
+            gap={16}
+            paddings={{
+              paddingHorizontal: 20,
+              paddingBottom: 56,
+            }}
+          >
+            <Block align="center" gap={16} margins={{ marginBottom: 60 }}>
+              <UserImage
+                avatarUrl={selectedMember.avatarUrl}
+                displayName={selectedMember.displayName}
+                width={120}
+                height={120}
+                borderRadius={999}
+              />
+              <Block align="center" gap={4}>
+                <Text
+                  size={TextSize.large}
+                  color={Colors.white}
+                  font="InstrumentSans-Bold"
+                >
+                  {selectedMember.displayName}
+                </Text>
+                <Text color={Colors.white50} font="InstrumentSans-Regular">
+                  {selectedMember.userId}
+                </Text>
+              </Block>
+            </Block>
+            <Block gap={20}>
+              <Button.Wrapper onPress={handleViewProfile}>
+                <Block
+                  width="100%"
+                  flexDirection="row"
+                  align="center"
+                  gap={12}
+                  paddings={{ paddingBottom: 20 }}
+                  border={{
+                    borderBottomWidth: 1,
+                    borderColor: Colors.white5,
+                  }}
+                >
+                  <Image
+                    source={require("assets/icons/user.png")}
+                    style={styles.icon}
+                    tintColor={Colors.white50}
+                  />
+                  <Text color={Colors.white}>View Profile</Text>
+                </Block>
+              </Button.Wrapper>
+              {canRemove && !isUser && !isBanned && (
+                <Button.Wrapper onPress={handleRemoveUser}>
+                  <Block
+                    width="100%"
+                    flexDirection="row"
+                    align="center"
+                    gap={12}
+                    paddings={{ paddingBottom: 20 }}
+                    border={{
+                      borderBottomWidth: 1,
+                      borderColor: Colors.white5,
+                    }}
+                  >
+                    <Image
+                      source={require("assets/icons/close.png")}
+                      style={styles.icon}
+                      tintColor={Colors.white50}
+                    />
+                    <Text color={Colors.white}>Remove user</Text>
+                  </Block>
+                </Button.Wrapper>
+              )}
+              {canBan && !isUser && !isBanned && (
+                <Button.Wrapper onPress={handleBanUser}>
+                  <Block
+                    width="100%"
+                    flexDirection="row"
+                    align="center"
+                    gap={12}
+                    paddings={{ paddingBottom: 20 }}
+                    border={{
+                      borderBottomWidth: 1,
+                      borderColor: Colors.white5,
+                    }}
+                  >
+                    <Image
+                      source={require("assets/icons/ban.png")}
+                      style={styles.icon}
+                      tintColor={Colors.white50}
+                    />
+                    <Text color={Colors.white}>Ban user</Text>
+                  </Block>
+                </Button.Wrapper>
+              )}
+              {canBan && !isUser && isBanned && (
+                <Button.Wrapper onPress={handleUnbanUser}>
+                  <Block
+                    width="100%"
+                    flexDirection="row"
+                    align="center"
+                    gap={12}
+                    paddings={{ paddingBottom: 20 }}
+                    border={{
+                      borderBottomWidth: 1,
+                      borderColor: Colors.white5,
+                    }}
+                  >
+                    <Image
+                      source={require("assets/icons/ban.png")}
+                      style={styles.icon}
+                      tintColor={Colors.white50}
+                    />
+                    <Text color={Colors.white}>Unban user</Text>
+                  </Block>
+                </Button.Wrapper>
+              )}
+            </Block>
+          </Block>
+        </AppBottomSheetScrollView>
+      </AppBottomSheet>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  icon: {
+    width: 24,
+    height: 24,
+  },
+});

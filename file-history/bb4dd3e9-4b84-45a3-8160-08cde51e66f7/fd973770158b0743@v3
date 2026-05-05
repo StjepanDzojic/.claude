@@ -1,0 +1,75 @@
+import { Block, useAnimateParallel } from "@prototyp/skeletor";
+import {
+  EventSendState_Tags,
+  type EventTimelineItem,
+} from "@unomed/react-native-matrix-sdk";
+import { useSetAtom } from "jotai";
+import { getMessageType } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type ReactNode, useCallback } from "react";
+import { Vibration } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Easing, runOnJS } from "react-native-reanimated";
+
+interface Props {
+  children: ReactNode;
+  event: EventTimelineItem;
+  content: string;
+  onStart?: () => void;
+  onFinalize?: () => void;
+}
+
+export const MessageLongPressWrapper: React.FC<Props> = ({
+  children,
+  event,
+  content,
+  onStart,
+  onFinalize,
+}) => {
+  const isFailedOwnEcho =
+    event.isOwn &&
+    event.localSendState?.tag === EventSendState_Tags.SendingFailed;
+  const scale = useAnimateParallel(
+    { scaleX: [1, 1.1], scaleY: [1, 1.1] },
+    { duration: 700, easing: Easing.bezierFn(0.31, 0.04, 0.03, 1.04) },
+  );
+  const setLongPressPayload = useSetAtom(TimelineAtoms.longPressPayload);
+
+  const openSheet = useCallback(() => {
+    const messageType = getMessageType(event);
+    setLongPressPayload({ event, content, messageType });
+  }, [content, event, setLongPressPayload]);
+
+  const vibrateEnd = useCallback(() => {
+    Vibration.vibrate(1);
+  }, []);
+
+  const longPress = Gesture.LongPress()
+    .minDuration(500)
+    .onBegin(() => {
+      runOnJS(scale.start)();
+      if (!onStart) return;
+      runOnJS(onStart)();
+    })
+    .onStart(() => {
+      runOnJS(openSheet)();
+      runOnJS(vibrateEnd)();
+    })
+    .onTouchesCancelled(() => {
+      runOnJS(scale.reverse)();
+    })
+    .onFinalize((_, success) => {
+      runOnJS(scale.reverse)();
+      if (onFinalize && !success) {
+        runOnJS(onFinalize)();
+      }
+    });
+
+  if (!event.canBeRepliedTo && !isFailedOwnEcho) return <>{children}</>;
+
+  return (
+    <GestureDetector gesture={longPress}>
+      <Block animations={scale.animations}>{children}</Block>
+    </GestureDetector>
+  );
+};

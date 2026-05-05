@@ -1,0 +1,42 @@
+import {
+  type EventTimelineItem,
+  type ImageMessageContent,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  TimelineItemContent_Tags,
+  type VideoMessageContent,
+} from "@unomed/react-native-matrix-sdk";
+
+export type MediaItemKind = "image" | "video";
+
+export const getMediaKind = (event: EventTimelineItem): MediaItemKind | null => {
+  if (event.content.tag !== TimelineItemContent_Tags.MsgLike) return null;
+  const kind = event.content.inner.content.kind;
+  if (kind?.tag !== MsgLikeKind_Tags.Message) return null;
+  const tag = kind.inner.content.msgType?.tag;
+  if (tag === MessageType_Tags.Image) return "image";
+  if (tag === MessageType_Tags.Video) return "video";
+  return null;
+};
+
+export const getImageContent = (
+  event: EventTimelineItem,
+): ImageMessageContent | null => {
+  if (event.content.tag !== TimelineItemContent_Tags.MsgLike) return null;
+  const kind = event.content.inner.content.kind;
+  if (kind?.tag !== MsgLikeKind_Tags.Message) return null;
+  const msgType = kind.inner.content.msgType;
+  if (msgType?.tag !== MessageType_Tags.Image) return null;
+  return msgType.inner.content;
+};
+
+export const getVideoContent = (
+  event: EventTimelineItem,
+): VideoMessageContent | null => {
+  if (event.content.tag !== TimelineItemContent_Tags.MsgLike) return null;
+  const kind = event.content.inner.content.kind;
+  if (kind?.tag !== MsgLikeKind_Tags.Message) return null;
+  const msgType = kind.inner.content.msgType;
+  if (msgType?.tag !== MessageType_Tags.Video) return null;
+  return msgType.inner.content;
+};

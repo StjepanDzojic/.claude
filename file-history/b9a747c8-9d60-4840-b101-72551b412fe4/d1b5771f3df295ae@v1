@@ -1,0 +1,114 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { FlashList } from "@shopify/flash-list";
+import type { EventTimelineItem } from "@unomed/react-native-matrix-sdk";
+import { useAtomValue } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type FC, useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
+import { SingleMessageType } from "screens/room/fragments";
+import { GoBackHeader, Loading } from "shared/components";
+import { ScreenLayout } from "shared/components/screen-layout/ScreenLayout";
+import { Colors, TextSize } from "shared/styles";
+
+const keyExtractor = (item: EventTimelineItem) => {
+  const eventId = item.eventOrTransactionId;
+  if (eventId?.tag === "EventId") {
+    return eventId.inner.eventId;
+  }
+  if (eventId?.tag === "TransactionId") {
+    return eventId.inner.transactionId;
+  }
+  return String(item.timestamp);
+};
+
+export const PinnedEvents: FC<
+  NativeStackScreenProps<Routes, "pinnedEvents">
+> = ({ route }) => {
+  const { room } = route.params;
+  const pinnedEventIds = useAtomValue(TimelineAtoms.pinnedEventIds);
+  const [events, setEvents] = useState<EventTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!room) return;
+
+    setEvents([]);
+
+    const initPinnedTimeline = async () => {
+      try {
+        if (pinnedEventIds.length === 0) {
+          setEvents([]);
+          setLoading(false);
+          return;
+        }
+
+        const timeline = await room.timeline();
+        const fetchedEvents: EventTimelineItem[] = [];
+
+        for (const id of pinnedEventIds) {
+          try {
+            await timeline.fetchDetailsForEvent(id);
+            const item = await timeline.getEventTimelineItemByEventId(id);
+            if (item) {
+              fetchedEvents.push(item);
+            }
+          } catch (error) {
+            console.warn("Failed to load pinned event:", id, error);
+          }
+        }
+
+        setEvents(fetchedEvents);
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to initialize pinned events timeline:", error);
+        setLoading(false);
+      }
+    };
+
+    initPinnedTimeline();
+
+    return () => {};
+  }, [room]);
+
+  return (
+    <ScreenLayout type="modal">
+      <GoBackHeader title="Pinned Events" margins={{ marginBottom: 20 }} />
+      <FlashList
+        data={events}
+        renderItem={({ item }) => {
+          return (
+            <Block paddings={{ paddingHorizontal: 16 }}>
+              <SingleMessageType
+                roomId={room.id()}
+                event={item}
+                isPreviousSameSender={false}
+              />
+            </Block>
+          );
+        }}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Block align="center" justify="center" flex={1} paddings={40}>
+            {loading ? (
+              <Loading isFullScreen={false} />
+            ) : (
+              <Text size={TextSize.medium} color={Colors.white50}>
+                No pinned events
+              </Text>
+            )}
+          </Block>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+});

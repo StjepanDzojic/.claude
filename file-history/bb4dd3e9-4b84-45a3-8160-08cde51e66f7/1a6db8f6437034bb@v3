@@ -1,0 +1,410 @@
+import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { Block, Text } from "@prototyp/skeletor";
+import Clipboard from "@react-native-clipboard/clipboard";
+import {
+  EventSendState_Tags,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  ProfileDetails_Tags,
+  TimelineItemContent_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { getEventId } from "modules/matrix-client/utils/getEventId";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { RoomService } from "modules/room/service/RoomService";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Image, StyleSheet } from "react-native";
+import Toast from "react-native-toast-message";
+import EmojiPicker, { type EmojiType } from "rn-emoji-keyboard";
+import { Button, UserImage } from "shared/components";
+import {
+  AppBottomSheet,
+  type AppBottomSheetRef,
+} from "shared/components/bottom-sheet";
+import { usePreventSwipeBack } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+import { MessageContentListItem } from "../message-content-item-list";
+
+const QUICK_REACTIONS = ["😄", "👍", "👎", "🎉", "❤️"];
+
+interface Props {
+  roomId: string;
+}
+
+export const MessageContentBottomSheet: React.FC<Props> = ({ roomId }) => {
+  const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [payload, setPayload] = useAtom(TimelineAtoms.longPressPayload);
+  const [userPowerLevel, setUserPowerLevel] = useState<number | null>(null);
+  const [redactLevel, setRedactLevel] = useState(50);
+  const avatarUrl = useMemo(() => {
+    return payload?.event.senderProfile.tag === ProfileDetails_Tags.Ready
+      ? payload?.event.senderProfile.inner.avatarUrl
+      : null;
+  }, [payload]);
+  const displayName = useMemo(() => {
+    return payload?.event.senderProfile.tag === ProfileDetails_Tags.Ready
+      ? payload?.event.senderProfile.inner.displayName
+      : undefined;
+  }, [payload]);
+  const isOwn = useMemo(() => payload?.event.isOwn, [payload]);
+  const isTextMessage = useMemo(
+    () => payload?.messageType === "text",
+    [payload],
+  );
+  const canEdit = useMemo(() => isOwn && isTextMessage, [isOwn, isTextMessage]);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  // const [isPinLoading, setIsPinLoading] = useState(false);
+  // const pinnedEventIds = useAtomValue(TimelineAtoms.pinnedEventIds);
+  // const eventId = useMemo(() => {
+  //   if (!payload) return null;
+  //   return getEventId(payload.event);
+  // }, [payload]);
+  // const isPinned = useMemo(() => {
+  //   if (!eventId) return false;
+  //   return pinnedEventIds.includes(eventId);
+  // }, [eventId, pinnedEventIds]);
+  // /** If the user is at least a moderator, they can pin messages */
+  // const isModeratorAtLeast = useMemo(() => {
+  //   if (!userPowerLevel) return false;
+  //   return userPowerLevel >= 50;
+  // }, [userPowerLevel]);
+  const setReplyPayload = useSetAtom(TimelineAtoms.replyPayload);
+  const setEditPayload = useSetAtom(TimelineAtoms.editPayload);
+  const setForwardPayload = useSetAtom(TimelineAtoms.forwardPayload);
+  const setReportPayload = useSetAtom(TimelineAtoms.reportPayload);
+  // const setPinnedEventIds = useSetAtom(TimelineAtoms.pinnedEventIds);
+
+  const handleReply = useCallback(() => {
+    if (!payload) return;
+    const eventId = getEventId(payload.event);
+    if (!eventId) return;
+
+    let mediaSource: TimelineReplyPayload["mediaSource"];
+
+    if (payload.messageType === "image" || payload.messageType === "video") {
+      const event = payload.event;
+      if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+        const kind = event.content.inner.content.kind;
+        if (kind?.tag === MsgLikeKind_Tags.Message) {
+          const msgType = kind.inner.content.msgType;
+          if (msgType?.tag === MessageType_Tags.Image) {
+            const imageContent = msgType.inner.content;
+            mediaSource = {
+              source: imageContent.source,
+              mimetype: imageContent.info?.mimetype || "image/jpeg",
+            };
+          } else if (msgType?.tag === MessageType_Tags.Video) {
+            const videoContent = msgType.inner.content;
+            mediaSource = {
+              source: videoContent.source,
+              mimetype: videoContent.info?.mimetype || "video/mp4",
+            };
+          }
+        }
+      }
+    }
+
+    setEditPayload(null);
+    setReplyPayload({
+      eventId,
+      senderName: displayName ?? payload.event.sender,
+      content: payload.content,
+      mediaSource,
+    });
+
+    sheetRef.current?.close();
+  }, [payload, displayName, setEditPayload, setReplyPayload]);
+
+  const handleEdit = useCallback(() => {
+    if (!payload?.event.isOwn || payload?.messageType !== "text") return;
+
+    setReplyPayload(null);
+    setEditPayload({
+      event: payload.event,
+      senderName: displayName ?? payload.event.sender,
+      content: payload.content,
+    });
+    sheetRef.current?.close();
+  }, [displayName, payload, setEditPayload, setReplyPayload]);
+
+  const handleForward = useCallback(() => {
+    if (!payload) return;
+
+    setForwardPayload(payload);
+    sheetRef.current?.close();
+    NavigationContainerRef.navigate("forwardMessage", {
+      currentRoomId: roomId,
+    });
+  }, [payload, setForwardPayload]);
+
+  const handleReport = useCallback(() => {
+    if (!payload) return;
+
+    setReportPayload({
+      event: payload.event,
+      senderId: payload.event.sender,
+      content: payload.content,
+    });
+    sheetRef.current?.close();
+    NavigationContainerRef.navigate("reportMessage", {
+      roomId,
+    });
+  }, [payload, setReportPayload, roomId]);
+
+  const handleDelete = useCallback(async () => {
+    if (!payload) return;
+
+    try {
+      await TimelineService.deleteMessage(roomId, payload.event);
+      setEditPayload(null);
+      setReplyPayload(null);
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      offlineToastHelper("Failed to delete message");
+    } finally {
+      sheetRef.current?.close();
+    }
+  }, [payload, roomId, setEditPayload, setReplyPayload]);
+
+  const handleReaction = useCallback(
+    async (emoji: string) => {
+      if (!payload) return;
+
+      try {
+        await TimelineService.toggleReaction(roomId, payload.event, emoji);
+      } catch (error) {
+        console.error("Failed to toggle reaction:", error);
+        offlineToastHelper("Failed to send reaction");
+      } finally {
+        sheetRef.current?.close();
+      }
+    },
+    [payload, roomId],
+  );
+
+  const handleEmojiSelected = useCallback(
+    (emoji: EmojiType) => {
+      setIsEmojiPickerOpen(false);
+      void handleReaction(emoji.emoji);
+    },
+    [handleReaction],
+  );
+
+  const handleCopy = () => {
+    if (!payload?.content) return;
+    Clipboard.setString(payload.content);
+    Toast.show({
+      text1: "Message copied to clipboard",
+      type: "success",
+    });
+    sheetRef.current?.close();
+  };
+
+  // const handlePin = useCallback(async () => {
+  //   if (!eventId || isPinLoading) return;
+
+  //   setIsPinLoading(true);
+
+  //   try {
+  //     if (isPinned) {
+  //       await TimelineService.unpinMessage(roomId, eventId);
+  //       setPinnedEventIds((prev) => prev.filter((id) => id !== eventId));
+  //       Toast.show({
+  //         text1: "Message unpinned",
+  //         type: "success",
+  //       });
+
+  //       return;
+  //     }
+
+  //     await TimelineService.pinMessage(roomId, eventId);
+  //     setPinnedEventIds((prev) => [...prev, eventId]);
+  //     Toast.show({
+  //       text1: "Message pinned",
+  //       type: "success",
+  //     });
+  //   } catch (error) {
+  //     console.error("Failed to pin/unpin message:", error);
+  //     offlineToastHelper(
+  //       isPinned ? "Failed to unpin message" : "Failed to pin message",
+  //     );
+  //   } finally {
+  //     setIsPinLoading(false);
+  //     sheetRef.current?.close();
+  //   }
+  // }, [eventId, isPinLoading, isPinned, roomId, setPinnedEventIds]);
+
+  const isFailedEcho =
+    payload?.event.localSendState?.tag === EventSendState_Tags.SendingFailed;
+
+  usePreventSwipeBack(!!payload && !isFailedEcho);
+
+  const canRedact = useMemo(
+    () => isOwn || (userPowerLevel !== null && userPowerLevel >= redactLevel),
+    [isOwn, userPowerLevel, redactLevel],
+  );
+
+  useEffect(() => {
+    RoomService.getUserPowerLevel(roomId)
+      .then(setUserPowerLevel)
+      .catch(console.error);
+    RoomService.getRoomPowerLevels(roomId)
+      .then((pl) => {
+        if (!pl) return;
+        setRedactLevel(Number(pl.values().redact));
+      })
+      .catch(console.error);
+  }, [roomId]);
+
+  return (
+    <AppBottomSheet
+      ref={sheetRef}
+      isOpen={!!payload && !isFailedEcho}
+      onClose={() => setPayload(null)}
+    >
+      <BottomSheetView>
+        <Block
+          paddings={{
+            paddingHorizontal: 20,
+            paddingBottom: 20,
+          }}
+          gap={16}
+          align="center"
+        >
+          <Block
+            width="100%"
+            flexDirection="row"
+            gap={16}
+            align="center"
+            justify="space-between"
+            margins={{ marginBottom: 32 }}
+          >
+            <Block flexDirection="row" gap={16} align="center" flex={1}>
+              <UserImage
+                avatarUrl={avatarUrl}
+                displayName={displayName}
+                height={40}
+                width={40}
+              />
+              <Block flex={1}>
+                <Text color={Colors.primary}>{displayName}</Text>
+                <Text numberOfLines={2} flex={1}>
+                  {payload?.content}
+                </Text>
+              </Block>
+            </Block>
+            <Text color={Colors.white50}>
+              {payload && format(Number(payload.event.timestamp), "HH:mm")}
+            </Text>
+          </Block>
+          <Block
+            width="100%"
+            flexDirection="row"
+            justify="space-between"
+            align="center"
+            paddings={{ paddingBottom: 16 }}
+            border={{
+              borderBottomWidth: 1,
+              borderColor: Colors.white5,
+            }}
+          >
+            {QUICK_REACTIONS.map((emoji) => (
+              <Button.Wrapper
+                key={emoji}
+                onPress={() => handleReaction(emoji)}
+                response="scale"
+              >
+                <Text size={TextSize.xlarge}>{emoji}</Text>
+              </Button.Wrapper>
+            ))}
+            <Button.Wrapper
+              onPress={() => setIsEmojiPickerOpen(true)}
+              response="scale"
+            >
+              <Image
+                source={require("assets/icons/smiley.png")}
+                style={styles.smileyIcon}
+              />
+            </Button.Wrapper>
+          </Block>
+          <Block width="100%">
+            <MessageContentListItem
+              title="Reply"
+              icon={require("assets/icons/reply.png")}
+              onPress={handleReply}
+            />
+            <MessageContentListItem
+              title="Forward"
+              icon={require("assets/icons/forward.png")}
+              onPress={handleForward}
+            />
+            {/**TODO: Hide pin/unpin button for now */}
+            {/* {isModeratorAtLeast && (
+              <MessageContentListItem
+                title={isPinned ? "Unpin" : "Pin"}
+                icon={
+                  isPinned
+                    ? require("assets/icons/unpin.png")
+                    : require("assets/icons/pin.png")
+                }
+                tintColor={Colors.white30}
+                onPress={handlePin}
+              />
+            )} */}
+            {canEdit && (
+              <MessageContentListItem
+                title="Edit"
+                icon={require("assets/icons/edit.png")}
+                onPress={handleEdit}
+              />
+            )}
+            {isTextMessage && (
+              <MessageContentListItem
+                title="Copy"
+                tintColor={Colors.white30}
+                icon={require("assets/icons/copy.png")}
+                onPress={handleCopy}
+              />
+            )}
+            {!isOwn && (
+              <MessageContentListItem
+                title="Report content"
+                icon={require("assets/icons/warning.png")}
+                onPress={handleReport}
+                tintColor={Colors.error}
+                textColor={Colors.error}
+              />
+            )}
+            {canRedact && (
+              <MessageContentListItem
+                title="Remove message"
+                icon={require("assets/icons/trash.png")}
+                onPress={handleDelete}
+                tintColor={Colors.error}
+                textColor={Colors.error}
+              />
+            )}
+          </Block>
+        </Block>
+      </BottomSheetView>
+      <EmojiPicker
+        open={isEmojiPickerOpen}
+        onClose={() => setIsEmojiPickerOpen(false)}
+        onEmojiSelected={handleEmojiSelected}
+        enableSearchBar
+        enableRecentlyUsed
+      />
+    </AppBottomSheet>
+  );
+};
+
+const styles = StyleSheet.create({
+  smileyIcon: {
+    width: 32,
+    height: 32,
+  },
+});

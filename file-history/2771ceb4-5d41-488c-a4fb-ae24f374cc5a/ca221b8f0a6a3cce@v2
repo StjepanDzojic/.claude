@@ -1,0 +1,1 @@
+- [Easy API replaces Stripe for investment payments](project_easy_api_payments.md) — payment provider for the invest → pay → record flow; endpoint work spans easy-api/types/firestore/dashboard

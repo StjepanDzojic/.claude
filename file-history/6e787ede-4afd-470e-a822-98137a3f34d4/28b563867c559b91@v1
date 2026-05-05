@@ -1,0 +1,63 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { useIsFocused } from "@react-navigation/native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { AuthService } from "modules/auth/service/AuthService";
+import { useMemo } from "react";
+import { Image, StyleSheet } from "react-native";
+import {
+  Button,
+  GoBackHeader,
+  IpadScreenWrapper,
+  ScreenLayout,
+} from "shared/components";
+import { TextSize } from "shared/styles";
+
+export const ServerInfo: React.FC<
+  NativeStackScreenProps<Routes, "serverInfo">
+> = ({ navigation }) => {
+  const focused = useIsFocused();
+  const serverName = useMemo(() => AuthService.getServerName(), [focused]);
+
+  return (
+    <ScreenLayout>
+      <GoBackHeader />
+      <IpadScreenWrapper justify="space-between">
+        <Block gap={8} align="center">
+          <Image
+            source={require("assets/icons/server.png")}
+            width={100}
+            height={100}
+            style={styles.image}
+          />
+          {serverName ? (
+            <Text size={TextSize.large} textAlign="center">
+              You're about to sign in to {serverName}
+            </Text>
+          ) : (
+            <Text size={TextSize.large} textAlign="center">
+              No server selected. Please select a server to continue.
+            </Text>
+          )}
+        </Block>
+        <Block paddings={[0, 52]} gap={12}>
+          <Button.Primary
+            disabled={!serverName}
+            onPress={() => navigation.navigate("login")}
+          >
+            Continue
+          </Button.Primary>
+          <Button.Ghost onPress={() => navigation.navigate("serverSelect")}>
+            Change account provider
+          </Button.Ghost>
+        </Block>
+      </IpadScreenWrapper>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  image: {
+    width: 100,
+    height: 100,
+  },
+});

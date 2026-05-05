@@ -1,0 +1,151 @@
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+import { SectionHeader } from '@modules/shared/components/SectionHeader';
+
+interface Props {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: 'About' });
+  return { title: t('seoTitle'), description: t('seoDescription') };
+}
+
+const GreenDot = () => (
+  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green mr-2.5 -translate-y-px" />
+);
+
+export default function AboutPage() {
+  const t = useTranslations('About');
+
+  const timeline = [
+    { yr: t('tl1Yr'), tag: t('tl1Tag'), title: t('tl1Title'), desc: t('tl1Desc') },
+    { yr: t('tl2Yr'), tag: t('tl2Tag'), title: t('tl2Title'), desc: t('tl2Desc') },
+    { yr: t('tl3Yr'), tag: t('tl3Tag'), title: t('tl3Title'), desc: t('tl3Desc') },
+    { yr: t('tl4Yr'), tag: t('tl4Tag'), title: t('tl4Title'), desc: t('tl4Desc') },
+    { yr: t('tl5Yr'), tag: t('tl5Tag'), title: t('tl5Title'), desc: t('tl5Desc') },
+    { yr: t('tl6Yr'), tag: t('tl6Tag'), title: t('tl6Title'), desc: t('tl6Desc') },
+  ];
+
+  const awards = [
+    { yr: t('awd1Yr'), title: t('awd1Title'), desc: t('awd1Desc') },
+    { yr: t('awd2Yr'), title: t('awd2Title'), desc: t('awd2Desc') },
+    { yr: t('awd3Yr'), title: t('awd3Title'), desc: t('awd3Desc') },
+    { yr: t('awd4Yr'), title: t('awd4Title'), desc: t('awd4Desc') },
+  ];
+
+  return (
+    <main>
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] pt-[clamp(80px,10vw,140px)] pb-[clamp(48px,6vw,80px)] border-b border-rule">
+        <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 mb-5 flex gap-2.5 items-center">
+          <Link href="/">Hidroing</Link>
+          <span className="opacity-50">/</span>
+          <span>{t('crumb')}</span>
+        </div>
+        <h1 className="font-medium tracking-[-0.025em] leading-[1.02] text-[clamp(40px,5.4vw,88px)] text-balance m-0">{t('title')}</h1>
+        <p className="text-[clamp(18px,1.4vw,22px)] leading-normal tracking-[-0.005em] text-ink-2 text-pretty mt-7 max-w-[62ch]">{t('desc')}</p>
+      </section>
+
+      {/* MANIFESTO */}
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]">
+        <div className="grid grid-cols-[1fr_1.5fr] gap-20 items-start max-md:grid-cols-[1fr] max-md:gap-8">
+          <div className="font-mono text-[11px] tracking-widest uppercase text-ink-3 font-medium flex items-center">
+            <GreenDot /><span>{t('manifestoEyebrow')}</span>
+          </div>
+          <div className="text-[clamp(26px,3.2vw,48px)] font-medium tracking-[-0.02em] leading-[1.15] max-w-[22ch]">
+            <span>{t('manifesto1')}</span><br />
+            <em className="not-italic text-green-ink">{t('manifesto2')}</em>
+          </div>
+        </div>
+      </section>
+
+      {/* HISTORY */}
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]" id="history">
+        <SectionHeader eyebrow={t('histNum')} title={t('histTitle')} description={t('histDesc')} className="mb-10" />
+
+        <div className="border-t border-rule">
+          {timeline.map((row) => (
+            <div key={row.yr} className="grid grid-cols-[140px_160px_1fr] gap-8 py-9 border-b border-rule items-start max-md:grid-cols-[1fr] max-md:gap-2.5">
+              <div className="font-mono text-[13px] font-medium text-ink tracking-[0.03em]">{row.yr}</div>
+              <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 pt-0.5">{row.tag}</div>
+              <div>
+                <h3 className="text-[clamp(20px,1.8vw,26px)] font-medium tracking-[-0.01em] leading-[1.2] m-0 mb-2.5">{row.title}</h3>
+                <p className="m-0 text-ink-2 text-[15px] leading-[1.55] max-w-[56ch]">{row.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* AWARDS */}
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]" id="awards">
+        <SectionHeader eyebrow={t('awdNum')} title={t('awdTitle')} description={t('awdDesc')} className="mb-8" />
+
+        <div className="grid grid-cols-2 max-md:grid-cols-[1fr]">
+          {awards.map((awd, i) => (
+            <div
+              key={awd.yr + awd.title}
+              className="p-7 px-8 border-t border-rule border-r border-rule grid gap-2.5 even:border-r-0 max-md:border-r-0">
+              <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">{awd.yr}</div>
+              <div className="text-[19px] font-medium tracking-[-0.01em]">{awd.title}</div>
+              <div className="text-ink-3 text-[14px] leading-normal">{awd.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* QUALITY */}
+      <section className="py-[clamp(56px,9vw,140px)] bg-paper-2 border-t border-rule border-b border-rule" id="quality">
+        <div className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)]">
+          <SectionHeader eyebrow={t('qualNum')} title={t('qualTitle')} description={t('qualDesc')} className="mb-10" />
+
+          <div className="grid grid-cols-2 gap-8 max-md:grid-cols-[1fr]">
+            <div className="p-8 border border-rule rounded-[4px] bg-white">
+              <div className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 px-2.5 py-[5px] rounded-full border border-rule">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green" />
+                {t('qual1Badge')}
+              </div>
+              <h3 className="text-[26px] font-medium tracking-[-0.01em] mt-[18px] mb-3">{t('qual1Title')}</h3>
+              <p className="text-ink-2 text-[15px] leading-[1.55] m-0 max-w-[48ch]">{t('qual1Desc')}</p>
+              <ul className="mt-5 p-0 list-none grid gap-2.5">
+                {[t('qual1a'), t('qual1b'), t('qual1c')].map((item) => (
+                  <li key={item} className="text-[14px] text-ink-2 pl-5 relative leading-[1.4] before:content-[''] before:absolute before:left-0 before:top-[0.55em] before:w-2 before:h-px before:bg-green">{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="p-8 border border-rule rounded-[4px] bg-white">
+              <div className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 px-2.5 py-[5px] rounded-full border border-rule">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue" />
+                {t('qual2Badge')}
+              </div>
+              <h3 className="text-[26px] font-medium tracking-[-0.01em] mt-[18px] mb-3">{t('qual2Title')}</h3>
+              <p className="text-ink-2 text-[15px] leading-[1.55] m-0 max-w-[48ch]">{t('qual2Desc')}</p>
+              <ul className="mt-5 p-0 list-none grid gap-2.5">
+                {[t('qual2a'), t('qual2b'), t('qual2c'), t('qual2d')].map((item) => (
+                  <li key={item} className="text-[14px] text-ink-2 pl-5 relative leading-[1.4] before:content-[''] before:absolute before:left-0 before:top-[0.55em] before:w-2 before:h-px before:bg-green">{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* QUOTE */}
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]">
+        <div className="grid grid-cols-2 gap-20 items-start max-md:grid-cols-[1fr] max-md:gap-8">
+          <div className="text-[clamp(28px,3.4vw,48px)] font-medium tracking-[-0.02em] leading-[1.15] max-w-[20ch] text-balance">
+            <span className="text-green-ink font-serif">"</span>{t('quote')}<span className="text-green-ink font-serif">"</span>
+          </div>
+          <div className="pt-2.5">
+            <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 mt-7">{t('quoteAttr')}</div>
+            <p className="text-base leading-[1.6] text-ink-2 text-pretty mt-6 max-w-[48ch]">{t('quoteBody')}</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

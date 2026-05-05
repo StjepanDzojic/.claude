@@ -1,0 +1,120 @@
+type Asset = import("react-native-image-picker").Asset;
+type RoomInterface = import("@unomed/react-native-matrix-sdk").RoomInterface;
+type RoomMember = import("@unomed/react-native-matrix-sdk").RoomMember;
+type RoomNotificationMode =
+  import("@unomed/react-native-matrix-sdk").RoomNotificationMode;
+
+type DocumentPickerResponse =
+  import("@react-native-documents/picker").DocumentPickerResponse;
+
+declare global {
+  type Routes = {
+    splash: undefined;
+    login: undefined;
+    home: undefined;
+    welcome: undefined;
+    onboarding: undefined;
+    forgotPassword: undefined;
+    startChat: undefined;
+    createRoom: undefined;
+    searchChat: undefined;
+    invitePeople: {
+      roomId: string;
+      members: RoomMember[];
+      isCreateRoom?: boolean;
+    };
+    joinRoom: undefined;
+    room: {
+      roomId: string;
+    };
+    sendImages: {
+      roomId: string;
+      images: Asset[];
+    };
+    sendFile: {
+      roomId: string;
+      file: DocumentPickerResponse;
+    };
+    pdfViewer: {
+      fileUrl: string;
+      filename: string;
+    };
+    editRoom: {
+      room: RoomInterface;
+    };
+    setUpRecoveryKey: { initialKey?: string } | undefined;
+    settings: undefined;
+    verifyUser: {
+      userId: string;
+      /** If provided, this is an incoming verification request that needs to be acknowledged */
+      flowId?: string;
+    };
+    profile: {
+      userId: string;
+      initialProfile?: {
+        userId: string;
+        displayName?: string;
+        avatarUrl?: string;
+      };
+    };
+    serverSelect: undefined;
+    serverInfo: undefined;
+    userProfile: undefined;
+    notifications: undefined;
+    notificationsIntro: undefined;
+    screenLock: undefined;
+    screenLockSettings: undefined;
+    forwardMessage: {
+      currentRoomId: string;
+    };
+    reportMessage: {
+      roomId: string;
+    };
+    blockedUsers: {
+      blockedUserIds: string[];
+    };
+    setupScreenLock: undefined;
+    verifyPin: undefined;
+    encryption: undefined;
+    about: undefined;
+    reportProblem: undefined;
+    roomDetails: { room: RoomInterface };
+    roomNotifications: { roomId: string };
+    roomMembers: {
+      roomId: string;
+    };
+    roomMedia: {
+      room: RoomInterface;
+    };
+    confirmIdentity: undefined;
+    cantConfirm: undefined;
+    oidcResetWebView: { url: string };
+    enterRecoveryKey: undefined;
+    verifyWithDevice: undefined;
+    notificationsType: {
+      type: "group" | "direct";
+      notificationsType: RoomNotificationMode;
+    };
+    pinnedEvents: {
+      room: RoomInterface;
+    };
+    roomRoles: {
+      room: RoomInterface;
+      userPowerLevel: number;
+    };
+    manageRole: {
+      room: RoomInterface;
+      targetLevel: 50 | 100;
+    };
+    roomPermissions: {
+      room: RoomInterface;
+      userPowerLevel: number;
+    };
+    roomSecurity: {
+      room: RoomInterface;
+    };
+    deactivateAccount: undefined;
+  };
+}
+
+export {};

@@ -1,0 +1,163 @@
+import type {
+  EventTimelineItem,
+  RoomInterface,
+  TaskHandleInterface,
+  TimelineItemInterface,
+} from "@unomed/react-native-matrix-sdk";
+import {
+  DateDividerMode,
+  TimelineDiff_Tags,
+  TimelineFilter,
+  TimelineFocus,
+  TimelineReadReceiptTracking,
+} from "@unomed/react-native-matrix-sdk";
+import { getItemUniqueKey } from "modules/matrix-client/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+interface Props {
+  room: RoomInterface | undefined;
+}
+
+const MAX_EVENTS_TO_LOAD = 100;
+const MAX_CONCURRENT_REQUESTS = 10;
+
+export const usePinnedEventsTimeline = ({ room }: Props) => {
+  const [events, setEvents] = useState<EventTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const timelineItemsRef = useRef<Array<EventTimelineItem | null>>([]);
+
+  const toEventItem = (item: TimelineItemInterface): EventTimelineItem | null =>
+    item.asEvent() ?? null;
+
+  const rebuildEvents = useCallback(() => {
+    const seenIds = new Set<string>();
+    const nextEvents: EventTimelineItem[] = [];
+
+    for (const item of timelineItemsRef.current) {
+      if (!item) continue;
+      const key = getItemUniqueKey(item);
+      if (key) {
+        if (seenIds.has(key)) continue;
+        seenIds.add(key);
+      }
+      nextEvents.push(item);
+    }
+
+    setEvents(nextEvents);
+  }, []);
+
+  useEffect(() => {
+    if (!room) return;
+
+    setEvents([]);
+    setLoading(true);
+    timelineItemsRef.current = [];
+
+    let timelineListenerHandle: TaskHandleInterface | null = null;
+    let isDisposed = false;
+
+    const init = async () => {
+      try {
+        const timeline = await room.timelineWithConfiguration({
+          focus: new TimelineFocus.PinnedEvents({
+            maxEventsToLoad: MAX_EVENTS_TO_LOAD,
+            maxConcurrentRequests: MAX_CONCURRENT_REQUESTS,
+          }),
+          filter: new TimelineFilter.All(),
+          internalIdPrefix: "pinned_",
+          dateDividerMode: DateDividerMode.Daily,
+          trackReadReceipts: TimelineReadReceiptTracking.Disabled,
+          reportUtds: false,
+        });
+
+        if (isDisposed) return;
+
+        timelineListenerHandle = await timeline.addListener({
+          onUpdate: (diffs) => {
+            const timelineItems = timelineItemsRef.current;
+
+            diffs.forEach((diff) => {
+              switch (diff.tag) {
+                case TimelineDiff_Tags.Append: {
+                  if (diff.inner.values.length > 0) {
+                    timelineItems.push(...diff.inner.values.map(toEventItem));
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.Insert: {
+                  const { index, value } = diff.inner;
+                  timelineItems.splice(index, 0, toEventItem(value));
+                  break;
+                }
+                case TimelineDiff_Tags.Set: {
+                  const { index, value } = diff.inner;
+                  timelineItems[index] = toEventItem(value);
+                  break;
+                }
+                case TimelineDiff_Tags.Remove: {
+                  const { index: removeIndex } = diff.inner;
+                  if (removeIndex >= 0 && removeIndex < timelineItems.length) {
+                    timelineItems.splice(removeIndex, 1);
+                  }
+                  break;
+                }
+                case TimelineDiff_Tags.PushFront: {
+                  timelineItems.unshift(toEventItem(diff.inner.value));
+                  break;
+                }
+                case TimelineDiff_Tags.PushBack: {
+                  timelineItems.push(toEventItem(diff.inner.value));
+                  break;
+                }
+                case TimelineDiff_Tags.PopFront: {
+                  timelineItems.shift();
+                  break;
+                }
+                case TimelineDiff_Tags.PopBack: {
+                  timelineItems.pop();
+                  break;
+                }
+                case TimelineDiff_Tags.Reset: {
+                  timelineItemsRef.current = diff.inner.values.map(toEventItem);
+                  break;
+                }
+                case TimelineDiff_Tags.Truncate: {
+                  timelineItems.length = diff.inner.length;
+                  break;
+                }
+                case TimelineDiff_Tags.Clear: {
+                  timelineItemsRef.current = [];
+                  setEvents([]);
+                  break;
+                }
+                default:
+                  break;
+              }
+            });
+
+            if (diffs.some((d) => d.tag !== TimelineDiff_Tags.Clear)) {
+              rebuildEvents();
+            }
+
+            setLoading(false);
+          },
+        });
+      } catch (error) {
+        if (!isDisposed) {
+          console.error("Failed to initialize pinned events timeline:", error);
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      isDisposed = true;
+      timelineListenerHandle?.cancel?.();
+      timelineItemsRef.current = [];
+    };
+  }, [room, rebuildEvents]);
+
+  return { events, loading };
+};

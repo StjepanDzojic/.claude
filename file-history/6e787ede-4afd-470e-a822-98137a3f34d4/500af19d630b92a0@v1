@@ -1,0 +1,201 @@
+import { Block, Text, useAnimateSequence } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAtomValue, useSetAtom } from "jotai";
+import { PushNotificationsAtoms } from "modules/push-notifications/jotai";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { type FC, useEffect, useState } from "react";
+import { Easing, Image, StyleSheet } from "react-native";
+import { Button, IpadScreenWrapper, ScreenLayout } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+const steps = [
+  {
+    title: "Welcome to Cloak",
+    description:
+      "Private, secure conversations — all in one place, powered by Matrix.",
+    image: require("assets/images/logo.png"),
+  },
+  {
+    title: "Talk your way",
+    description:
+      "Chat one-on-one or in rooms, join communities, and stay close to what matters.",
+    image: require("assets/images/onboarding/talk.png"),
+  },
+  {
+    title: "Private and secure by design",
+    description:
+      "Matrix is end-to-end encrypted — this is a standout feature worth highlighting.",
+    image: require("assets/images/onboarding/design.png"),
+  },
+];
+
+export const Onboarding: FC<NativeStackScreenProps<Routes, "onboarding">> = ({
+  navigation,
+}) => {
+  const hasSeenNotificationsIntro = useAtomValue(
+    PushNotificationsAtoms.hasSeenNotificationsIntro,
+  );
+  const [currentStep, setCurrentStep] = useState(0);
+  const setHasSeenOnboarding = useSetAtom(StorageAtoms.hasSeenOnboarding);
+  const element1 = useAnimateSequence(
+    { opacity: [0.2, 1], width: [6, 24] },
+    { duration: 200, easing: Easing.ease, native: false },
+  );
+  const element2 = useAnimateSequence(
+    { opacity: [0.2, 1], width: [6, 24] },
+    { duration: 200, easing: Easing.ease, native: false },
+  );
+  const element3 = useAnimateSequence(
+    { opacity: [0.2, 1], width: [6, 24] },
+    { duration: 200, easing: Easing.ease, native: false },
+  );
+  const wrapper = useAnimateSequence(
+    { opacity: [1, 0] },
+    { duration: 200, easing: Easing.ease, native: false },
+  );
+
+  useEffect(() => {
+    if (currentStep === 0) {
+      element1.start();
+      element2.reverse();
+    } else if (currentStep === 1) {
+      element1.reverse();
+      element2.start();
+      element3.reverse();
+    } else if (currentStep === 2) {
+      element2.reverse();
+      element3.start();
+    }
+  }, [currentStep]);
+
+  const handleFinish = () => {
+    setHasSeenOnboarding(true);
+    if (!hasSeenNotificationsIntro) {
+      navigation.replace("notificationsIntro");
+      return;
+    }
+    navigation.replace("home");
+  };
+
+  const handleNext = () => {
+    if (currentStep < 2) {
+      wrapper.start(() => {
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          wrapper.reverse();
+        }, 200);
+      });
+    } else handleFinish();
+  };
+
+  const handleBack = () => {
+    if (currentStep === 0) return;
+    wrapper.start(() => {
+      setTimeout(() => {
+        setCurrentStep(currentStep - 1);
+        wrapper.reverse();
+      }, 200);
+    });
+  };
+
+  return (
+    <ScreenLayout>
+      <IpadScreenWrapper justify="space-between" align="center">
+        <Block
+          height={24}
+          justify="space-between"
+          align="center"
+          flexDirection="row"
+          width="100%"
+          margins={{ marginTop: 40 }}
+        >
+          {currentStep > 0 ? (
+            <Button.Wrapper onPress={handleBack}>
+              <Block
+                flex={1}
+                flexDirection="row"
+                justify="center"
+                align="center"
+                gap={12}
+              >
+                <Image source={require("assets/icons/caret-left.png")} />
+                <Text font="InstrumentSans-Medium">Back</Text>
+              </Block>
+            </Button.Wrapper>
+          ) : (
+            <Block />
+          )}
+          {currentStep < 2 ? (
+            <Button.Wrapper onPress={handleFinish}>
+              <Text>Skip</Text>
+            </Button.Wrapper>
+          ) : (
+            <Block />
+          )}
+        </Block>
+
+        <Block align="center" justify="center">
+          <Block
+            align="center"
+            justify="center"
+            animations={wrapper.animations}
+          >
+            <Image source={steps[currentStep].image} width={108} height={120} />
+            <Text
+              size={TextSize.large}
+              margins={{ marginTop: 40, marginBottom: 8 }}
+            >
+              {steps[currentStep].title}
+            </Text>
+            <Text color={Colors.white80} textAlign="center">
+              {steps[currentStep].description}
+            </Text>
+          </Block>
+          <Block
+            gap={4}
+            flexDirection="row"
+            align="center"
+            margins={{ marginTop: 100 }}
+          >
+            <Block
+              background={Colors.white}
+              height={6}
+              animations={element1.animations}
+              border={{
+                borderRadius: 50,
+              }}
+            />
+            <Block
+              background={Colors.white}
+              height={6}
+              animations={element2.animations}
+              border={{
+                borderRadius: 50,
+              }}
+            />
+            <Block
+              background={Colors.white}
+              height={6}
+              animations={element3.animations}
+              border={{
+                borderRadius: 50,
+              }}
+            />
+          </Block>
+        </Block>
+
+        <Block paddings={[40, 52]}>
+          <Button.Primary style={styles.next} onPress={handleNext}>
+            Next
+          </Button.Primary>
+        </Block>
+      </IpadScreenWrapper>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  next: {
+    width: "100%",
+  },
+});

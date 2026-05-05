@@ -1,0 +1,165 @@
+import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { Block, Text } from "@prototyp/skeletor";
+import { RecoveryState } from "@unomed/react-native-matrix-sdk";
+import { AuthService } from "modules/auth/service/AuthService";
+import { EncryptionService } from "modules/encryption/service/EncryptionService";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Image } from "react-native";
+import Toast from "react-native-toast-message";
+import { Button, Loading } from "shared/components";
+import { AppBottomSheet, type AppBottomSheetRef } from "shared/components/bottom-sheet";
+import { usePreventSwipeBack } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  isBottomSheetOpen: boolean;
+  setIsBottomSheetOpen: () => void;
+}
+
+export const SignOutBottomSheet: React.FC<Props> = ({
+  isBottomSheetOpen,
+  setIsBottomSheetOpen,
+}) => {
+  const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [backupState, setBackupState] = useState<MappedBackupState>("unknown");
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>(
+    RecoveryState.Unknown,
+  );
+  const isBackupEnabled =
+    backupState === "enabled" ||
+    (backupState === "unknown" &&
+      (recoveryState === RecoveryState.Enabled ||
+        recoveryState === RecoveryState.Incomplete));
+  const [showBackupSetUpWarning, setShowBackupSetUpWarning] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const signOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await AuthService.logout();
+      handleCancel();
+      NavigationContainerRef.reset({
+        index: 0,
+        routes: [{ name: "splash" }],
+      });
+      Toast.show({
+        type: "success",
+        text1: "Successfully signed out",
+      });
+    } catch (error) {
+      console.error("Failed to logout: ", error);
+      offlineToastHelper("Failed to sign out");
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleClose = useCallback(() => {
+    setIsBottomSheetOpen();
+    setShowBackupSetUpWarning(false);
+  }, [setIsBottomSheetOpen]);
+
+  const handleCancel = useCallback(() => {
+    sheetRef.current?.close();
+  }, []);
+
+  const handleSettings = useCallback(() => {
+    handleCancel();
+    NavigationContainerRef.navigate("encryption");
+  }, [handleCancel]);
+
+  const handleSignOut = useCallback(() => {
+    if (!isBackupEnabled) {
+      setShowBackupSetUpWarning(true);
+      return;
+    }
+
+    signOut();
+  }, [signOut]);
+
+  usePreventSwipeBack(isBottomSheetOpen);
+
+  useEffect(() => {
+    const listener = EncryptionService.subscribeToBackupState((state) => {
+      setBackupState(state);
+    });
+
+    return () => {
+      listener.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    const listener = EncryptionService.subscribeToRecoveryState((state) => {
+      setRecoveryState(state);
+    });
+
+    return () => {
+      listener.cancel();
+    };
+  }, []);
+
+  return (
+    <>
+      {isSigningOut ? <Loading text="Signing out..." /> : null}
+      <AppBottomSheet ref={sheetRef} isOpen={isBottomSheetOpen} onClose={handleClose}>
+        <BottomSheetView>
+          {showBackupSetUpWarning ? (
+            <Block
+              paddings={{
+                paddingHorizontal: 20,
+                paddingBottom: 20,
+              }}
+              gap={40}
+              align="center"
+            >
+              <Image source={require("assets/images/key.png")} />
+              <Block gap={8} align="center">
+                <Text size={TextSize.large} color={Colors.white}>
+                  Recovery not set up
+                </Text>
+                <Text font="InstrumentSans-Regular" textAlign="center">
+                  You are about to sign out of your last session. If you sign
+                  out now, you will lose access to your encrypted messages.
+                </Text>
+              </Block>
+              <Block gap={12} width="100%" paddings={[0, 52]}>
+                <Button.Outline onPress={handleSettings}>
+                  Settings
+                </Button.Outline>
+                <Button.Warning onPress={signOut}>
+                  Sign out anyway
+                </Button.Warning>
+              </Block>
+            </Block>
+          ) : (
+            <Block
+              paddings={{
+                paddingHorizontal: 20,
+                paddingBottom: 20,
+              }}
+              gap={40}
+            >
+              <Block gap={8} align="center">
+                <Text size={TextSize.large} color={Colors.white}>
+                  Sign Out
+                </Text>
+                <Text font="InstrumentSans-Regular">
+                  Are you sure you want to sign out?
+                </Text>
+              </Block>
+              <Block gap={12} width="100%" paddings={[0, 52]}>
+                <Button.Warning onPress={handleSignOut}>
+                  Sign Out
+                </Button.Warning>
+                <Button.Ghost onPress={handleCancel}>Cancel</Button.Ghost>
+              </Block>
+            </Block>
+          )}
+        </BottomSheetView>
+      </AppBottomSheet>
+    </>
+  );
+};

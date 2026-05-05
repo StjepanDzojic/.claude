@@ -1,0 +1,205 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RecoveryState } from "@unomed/react-native-matrix-sdk";
+import { useAtomValue } from "jotai";
+import { EncryptionService } from "modules/encryption/service/EncryptionService";
+import { NetworkAtoms } from "modules/network/jotai";
+import { useEffect, useState } from "react";
+import { Image, StyleSheet } from "react-native";
+import {
+  Button,
+  GoBackHeader,
+  IpadScreenWrapper,
+  Loading,
+  RadioButton,
+  ScreenLayout,
+} from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+import { DisableKeyStorageModal } from "./fragments";
+
+export const Encryption: React.FC<
+  NativeStackScreenProps<Routes, "encryption">
+> = ({ navigation }) => {
+  const isOffline = useAtomValue(NetworkAtoms.isOffline);
+  const [backupState, setBackupState] = useState<MappedBackupState>("unknown");
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>(
+    RecoveryState.Unknown,
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDisableKeyStorageModalVisible, setIsDisableKeyStorageModalVisible] =
+    useState<boolean>(false);
+  const isBackupEnabled =
+    backupState === "enabled" ||
+    (backupState === "unknown" &&
+      (recoveryState === RecoveryState.Enabled ||
+        recoveryState === RecoveryState.Incomplete));
+  const isTransitioning =
+    backupState === "enabling" || backupState === "disabling";
+
+  const recoveryText = () => {
+    if (recoveryState === RecoveryState.Enabled) return "Change recovery key";
+    if (recoveryState === RecoveryState.Disabled) {
+      return "Set up a recovery key";
+    }
+    if (recoveryState === RecoveryState.Incomplete) {
+      return "Enter existing recovery key and validate your device.";
+    }
+    return "Set up a recovery key";
+  };
+
+  useEffect(() => {
+    const listener = EncryptionService.subscribeToBackupState((state) => {
+      setBackupState(state);
+      setIsLoading(false);
+    });
+
+    return () => {
+      listener.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    const listener = EncryptionService.subscribeToRecoveryState((state) => {
+      setRecoveryState(state);
+      setIsLoading(false);
+    });
+
+    return () => {
+      listener.cancel();
+    };
+  }, []);
+
+  const handleToggleKeyStorage = async () => {
+    try {
+      if (isBackupEnabled) {
+        setIsDisableKeyStorageModalVisible(true);
+        return;
+      }
+
+      // Enable backups when state is unknown (backup not enabled)
+      setIsLoading(true);
+      await EncryptionService.enableBackups();
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to toggle key storage:", error);
+      offlineToastHelper("Failed to toggle key storage");
+    }
+  };
+
+  return (
+    <ScreenLayout>
+      <GoBackHeader title="Encryption" margins={0} />
+      <IpadScreenWrapper flex={1} align="center" gap={40}>
+        {isOffline ? (
+          <Block flex={1} align="center" justify="center" gap={16}>
+            <Image
+              source={require("assets/icons/wifi-slash.png")}
+              style={styles.wifiIcon}
+            />
+            <Text size={TextSize.base} color={Colors.white50}>
+              No internet connection
+            </Text>
+            <Text size={TextSize.tiny} color={Colors.white50}>
+              Encryption settings can't be changed while offline.
+            </Text>
+          </Block>
+        ) : (
+          <>
+            {recoveryState !== RecoveryState.Incomplete && (
+              <Block gap={8} width="100%">
+                <Text
+                  size={TextSize.tiny}
+                  color={Colors.white50}
+                  paddings={[0, 12]}
+                >
+                  Key storage
+                </Text>
+                {isLoading ? (
+                  <Block paddings={[20, 12]} align="center">
+                    <Loading isFullScreen={false} />
+                  </Block>
+                ) : (
+                  <RadioButton
+                    disabled={isTransitioning}
+                    checked={isBackupEnabled}
+                    onToggle={handleToggleKeyStorage}
+                    label="Allow key storage"
+                  />
+                )}
+                <Block flexDirection="row" gap={12}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    tintColor={Colors.white50}
+                  />
+                  <Text size={TextSize.tiny} color={Colors.white50} flex={1}>
+                    Store your cryptographic identity and message keys securely
+                    on the server. This will allow you to view your message
+                    history on any new devices.
+                  </Text>
+                </Block>
+              </Block>
+            )}
+            {isBackupEnabled && (
+              <Block width="100%" gap={8}>
+                <Button.Wrapper
+                  style={styles.button}
+                  onPress={() => navigation.navigate("setUpRecoveryKey")}
+                >
+                  <Block
+                    paddings={[20, 12]}
+                    flexDirection="row"
+                    align="center"
+                    justify="space-between"
+                    border={{
+                      borderRadius: 16,
+                    }}
+                    background={Colors.white5}
+                  >
+                    <Text flex={1} size={TextSize.base}>
+                      {recoveryText()}
+                    </Text>
+                    <Image
+                      source={require("assets/icons/caret-left.png")}
+                      style={styles.caret}
+                    />
+                  </Block>
+                </Button.Wrapper>
+                <Block flexDirection="row" gap={12}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    tintColor={Colors.white50}
+                  />
+                  <Text size={TextSize.tiny} color={Colors.white50} flex={1}>
+                    Get access to your encrypted messages if you lose all your
+                    devices or are signed out of Cloak everywhere.
+                  </Text>
+                </Block>
+              </Block>
+            )}
+            <DisableKeyStorageModal
+              visible={isDisableKeyStorageModalVisible}
+              onClose={() => setIsDisableKeyStorageModalVisible(false)}
+            />
+          </>
+        )}
+      </IpadScreenWrapper>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    width: "100%",
+  },
+  caret: {
+    transform: [{ rotate: "180deg" }],
+    width: 24,
+    height: 24,
+    marginLeft: "auto",
+  },
+  wifiIcon: {
+    width: 32,
+    height: 32,
+  },
+});

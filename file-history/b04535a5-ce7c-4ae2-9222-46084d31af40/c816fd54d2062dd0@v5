@@ -1,0 +1,223 @@
+import { Block, Text, useAnimateParallel } from "@prototyp/skeletor";
+import { useAtom } from "jotai";
+import { MatrixBaseURL } from "modules/matrix-client/const";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { fetchMedia } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type FC, useCallback, useEffect, useState } from "react";
+import { Dimensions, Modal, TouchableWithoutFeedback } from "react-native";
+import Video, { type OnLoadData } from "react-native-video";
+import { Colors } from "shared/styles";
+import {
+  cacheVideoWithKey,
+  getCachedVideoPathByURL,
+  isVideoCached,
+} from "shared/utils/video-caching";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+export const VideoViewerModal: FC = () => {
+  const [videoViewerContent, setVideoViewerContent] = useAtom(
+    TimelineAtoms.videoViewerContent,
+  );
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [naturalSize, setNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const videoSize = naturalSize
+    ? (() => {
+        const scale = Math.min(
+          SCREEN_WIDTH / naturalSize.width,
+          SCREEN_HEIGHT / naturalSize.height,
+        );
+        return {
+          width: Math.round(naturalSize.width * scale),
+          height: Math.round(naturalSize.height * scale),
+        };
+      })()
+    : { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+
+  const visible = !!videoViewerContent;
+
+  const controlsAnimation = useAnimateParallel(
+    { translateY: [-120, 0], opacity: [0, 1] },
+    { duration: 280 },
+  );
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  useEffect(() => {
+    if (!videoViewerContent) return;
+
+    let cancelled = false;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    const load = async () => {
+      const mxcUrl = videoViewerContent.source.url();
+      const mimeType = videoViewerContent.info?.mimetype || "video/mp4";
+
+      try {
+        if (mxcUrl && (await isVideoCached(mxcUrl))) {
+          if (!cancelled) setLocalUri(getCachedVideoPathByURL(mxcUrl));
+          return;
+        }
+
+        const fetchedUri = await fetchMedia({
+          serverUrl:
+            MatrixCore.instance?.session().homeserverUrl || MatrixBaseURL,
+          mediaSource: videoViewerContent.source,
+          mimeType,
+        });
+
+        if (cancelled) return;
+        if (!fetchedUri) {
+          setHasError(true);
+          setIsLoading(false);
+          return;
+        }
+
+        if (mxcUrl) {
+          await cacheVideoWithKey(mxcUrl, fetchedUri);
+          if (!cancelled) setLocalUri(getCachedVideoPathByURL(mxcUrl));
+        } else {
+          if (!cancelled) setLocalUri(fetchedUri);
+        }
+      } catch {
+        if (!cancelled) {
+          setHasError(true);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [videoViewerContent]);
+
+  const onClose = useCallback(() => {
+    setVideoViewerContent(null);
+    setLocalUri(null);
+    setHasError(false);
+    setIsLoading(false);
+    setShowControls(true);
+    setNaturalSize(null);
+  }, [setVideoViewerContent]);
+
+  const handleVideoLoad = useCallback((data: OnLoadData) => {
+    setIsLoading(false);
+    setHasError(false);
+    setNaturalSize({
+      width: data.naturalSize.width,
+      height: data.naturalSize.height,
+    });
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    if (!videoViewerContent) return;
+    const content = videoViewerContent;
+    setVideoViewerContent(null);
+    setTimeout(() => setVideoViewerContent(content), 0);
+  }, [videoViewerContent, setVideoViewerContent]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <Block background={Colors.black} flex={1} justify="center" align="center">
+        <Block
+          absolute
+          offsets={{ top: 0, left: 0, right: 0 }}
+          zIndex={10}
+          paddings={[56, 20, 16, 20]}
+          align="flex-end"
+          background={Colors.primary}
+          animations={controlsAnimation.animations}
+          pointerEvents={showControls ? "auto" : "none"}
+        >
+          <Button.Wrapper onPress={onClose}>
+            <Text size={17} font="InstrumentSans-Semibold" color={Colors.white}>
+              Close
+            </Text>
+          </Button.Wrapper>
+        </Block>
+
+        <Block width={videoSize.width} height={videoSize.height}>
+          {isLoading && !hasError && (
+            <Block
+              absolute
+              width={videoSize.width}
+              height={videoSize.height}
+              align="center"
+              justify="center"
+              zIndex={5}
+              background={Colors.black70}
+            >
+              <Loading isFullScreen={false} />
+            </Block>
+          )}
+
+          {hasError ? (
+            <Block
+              width={videoSize.width}
+              height={videoSize.height}
+              align="center"
+              justify="center"
+            >
+              <Text color={Colors.white}>Failed to load video</Text>
+              <Button.Wrapper onPress={handleRetry}>
+                <Text size={14} color={Colors.white}>
+                  Tap to retry
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          ) : localUri ? (
+            <TouchableWithoutFeedback onPress={handleTap}>
+              <Video
+                source={{
+                  uri: localUri,
+                  type: videoViewerContent?.info?.mimetype || "video/mp4",
+                }}
+                style={{ width: videoSize.width, height: videoSize.height }}
+                resizeMode="contain"
+                controls
+                paused={false}
+                onLoad={handleVideoLoad}
+                onError={(e) => console.log(e)}
+              />
+            </TouchableWithoutFeedback>
+          ) : null}
+        </Block>
+      </Block>
+    </Modal>
+  );
+};

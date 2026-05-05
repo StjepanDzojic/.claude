@@ -1,0 +1,252 @@
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-141-/**
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-142- * The type of change between the previous and current pinned events.
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-143- */
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:144:export enum RoomPinnedEventsChange {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-145-  /**
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-146-   * Only new event ids were added.
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-147-   */
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-156-  Changed,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-157-}
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-158-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:159:const FfiConverterTypeRoomPinnedEventsChange = (() => {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-160-  const ordinalConverter = FfiConverterInt32;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:161:  type TypeName = RoomPinnedEventsChange;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-162-  class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-163-    read(from: RustBuffer): TypeName {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-164-      switch (ordinalConverter.read(from)) {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-165-        case 1:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:166:          return RoomPinnedEventsChange.Added;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-167-        case 2:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:168:          return RoomPinnedEventsChange.Removed;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-169-        case 3:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:170:          return RoomPinnedEventsChange.Changed;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-171-        default:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-172-          throw new UniffiInternalError.UnexpectedEnumCase();
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-173-      }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-174-    }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-175-    write(value: TypeName, into: RustBuffer): void {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-176-      switch (value) {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:177:        case RoomPinnedEventsChange.Added:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-178-          return ordinalConverter.write(1, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:179:        case RoomPinnedEventsChange.Removed:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-180-          return ordinalConverter.write(2, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:181:        case RoomPinnedEventsChange.Changed:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-182-          return ordinalConverter.write(3, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-183-      }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-184-    }
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-396-  initialize: uniffiEnsureInitialized,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-397-  converters: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-398-    FfiConverterTypeEventItemOrigin,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts:399:    FfiConverterTypeRoomPinnedEventsChange,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-400-    FfiConverterTypeSpaceRoomListPaginationState,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-401-    FfiConverterTypeTimelineReadReceiptTracking,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ui.ts-402-  },
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-92-} from './matrix_sdk_crypto';
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-93-import {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-94-  EventItemOrigin,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:95:  RoomPinnedEventsChange,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-96-  SpaceRoomListPaginationState,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-97-  TimelineReadReceiptTracking,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-98-} from './matrix_sdk_ui';
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-171-} = uniffiMatrixSdkCryptoModule.converters;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-172-const {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-173-  FfiConverterTypeEventItemOrigin,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:174:  FfiConverterTypeRoomPinnedEventsChange,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-175-  FfiConverterTypeSpaceRoomListPaginationState,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-176-  FfiConverterTypeTimelineReadReceiptTracking,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-177-} = uniffiMatrixSdkUiModule.converters;
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25930-  RoomHistoryVisibility = 'RoomHistoryVisibility',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25931-  RoomJoinRules = 'RoomJoinRules',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25932-  RoomName = 'RoomName',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:25933:  RoomPinnedEvents = 'RoomPinnedEvents',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25934-  RoomPowerLevels = 'RoomPowerLevels',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25935-  RoomServerAcl = 'RoomServerAcl',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-25936-  RoomThirdPartyInvite = 'RoomThirdPartyInvite',
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26269-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26270-  }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26271-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26272:  type RoomPinnedEvents__interface = {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26273:    tag: OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26274:    inner: Readonly<{ change: RoomPinnedEventsChange }>;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26275-  };
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26276-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26277:  class RoomPinnedEvents_
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26278-    extends UniffiEnum
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26279:    implements RoomPinnedEvents__interface
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26280-  {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26281-    /**
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26282-     * @private
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26283-     * This field is private and should not be used, use `tag` instead.
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26284-     */
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26285-    readonly [uniffiTypeNameSymbol] = 'OtherState';
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26286:    readonly tag = OtherState_Tags.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26287:    readonly inner: Readonly<{ change: RoomPinnedEventsChange }>;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26288:    constructor(inner: { change: RoomPinnedEventsChange }) {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26289:      super('OtherState', 'RoomPinnedEvents');
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26290-      this.inner = Object.freeze(inner);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26291-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26292-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26293:    static new(inner: { change: RoomPinnedEventsChange }): RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26294:      return new RoomPinnedEvents_(inner);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26295-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26296-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26297:    static instanceOf(obj: any): obj is RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26298:      return obj.tag === OtherState_Tags.RoomPinnedEvents;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26299-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26300-  }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26301-
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26541-    RoomHistoryVisibility: RoomHistoryVisibility_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26542-    RoomJoinRules: RoomJoinRules_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26543-    RoomName: RoomName_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26544:    RoomPinnedEvents: RoomPinnedEvents_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26545-    RoomPowerLevels: RoomPowerLevels_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26546-    RoomServerAcl: RoomServerAcl_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26547-    RoomThirdPartyInvite: RoomThirdPartyInvite_,
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26600-            name: FfiConverterOptionalString.read(from),
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26601-          });
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26602-        case 13:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26603:          return new OtherState.RoomPinnedEvents({
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26604:            change: FfiConverterTypeRoomPinnedEventsChange.read(from),
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26605-          });
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26606-        case 14:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26607-          return new OtherState.RoomPowerLevels({
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26695-          FfiConverterOptionalString.write(inner.name, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26696-          return;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26697-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26698:        case OtherState_Tags.RoomPinnedEvents: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26699-          ordinalConverter.write(13, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26700-          const inner = value.inner;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26701:          FfiConverterTypeRoomPinnedEventsChange.write(inner.change, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26702-          return;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26703-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26704-        case OtherState_Tags.RoomPowerLevels: {
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26804-          size += FfiConverterOptionalString.allocationSize(inner.name);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26805-          return size;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26806-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26807:        case OtherState_Tags.RoomPinnedEvents: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26808-          const inner = value.inner;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26809-          let size = ordinalConverter.allocationSize(13);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:26810:          size += FfiConverterTypeRoomPinnedEventsChange.allocationSize(
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26811-            inner.change
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26812-          );
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-26813-          return size;
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35352-  RoomJoinRules = 'RoomJoinRules',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35353-  RoomMemberContent = 'RoomMemberContent',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35354-  RoomName = 'RoomName',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35355:  RoomPinnedEvents = 'RoomPinnedEvents',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35356-  RoomPowerLevels = 'RoomPowerLevels',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35357-  RoomServerAcl = 'RoomServerAcl',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35358-  RoomThirdPartyInvite = 'RoomThirdPartyInvite',
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35707-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35708-  }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35709-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35710:  type RoomPinnedEvents__interface = {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35711:    tag: StateEventContent_Tags.RoomPinnedEvents;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35712-  };
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35713-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35714:  class RoomPinnedEvents_
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35715-    extends UniffiEnum
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35716:    implements RoomPinnedEvents__interface
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35717-  {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35718-    /**
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35719-     * @private
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35720-     * This field is private and should not be used, use `tag` instead.
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35721-     */
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35722-    readonly [uniffiTypeNameSymbol] = 'StateEventContent';
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35723:    readonly tag = StateEventContent_Tags.RoomPinnedEvents;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35724-    constructor() {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35725:      super('StateEventContent', 'RoomPinnedEvents');
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35726-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35727-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35728:    static new(): RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35729:      return new RoomPinnedEvents_();
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35730-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35731-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35732:    static instanceOf(obj: any): obj is RoomPinnedEvents_ {
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35733:      return obj.tag === StateEventContent_Tags.RoomPinnedEvents;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35734-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35735-  }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35736-
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35930-    RoomJoinRules: RoomJoinRules_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35931-    RoomMemberContent: RoomMemberContent_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35932-    RoomName: RoomName_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35933:    RoomPinnedEvents: RoomPinnedEvents_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35934-    RoomPowerLevels: RoomPowerLevels_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35935-    RoomServerAcl: RoomServerAcl_,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35936-    RoomThirdPartyInvite: RoomThirdPartyInvite_,
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35982-        case 13:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35983-          return new StateEventContent.RoomName();
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35984-        case 14:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:35985:          return new StateEventContent.RoomPinnedEvents();
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35986-        case 15:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35987-          return new StateEventContent.RoomPowerLevels();
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-35988-        case 16:
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36060-          ordinalConverter.write(13, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36061-          return;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36062-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36063:        case StateEventContent_Tags.RoomPinnedEvents: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36064-          ordinalConverter.write(14, into);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36065-          return;
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36066-        }
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36146-        case StateEventContent_Tags.RoomName: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36147-          return ordinalConverter.allocationSize(13);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36148-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36149:        case StateEventContent_Tags.RoomPinnedEvents: {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36150-          return ordinalConverter.allocationSize(14);
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36151-        }
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36152-        case StateEventContent_Tags.RoomPowerLevels: {
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36196-  RoomJoinRules,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36197-  RoomMemberEvent,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36198-  RoomName,
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36199:  RoomPinnedEvents,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36200-  RoomPowerLevels,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36201-  RoomServerAcl,
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36202-  RoomThirdPartyInvite,
+--
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36241-        case 14:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36242-          return StateEventType.RoomName;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36243-        case 15:
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36244:          return StateEventType.RoomPinnedEvents;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36245-        case 16:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36246-          return StateEventType.RoomPowerLevels;
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36247-        case 17:
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36290-          return ordinalConverter.write(13, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36291-        case StateEventType.RoomName:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36292-          return ordinalConverter.write(14, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:36293:        case StateEventType.RoomPinnedEvents:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36294-          return ordinalConverter.write(15, into);
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36295-        case StateEventType.RoomPowerLevels:
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-36296-          return ordinalConverter.write(16, into);
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37588-  Live = 'Live',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37589-  Event = 'Event',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37590-  Thread = 'Thread',
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37591:  PinnedEvents = 'PinnedEvents',
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37592-}
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37593-export const TimelineFocus = (() => {
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37594-  type Live__interface = {
+--
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37718-    }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37719-  }
+/Users/stjepandzojic/projects/cloakanddagger/node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts-37720-
+node_modules/@unomed/react-native-matrix-sdk/src/generated/matrix_sdk_ffi.ts:37721:  type PinnedEvents__interface = {
+
+[Showing results with pagination = limit: 250]

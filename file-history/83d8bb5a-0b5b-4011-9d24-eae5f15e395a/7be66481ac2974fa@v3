@@ -1,0 +1,126 @@
+import { paymentLinkServerService } from '@modules/payment-link/services/payment-link.server.service';
+import {
+  CreatePaymentLinkErrorSchema,
+  CreatePaymentLinkRequestSchema,
+  CreatePaymentLinkResponseSchema,
+} from '@modules/payment-link/types';
+import { ApiError } from '@modules/shared/services/http-server';
+import { getProjectById } from 'lib/firebase/server-actions';
+import { NextResponse } from 'next/server';
+import * as z from 'zod';
+
+export const runtime = 'nodejs';
+
+const errorResponse = (
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+) => {
+  const body: CreatePaymentLinkErrorResponse = {
+    error: { code, message, ...(details !== undefined ? { details } : {}) },
+  };
+  return NextResponse.json(CreatePaymentLinkErrorSchema.parse(body), {
+    status,
+  });
+};
+
+export async function POST(request: Request) {
+  let body: CreatePaymentLinkRequest;
+  try {
+    body = CreatePaymentLinkRequestSchema.parse(await request.json());
+  } catch (error) {
+    const details =
+      error instanceof z.ZodError ? error.flatten().fieldErrors : undefined;
+    return errorResponse(
+      400,
+      'invalid_body',
+      'Invalid request body.',
+      details,
+    );
+  }
+
+  const { projectId, amount, idempotencyKey } = body;
+
+  const project = await getProjectById(projectId);
+  if (!project) {
+    return errorResponse(404, 'project_not_found', 'Project does not exist.');
+  }
+
+  if (project.fundraisingEndDate < Date.now()) {
+    return errorResponse(
+      409,
+      'fundraising_closed',
+      'This project is no longer accepting investments.',
+    );
+  }
+
+  const minInvestment = project.financials.minInvestment ?? 0;
+  if (amount < minInvestment) {
+    return errorResponse(
+      400,
+      'amount_below_minimum',
+      `Minimum investment is ${minInvestment}.`,
+    );
+  }
+
+  const productId = project.productId ?? process.env.CHECKOUT_FALLBACK_PRODUCT_ID;
+  const priceId = project.priceId ?? process.env.CHECKOUT_FALLBACK_PRICE_ID;
+
+  if (!productId || !priceId) {
+    return errorResponse(
+      409,
+      'checkout_not_configured',
+      'This project is not set up for checkout yet.',
+    );
+  }
+
+  try {
+    // `quantity` carries the investment amount because the upstream price is a
+    // unit price of 1 (e.g. $1 per unit).
+    const link = await paymentLinkServerService.create(
+      {
+        nickname: `Investment in ${project.name} ($${amount})`,
+        amount_type: 'FIXED',
+        products: [
+          {
+            id: productId,
+            product_prices: [
+              { id: priceId, quantity: amount, adjustable: false },
+            ],
+          },
+        ],
+        allowed_payment_methods: ['PAYMENT_CARD'],
+        collect_buyer_details: 'email',
+      },
+      { idempotencyKey: idempotencyKey ?? crypto.randomUUID() },
+    );
+
+    const payload: CreatePaymentLinkResponse = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      data: {
+        id: link.id,
+        url: link.url,
+        amount_cents: link.amount_cents,
+        currency: link.currency,
+        status: link.status,
+        created_at: link.created_at,
+      },
+    };
+
+    return NextResponse.json(CreatePaymentLinkResponseSchema.parse(payload), {
+      status: 201,
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return errorResponse(502, error.code ?? 'checkout_error', error.message);
+    }
+    console.error('Failed to create payment link', error);
+    return errorResponse(
+      500,
+      'checkout_error',
+      'Could not start checkout. Please try again.',
+    );
+  }
+}

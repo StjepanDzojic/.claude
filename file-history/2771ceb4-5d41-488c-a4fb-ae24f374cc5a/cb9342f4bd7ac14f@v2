@@ -1,0 +1,201 @@
+# Easy API ↔ Firestore Integration Guide
+
+This doc captures the current Firestore-backed data model and the conventions for layering the Easy API on top of (or eventually replacing) it. It's the working brief for any session that touches Easy API integration — keep it up to date as endpoints are wired in.
+
+> Code entry point: [lib/easy-api/server.ts](lib/easy-api/server.ts) — `EasyApiService` class + `easyApi` singleton.
+> Auth: `x-easy-api-key` header sourced from `process.env.API_SECRET_KEY`. Base URL from `process.env.API_BASE_URL` (no `/v1` suffix — paths in domain modules must include their own version segment if needed).
+
+---
+
+## 1. Current Firestore data model
+
+All collections live at the root of the default Firestore database. Type definitions are global ambient interfaces (no exports — referenced by name).
+
+| Collection | Type | File | Notes |
+|---|---|---|---|
+| `projects` | `Project` | [types/project.d.ts](types/project.d.ts) | Public read; admin-only writes. `id` is the Firestore doc ID. Dates stored as unix-ms `number`. |
+| `transactions` | `Transaction` | [types/transaction.ts](types/transaction.ts) | Owner/admin read; admin-only update/delete. `type: 'investment' \| 'return'`. |
+| `users` | `FirestoreUser` | [types/user.d.ts](types/user.d.ts) | Self-read/write only; `role: 'admin'` controls Firestore rules. `watchlist: string[]` of project IDs. |
+| `documents` | `Document` | [types/document.ts](types/document.ts) | Authed read; admin-only write. |
+| `waitlist` | `WaitlistEntry` | [types/waitlist.ts](types/waitlist.ts) | Doc ID is `${userId}_${projectId}`; admin read only, owner can join/leave. |
+
+Security rules: [firestore.rules](firestore.rules). Storage rules: [storage.rules](storage.rules).
+
+### Date convention
+Every timestamp is `number` (ms since epoch) — `Date.now()` on write. The Easy API will likely use ISO 8601 strings; **transform at the boundary** (see §5).
+
+### ID convention
+Firestore-generated IDs come from `addDoc` or `doc(collection)`; the `id` field is denormalized onto the returned object only when read through the action layer. The Easy API likely returns IDs in the body — preserve this shape so consumer types stay stable.
+
+---
+
+## 2. Current Firestore action layout
+
+Two parallel action layers live under [lib/firebase/](lib/firebase/):
+
+- **Server-side** ([lib/firebase/server.ts](lib/firebase/server.ts)) — initializes a separate `'server'` named app, no auth context. Used by route handlers and server components.
+  - [lib/firebase/server-actions.ts](lib/firebase/server-actions.ts) — projects (read all/by-id, create, update), `isUserAdmin`.
+- **Client-side** ([lib/firebase/config.ts](lib/firebase/config.ts)) — default app, runs under user auth. Used by client components.
+  - [lib/firebase/client-project-actions.ts](lib/firebase/client-project-actions.ts)
+  - [lib/firebase/transaction-actions.ts](lib/firebase/transaction-actions.ts)
+  - [lib/firebase/user-actions.ts](lib/firebase/user-actions.ts)
+  - [lib/firebase/waitlist-actions.ts](lib/firebase/waitlist-actions.ts)
+  - [lib/firebase/investment-actions.ts](lib/firebase/investment-actions.ts)
+  - [lib/firebase/check-admin.ts](lib/firebase/check-admin.ts), [lib/firebase/auth.ts](lib/firebase/auth.ts), [lib/firebase/auth-context.tsx](lib/firebase/auth-context.tsx)
+
+Each action file owns one collection and exposes `createX/getX/updateX/deleteX` style helpers that throw on error.
+
+---
+
+## 3. Easy API conventions
+
+### Where things go
+
+```
+lib/easy-api/
+  server.ts        ← base service, exports `easyApi` singleton + types
+  types.ts         ← (when added) shared envelope types from Easy API spec
+  projects.ts      ← domain methods: getProject, listProjects, createProject…
+  transactions.ts  ← domain methods
+  users.ts
+  documents.ts
+  waitlist.ts
+```
+
+Domain modules import `easyApi` and export typed functions — they do **not** create new service instances. One module per Firestore collection mirrors the action-file split, so the call sites change minimally.
+
+### Domain method shape
+
+```ts
+// lib/easy-api/projects.ts
+import { easyApi, type EasyApiResponse } from './server';
+
+export type ProjectDto = Project & { id: string };
+
+export const getProject = (id: string) =>
+  easyApi.get<ProjectDto, ApiErrorBody>(`/projects/${id}`);
+
+export const listProjects = (query?: { status?: ProjectStatus; type?: ProjectType }) =>
+  easyApi.get<ProjectDto[], ApiErrorBody>('/projects', { query });
+
+export const createProject = (body: Omit<Project, 'id' | 'createdAt'>) =>
+  easyApi.post<ProjectDto, ApiErrorBody>('/projects', { body });
+```
+
+Return the `EasyApiResponse<TData, TError>` discriminated union directly — do **not** unwrap `.data` inside the domain layer. Callers (route handlers) decide how to surface the error.
+
+### Validation
+
+Use **zod parsing on the boundary** when the response shape is non-trivial or untrusted; cast for thin pass-throughs. Define schemas in the same domain file:
+
+```ts
+const projectDtoSchema = z.object({ /* mirror Project */ });
+const parsed = await getProject(id);
+if (parsed.ok) projectDtoSchema.parse(parsed.data);
+```
+
+Don't add zod schemas preemptively — wait for the actual Easy API response shape.
+
+---
+
+## 4. Envelope + error type (TBD)
+
+The Easy API spec hasn't been shared yet. When it is, fill in these placeholders and add a typed wrapper to [lib/easy-api/server.ts](lib/easy-api/server.ts):
+
+```ts
+// Likely shape — confirm against spec:
+type ApiSuccess<T> = { /* e.g. { data: T } or raw T */ };
+type ApiErrorBody = { /* e.g. { code: string; message: string; details?: unknown } */ };
+```
+
+If the API uses an envelope (`{ data: T }`), add a thin wrapper around `request` that unwraps `data` on success so domain code can deal in `T` directly. If it returns raw bodies, leave the current generic.
+
+---
+
+## 5. Integration pattern (route handler → Easy API)
+
+Existing example to mirror: [app/api/contact/route.ts](app/api/contact/route.ts) (zod parse → side effect → typed response).
+
+```ts
+// app/api/projects/[id]/route.ts
+import { NextResponse } from 'next/server';
+import { getProject } from '@/lib/easy-api/projects';
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const result = await getProject(params.id);
+  if (!result.ok) {
+    return NextResponse.json(result.error, { status: result.status });
+  }
+  return NextResponse.json(result.data);
+}
+```
+
+### Boundary transforms
+
+If the Easy API uses ISO strings and the existing UI expects unix-ms numbers, transform **inside the domain module** (single responsibility) before returning to the route handler:
+
+```ts
+const toUnixMs = (iso: string) => new Date(iso).getTime();
+
+export const getProject = async (id: string) => {
+  const res = await easyApi.get<RawProjectDto>(`/projects/${id}`);
+  if (!res.ok) return res;
+  return { ...res, data: { ...res.data, createdAt: toUnixMs(res.data.createdAt) /* … */ } };
+};
+```
+
+This keeps `Project` (the global interface) stable across the codebase during migration.
+
+---
+
+## 6. Migration strategy
+
+Pick one per collection — record the choice here as endpoints come online.
+
+| Mode | When to use |
+|---|---|
+| **Read-through** | Route handler reads from Easy API only; writes still go to Firestore. Lowest risk first step. |
+| **Write-through** | Writes go to Easy API only; reads stay on Firestore until backfill is verified. |
+| **Dual-write** | Writes hit both Firestore and Easy API. Use only if Easy API is the source of truth target and Firestore is being decommissioned with a verification window. |
+| **Full swap** | Both read and write go through Easy API. Firestore action file gets deleted. Final state. |
+
+Status table — keep current:
+
+| Collection | Mode | Endpoints wired | Notes |
+|---|---|---|---|
+| `projects` | TBD | — | Public read on Firestore today; check whether Easy API requires auth for browse. |
+| `transactions` | TBD | — | Sensitive — confirm Easy API auth model before swapping. |
+| `users` | TBD | — | Firebase Auth still owns identity; Easy API likely stores app-level profile only. Clarify split. |
+| `documents` | TBD | — | |
+| `waitlist` | TBD | — | Composite key `${userId}_${projectId}` may not survive — check Easy API contract. |
+
+---
+
+## 7. Auth boundaries
+
+- **Firebase Auth** stays as the user-identity layer (sign-in, ID tokens, `request.auth`). [lib/firebase/auth.ts](lib/firebase/auth.ts), [lib/firebase/auth-context.tsx](lib/firebase/auth-context.tsx).
+- **Easy API server key** is a backend secret — never reaches the client. All Easy API calls go through Next.js API routes (`app/api/*`) or server components/actions.
+- **`NEXT_PUBLIC_API_PUBLISHABLE_KEY`** exists but is unused for now. When client-side calls are added, build a separate `lib/easy-api/client.ts` with a different service instance (publishable key, no secret). Do **not** expand `server.ts` with conditional auth.
+- The route handler is responsible for verifying the calling user (Firebase ID token) before forwarding to Easy API. The Easy API call itself uses the server's `x-easy-api-key`, not the user's identity — pass user context through path/query/body if the API needs it.
+
+---
+
+## 8. Naming + housekeeping
+
+- Class is named `EasyApiService` (TS convention) even though the user spells it "EasyAPIService" colloquially. Rename if preferred — single replace in [lib/easy-api/server.ts](lib/easy-api/server.ts).
+- Domain types currently live as global ambient interfaces (`Project`, `Transaction`, etc.). When adding Easy-API-specific DTOs that diverge, **export them as named types** from the domain module rather than polluting the ambient namespace.
+- Don't reuse `lib/firebase/*-actions.ts` filenames for Easy API — keep the layers visibly distinct (`lib/easy-api/projects.ts`, not `lib/easy-api/project-actions.ts`).
+
+---
+
+## 9. Open questions to resolve before wiring endpoints
+
+1. **Response envelope** — `{ data: T }` / `{ result: T }` / raw `T`?
+2. **Error shape** — fields on a non-2xx body. Codes? Field-level details?
+3. **Date format** — ISO 8601 strings vs unix-ms numbers vs seconds?
+4. **ID format** — does Easy API generate IDs server-side, or expect client-supplied?
+5. **Pagination** — cursor / offset / page-number? Needs deciding before `listProjects` etc.
+6. **User identity propagation** — does Easy API need a user ID in headers/body, or is the secret key alone sufficient + multi-tenant per request?
+7. **Versioning** — does Easy API have a version segment we need to bake into paths (since `API_BASE_URL` doesn't include one)?
+
+Answer these inline above and remove the question once resolved.

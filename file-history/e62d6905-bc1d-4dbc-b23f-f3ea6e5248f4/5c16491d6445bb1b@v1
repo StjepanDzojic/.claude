@@ -1,0 +1,473 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { useAtomValue } from "jotai";
+import { CallOverlayService } from "modules/call/service/CallOverlayService";
+import { ElementCallService } from "modules/call/service/ElementCallService";
+import { PictureInPictureService } from "modules/call/service/PictureInPictureService";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { NetworkAtoms } from "modules/network/jotai";
+import {
+  checkPermission,
+  PermissionType,
+} from "modules/permissions/utils/checkPermission";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Image, Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { Button, Loading } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+const MESSAGE_BRIDGE_SCRIPT = `
+            // Setup message bridge between Element Call and React Native
+            (function() {
+              console.log('Setting up React Native bridge...');
+              
+              // Store original postMessage
+              const originalPostMessage = window.postMessage.bind(window);
+              
+              // Flag to prevent re-capturing injected messages
+              let isInjecting = false;
+              
+              // Expose method for injecting messages without re-capture
+              window.__rnInjectMessage = function(message) {
+                isInjecting = true;
+                try {
+                  originalPostMessage(message, '*');
+                } finally {
+                  isInjecting = false;
+                }
+              };
+
+              // Override postMessage to intercept widget messages
+              window.postMessage = function(message, targetOrigin) {
+                // Don't capture messages that we're injecting from RN
+                if (!isInjecting) {
+                  try {
+                    // Send to React Native if available
+                    if (window.ReactNativeWebView) {
+                      const messageStr = typeof message === 'string' 
+                        ? message 
+                        : JSON.stringify(message);
+                      window.ReactNativeWebView.postMessage(messageStr);
+                      console.log('Sent to RN:', messageStr);
+                    }
+                  } catch (e) {
+                    console.error('Failed to send to RN:', e);
+                  }
+                }
+                
+                // Always call original for in-page communication
+                try {
+                  originalPostMessage(message, targetOrigin);
+                } catch (e) {
+                  console.error('Failed original postMessage:', e);
+                }
+              };
+            
+              console.log('React Native bridge ready');
+            })();
+            true; // Required for iOS          
+  `;
+
+type ElementCallSessionProps = {
+  roomId: string;
+  roomName?: string;
+};
+
+export const ElementCallSession = ({
+  roomId,
+  roomName,
+}: ElementCallSessionProps) => {
+  const insets = useSafeAreaInsets();
+  const client = MatrixCore.instance;
+  const room = client?.getRoom(roomId);
+  const webViewRef = useRef<WebView>(null);
+  const [callUrl, setCallUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const isOffline = useAtomValue(NetworkAtoms.isOffline);
+  const [hasWebViewIssue, setHasWebViewIssue] = useState(false);
+  const messageLoopRef = useRef<boolean>(false);
+  const messageLoopRunningRef = useRef<boolean>(false);
+  const initializingRef = useRef<boolean>(false);
+  const [isCallEnding, setIsCallEnding] = useState(false);
+  const [hasMediaPermissions, setHasMediaPermissions] = useState(false);
+
+  useEffect(() => {
+    initializeCall();
+
+    return () => {
+      messageLoopRef.current = false;
+      messageLoopRunningRef.current = false;
+      initializingRef.current = false;
+      void ElementCallService.cleanupDriver(roomId);
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
+    const removePipDebugListener = PictureInPictureService.subscribeDebugEvents(
+      (payload) => {
+        console.log("[ElementCallPiP][event]", payload);
+      },
+    );
+
+    PictureInPictureService.getDebugState()
+      .then((state) => {
+        console.log("[ElementCallPiP][initial-state]", state);
+      })
+      .catch((pipError) => {
+        console.error("[ElementCallPiP][initial-state-error]", pipError);
+      });
+
+    PictureInPictureService.setEnabled(true);
+    PictureInPictureService.setActivePiPCall(roomId, roomName);
+
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (nextState) => {
+        if (nextState !== "inactive" && nextState !== "background") return;
+
+        PictureInPictureService.enterIfSupported().catch((pipError) => {
+          console.error("Failed to enter iOS Picture-in-Picture:", pipError);
+        });
+      },
+    );
+
+    return () => {
+      removePipDebugListener();
+      appStateSubscription?.remove();
+      PictureInPictureService.stop().catch(() => undefined);
+      PictureInPictureService.setEnabled(false);
+    };
+  }, [roomId, roomName]);
+
+  const initializeCall = async () => {
+    if (initializingRef.current) {
+      return;
+    }
+
+    try {
+      if (!client || !room) throw new Error("Client or room not available");
+
+      initializingRef.current = true;
+      setLoading(true);
+      setError(null);
+
+      const [cameraGranted, microphoneGranted] = await Promise.all([
+        checkPermission(PermissionType.CAMERA),
+        checkPermission(PermissionType.MICROPHONE),
+      ]);
+
+      const permissionsGranted = cameraGranted && microphoneGranted;
+      setHasMediaPermissions(permissionsGranted);
+
+      if (!permissionsGranted) {
+        throw new Error(
+          "Camera and microphone permissions are required for video calls",
+        );
+      }
+
+      const { url } = await ElementCallService.startCall(roomId, room, client);
+
+      setCallUrl(url);
+
+      setTimeout(() => {
+        startMessageLoop();
+      }, 1000);
+
+      setLoading(false);
+    } catch (initError) {
+      console.error("Failed to initialize call:", initError);
+      setError(
+        initError instanceof Error
+          ? initError.message
+          : "Failed to initialize call",
+      );
+      setLoading(false);
+      initializingRef.current = false;
+    }
+  };
+
+  const startMessageLoop = () => {
+    if (messageLoopRunningRef.current) return;
+
+    messageLoopRef.current = true;
+    messageLoopRunningRef.current = true;
+
+    const runLoop = async () => {
+      while (messageLoopRef.current) {
+        try {
+          const message =
+            await ElementCallService.receiveMessagesFromWidget(roomId);
+
+          if (!message) break;
+
+          if (webViewRef.current) {
+            const script = `
+              try {
+                if (window.__rnInjectMessage) {
+                  window.__rnInjectMessage(${message});
+                } else {
+                  window.postMessage(${message}, '*');
+                }
+              } catch (e) {
+                console.error('Failed to post message:', e);
+              }
+            `;
+            webViewRef.current.injectJavaScript(script);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        } catch (loopError) {
+          console.error("Error in message loop:", loopError);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+
+      messageLoopRunningRef.current = false;
+    };
+
+    runLoop();
+  };
+
+  const handleMinimize = useCallback(async () => {
+    if (Platform.OS !== "ios") return;
+
+    PictureInPictureService.setActivePiPCall(roomId, roomName);
+
+    const didStartPromise = new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        removeListener();
+        resolve();
+      }, 3000);
+
+      const removeListener = PictureInPictureService.subscribeDidStart(() => {
+        clearTimeout(timeout);
+        removeListener();
+        resolve();
+      });
+    });
+
+    const started = await PictureInPictureService.enterIfSupported();
+    if (!started) return;
+
+    await didStartPromise;
+    CallOverlayService.minimizeActiveCall();
+  }, [roomId, roomName]);
+
+  const closeCall = async () => {
+    messageLoopRef.current = false;
+    messageLoopRunningRef.current = false;
+    await ElementCallService.cleanupDriver(roomId);
+    PictureInPictureService.clearActivePiPCall();
+    PictureInPictureService.setEnabled(false);
+    CallOverlayService.clearActiveCall();
+  };
+
+  const shouldShowFallbackClose = isOffline || hasWebViewIssue;
+
+  const handleWebViewMessage = async (event: WebViewMessageEvent) => {
+    try {
+      const messageData = event.nativeEvent.data;
+
+      const data = JSON.parse(messageData);
+      const action = data?.action as string | undefined;
+
+      const isEndCallMessage =
+        action === "im.vector.hangup" ||
+        action === "hangup" ||
+        action === "io.element.close";
+
+      if (isEndCallMessage) {
+        setIsCallEnding(true);
+        await closeCall();
+      } else {
+        await ElementCallService.sendMessageToWidget(roomId, messageData);
+      }
+    } catch (messageError) {
+      console.error("Failed to handle WebView message:", messageError);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Block
+        absolute
+        background={Colors.black}
+        justify="center"
+        align="center"
+        width="100%"
+        height="100%"
+        zIndex={9999}
+        paddings={{ paddingTop: insets.top + 40, paddingHorizontal: 20 }}
+      >
+        <Block flexDirection="row" justify="flex-end" width="100%">
+          <Button.Outline onPress={closeCall} size="medium">
+            <Text size={TextSize.small} color={Colors.white}>
+              Close
+            </Text>
+          </Button.Outline>
+        </Block>
+        <Loading isFullScreen={false} />
+      </Block>
+    );
+  }
+
+  if (error || !callUrl) {
+    return (
+      <Block
+        absolute
+        background={Colors.black}
+        justify="space-between"
+        align="center"
+        width="100%"
+        height="100%"
+        zIndex={9999}
+        paddings={{ paddingTop: insets.top + 40, paddingHorizontal: 20 }}
+      >
+        <Block flexDirection="row" justify="flex-end" width="100%" gap={60}>
+          <Button.Outline onPress={closeCall} size="medium">
+            <Text size={TextSize.small} color={Colors.white}>
+              Close
+            </Text>
+          </Button.Outline>
+        </Block>
+        <Block margins="auto">
+          <Text size={TextSize.medium} color={Colors.error}>
+            {error || "Failed to load call"}
+          </Text>
+        </Block>
+      </Block>
+    );
+  }
+
+  if (isCallEnding) {
+    return (
+      <Block
+        align="center"
+        justify="center"
+        flex={1}
+        background={Colors.black}
+        paddings={24}
+      >
+        <Text size={TextSize.medium} color={Colors.white}>
+          Call is ending...
+        </Text>
+      </Block>
+    );
+  }
+
+  return (
+    <Block
+      flex={1}
+      background={Colors.black}
+      paddings={{ paddingTop: insets.top }}
+    >
+      <Block
+        flexDirection="row"
+        align="center"
+        justify="space-between"
+        paddings={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        background={Colors.black}
+        width="100%"
+        gap={12}
+      >
+        {shouldShowFallbackClose ? (
+          <Block>
+            <Button.Wrapper onPress={closeCall}>
+              <Block paddings={12}>
+                <Text size={TextSize.small} color={Colors.white}>
+                  Close
+                </Text>
+              </Block>
+            </Button.Wrapper>
+          </Block>
+        ) : (
+          <Block width={40} height={40} />
+        )}
+        <Block flex={1} flexDirection="row" justify="center" gap={12}>
+          <Block align="center">
+            {roomName && (
+              <Text
+                size={TextSize.large}
+                numberOfLines={1}
+                font="InstrumentSans-Semibold"
+              >
+                {roomName}
+              </Text>
+            )}
+            <Text size={TextSize.small} color={Colors.white50}>
+              Ongoing call
+            </Text>
+          </Block>
+        </Block>
+        {Platform.OS === "ios" && (
+          <Block flexDirection="row" justify="flex-end">
+            <Button.Wrapper onPress={handleMinimize}>
+              <Block paddings={12}>
+                <Image
+                  width={24}
+                  height={24}
+                  source={require("assets/icons/arrows-in.png")}
+                />
+              </Block>
+            </Button.Wrapper>
+          </Block>
+        )}
+      </Block>
+
+      <Block flex={1}>
+        <WebView
+          ref={webViewRef}
+          source={{ uri: callUrl }}
+          style={styles.webview}
+          onMessage={handleWebViewMessage}
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          allowsLinkPreview
+          javaScriptEnabled
+          domStorageEnabled
+          cacheEnabled
+          originWhitelist={["*"]}
+          mixedContentMode="always"
+          thirdPartyCookiesEnabled
+          sharedCookiesEnabled
+          allowFileAccessFromFileURLs
+          mediaCapturePermissionGrantType={
+            hasMediaPermissions ? "grant" : "deny"
+          }
+          allowsPictureInPictureMediaPlayback
+          startInLoadingState
+          injectedJavaScriptBeforeContentLoaded={MESSAGE_BRIDGE_SCRIPT}
+          renderLoading={() => <Loading />}
+          onError={({ nativeEvent }) => {
+            setHasWebViewIssue(true);
+            console.error("WebView error:", nativeEvent);
+          }}
+          onHttpError={({ nativeEvent }) => {
+            setHasWebViewIssue(true);
+            console.error("WebView HTTP error:", nativeEvent);
+          }}
+          onLoad={() => {
+            if (!isOffline) {
+              setHasWebViewIssue(false);
+            }
+          }}
+          userAgent={
+            Platform.OS === "ios"
+              ? "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+              : "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+          }
+        />
+      </Block>
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  webview: {
+    flex: 1,
+    backgroundColor: Colors.black,
+  },
+});

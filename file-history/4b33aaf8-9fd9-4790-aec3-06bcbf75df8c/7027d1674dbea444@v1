@@ -1,0 +1,201 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+import { Placeholder } from '@modules/shared/components/Placeholder';
+import { FormEvent } from 'react';
+
+const Arrow = () => (
+  <span className="inline-block w-14 h-px bg-current relative after:content-[''] after:absolute after:right-0 after:-top-3 after:w-7 after:h-7 after:border-r after:border-t after:border-current after:rotate-45" />
+);
+
+const GreenDot = () => (
+  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green mr-2.5 -translate-y-px" />
+);
+
+export default function ContactPage() {
+  const t = useTranslations('Contact');
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    alert('Demo — hvala!');
+  }
+
+  const infoBlocks = [
+    { label: t('officeLabel'), value: t('officeValue') },
+    {
+      label: t('phoneLabel'),
+      value: '+385 31 200 200',
+      href: 'tel:+38531200200',
+    },
+    {
+      label: t('emailLabel'),
+      value: 'info@hidroing.hr',
+      href: 'mailto:info@hidroing.hr',
+    },
+    { label: t('hoursLabel'), value: t('hoursValue') },
+    { label: t('vatLabel'), value: 'OIB 12345678901\nMBS 030012345' },
+  ];
+
+  const scopes = [
+    t('scope1'),
+    t('scope2'),
+    t('scope3'),
+    t('scope4'),
+    t('scope5'),
+    t('scope6'),
+    t('scope7'),
+    t('scope8'),
+  ];
+
+  return (
+    <main>
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] pt-[clamp(80px,10vw,140px)] pb-[clamp(48px,6vw,80px)] border-b border-rule">
+        <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 mb-5 flex gap-2.5 items-center">
+          <Link href="/">Hidroing</Link>
+          <span className="opacity-50">/</span>
+          <span>{t('crumb')}</span>
+        </div>
+        <h1 className="font-medium tracking-[-0.025em] leading-[1.02] text-[clamp(40px,5.4vw,88px)] text-balance m-0">
+          {t('title')}
+        </h1>
+      </section>
+
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]">
+        <div className="grid grid-cols-[1.1fr_1fr] gap-20 items-start max-md:grid-cols-[1fr] max-md:gap-10">
+          {/* Contact info */}
+          <div className="grid gap-9">
+            {infoBlocks.map((block) => (
+              <div
+                key={block.label}
+                className="border-t border-rule pt-[18px] grid grid-cols-[140px_1fr] gap-6 items-baseline last:border-b last:border-rule last:pb-[18px]">
+                <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                  {block.label}
+                </div>
+                <div className="text-[18px] tracking-[-0.01em] font-medium leading-[1.4]">
+                  {block.href ? (
+                    <a
+                      href={block.href}
+                      className="hover:text-green-ink transition-colors">
+                      {block.value}
+                    </a>
+                  ) : (
+                    block.value.split('\n').map((line, i, arr) => (
+                      <span key={i}>
+                        {line}
+                        {i < arr.length - 1 && <br />}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Map */}
+            <div className="mt-12 h-[400px] relative">
+              <Placeholder
+                corner="OSIJEK · 45.557°N"
+                label={t('mapLabel')}
+                style={{ width: '100%', height: '100%' }}
+              />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full flex flex-col items-center">
+                <div className="px-2.5 py-1.5 bg-ink text-paper font-mono text-[11px] tracking-[0.08em] uppercase whitespace-nowrap absolute -top-8 left-1/2 -translate-x-1/2">
+                  Hidroing
+                </div>
+                <div className="w-3.5 h-3.5 rounded-full bg-green shadow-[0_0_0_6px_rgba(255,255,255,0.9),0_2px_8px_rgba(0,0,0,0.3)]" />
+                <div className="w-px h-6 bg-ink" />
+              </div>
+            </div>
+          </div>
+
+          {/* Enquiry form */}
+          <form
+            className="enquiry grid gap-[18px] p-8 border border-rule rounded-[4px] bg-white"
+            onSubmit={handleSubmit}>
+            <div className="font-mono text-[11px] tracking-widest uppercase text-ink-3 font-medium mb-1.5 flex items-center">
+              <GreenDot />
+              <span>{t('formEyebrow')}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid gap-1.5">
+                <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                  {t('formName')}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ivan Ivić"
+                  className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                  {t('formOrg')}
+                </label>
+                <input
+                  type="text"
+                  placeholder="Grad / Tvrtka"
+                  className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid gap-1.5">
+                <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                  {t('formEmail')}
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="ivan@primjer.hr"
+                  className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                  {t('formPhone')}
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+385 …"
+                  className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                {t('formScope')}
+              </label>
+              <select className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base">
+                {scopes.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-1.5">
+              <label className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                {t('formDesc')}
+              </label>
+              <textarea
+                placeholder={t('formDescPlaceholder')}
+                className="px-3.5 py-3 border border-rule rounded-[3px] font-sans bg-paper text-ink transition-colors text-base min-h-[120px] resize-y"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2.5 px-[22px] py-3.5 rounded-full font-sans font-medium text-[14px] tracking-[-0.01em] border border-ink bg-ink text-paper cursor-pointer transition-all duration-150 hover:bg-green-ink hover:border-green-ink justify-self-start">
+              {t('formSubmit')} <Arrow />
+            </button>
+
+            <div className="text-[12px] text-ink-4">{t('formNote')}</div>
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}

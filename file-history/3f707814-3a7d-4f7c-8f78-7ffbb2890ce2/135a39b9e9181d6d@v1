@@ -1,0 +1,212 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  type RoomInterface,
+  type RoomMember,
+  RoomNotificationMode,
+} from "@unomed/react-native-matrix-sdk";
+import { useAtom, useAtomValue } from "jotai";
+import { CallAtoms } from "modules/call/jotai";
+import { CallOverlayService } from "modules/call/service/CallOverlayService";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { NetworkAtoms } from "modules/network/jotai";
+import { RoomAtoms } from "modules/room/jotai";
+import { RoomService } from "modules/room/service/RoomService";
+import { type FC, useState } from "react";
+import { Image, Share, StyleSheet } from "react-native";
+import { Button } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  room: RoomInterface;
+  members: RoomMember[];
+  hasPowerLevelToCall?: boolean;
+  canInvite?: boolean;
+}
+
+export const ActionButtons: FC<Props> = ({
+  room,
+  members,
+  hasPowerLevelToCall = false,
+  canInvite = false,
+}) => {
+  const [isMuting, setIsMuting] = useState(false);
+  const [roomNotificationMode, setRoomNotificationMode] = useAtom(
+    RoomAtoms.roomNotificationMode,
+  );
+  const isMuted = roomNotificationMode === RoomNotificationMode.Mute;
+  const isOffline = useAtomValue(NetworkAtoms.isOffline);
+  const hasActiveCall = useAtomValue(CallAtoms.hasActiveCall);
+
+  const handleToggleMute = async () => {
+    setIsMuting(true);
+    try {
+      await RoomService.setRoomMuted(room.id(), !isMuted);
+      setRoomNotificationMode(!isMuted ? RoomNotificationMode.Mute : null);
+    } catch (error) {
+      offlineToastHelper("Failed to toggle mute");
+      console.error("Failed to toggle mute:", error);
+    } finally {
+      setIsMuting(false);
+    }
+  };
+
+  const handleShare = () => {
+    Share.share({
+      message:
+        "Hey, I'm using Cloak and Dagger! Download it now: https://cloak.app",
+    });
+  };
+
+  const handleStartCall = () => {
+    if (!hasPowerLevelToCall) return;
+
+    if (isOffline) {
+      offlineToastHelper("No internet connection");
+      return;
+    }
+
+    CallOverlayService.openCall(room.id(), room.displayName());
+  };
+
+  const handleInvitePeople = () => {
+    NavigationContainerRef.navigate("invitePeople", {
+      roomId: room.id(),
+      members,
+    });
+  };
+
+  return (
+    <Block
+      flexDirection="row"
+      gap={8}
+      margins={{ marginTop: 32, marginBottom: 20 }}
+    >
+      {hasPowerLevelToCall && (
+        <Button.Wrapper
+          style={styles.button}
+          onPress={handleStartCall}
+          disabled={hasActiveCall}
+        >
+          <Block
+            width="100%"
+            align="center"
+            justify="center"
+            paddings={12}
+            background={Colors.white10}
+            border={{ borderRadius: 16 }}
+            gap={8}
+          >
+            <Image
+              source={require("assets/icons/phone-call.png")}
+              tintColor={Colors.white}
+            />
+
+            <Text
+              size={TextSize.small}
+              font="InstrumentSans-Medium"
+              color={Colors.white}
+            >
+              Call
+            </Text>
+          </Block>
+        </Button.Wrapper>
+      )}
+      <Button.Wrapper
+        style={styles.button}
+        onPress={handleToggleMute}
+        disabled={isMuting}
+      >
+        <Block
+          width="100%"
+          align="center"
+          justify="center"
+          paddings={12}
+          background={Colors.white10}
+          border={{ borderRadius: 16 }}
+          gap={8}
+        >
+          <Image
+            source={
+              isMuted
+                ? require("assets/icons/bell-slash.png")
+                : require("assets/icons/bell.png")
+            }
+            tintColor={Colors.white}
+          />
+
+          <Text
+            size={TextSize.small}
+            font="InstrumentSans-Medium"
+            color={Colors.white}
+          >
+            {isMuted ? "Unmute" : "Mute"}
+          </Text>
+        </Block>
+      </Button.Wrapper>
+      <Button.Wrapper style={styles.button} onPress={handleShare}>
+        <Block
+          width="100%"
+          align="center"
+          justify="center"
+          paddings={12}
+          background={Colors.white10}
+          border={{ borderRadius: 16 }}
+          gap={8}
+        >
+          <Image
+            source={require("assets/icons/upload-simple-large.png")}
+            tintColor={Colors.white}
+            style={styles.buttonIcon}
+            width={24}
+            height={24}
+          />
+
+          <Text
+            size={TextSize.small}
+            font="InstrumentSans-Medium"
+            color={Colors.white}
+          >
+            Share
+          </Text>
+        </Block>
+      </Button.Wrapper>
+      {canInvite && (
+        <Button.Wrapper style={styles.button} onPress={handleInvitePeople}>
+          <Block
+            width="100%"
+            align="center"
+            justify="center"
+            paddings={12}
+            background={Colors.white10}
+            border={{ borderRadius: 16 }}
+            gap={8}
+          >
+            <Image
+              source={require("assets/icons/user-plus.png")}
+              tintColor={Colors.white}
+            />
+
+            <Text
+              size={TextSize.small}
+              font="InstrumentSans-Medium"
+              color={Colors.white}
+            >
+              Invite
+            </Text>
+          </Block>
+        </Button.Wrapper>
+      )}
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    flex: 1,
+  },
+  buttonIcon: {
+    width: 24,
+    height: 24,
+  },
+});

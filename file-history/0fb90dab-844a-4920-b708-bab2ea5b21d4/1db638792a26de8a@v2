@@ -1,0 +1,96 @@
+import { useAtom, useAtomValue } from "jotai";
+import { AuthService } from "modules/auth/service/AuthService";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { useRef, useState } from "react";
+import type { TextInput, TextInputKeyPressEvent } from "react-native";
+import { offlineToastHelper } from "shared/utils";
+
+const MAX_ATTEMPTS = 3;
+
+type UseScreenLockInputParams = {
+  /** Called when the user enters the correct PIN. */
+  onSuccess: () => void;
+  /** Called after `AuthService.logout()` resolves on the final failed attempt. */
+  onLogoutComplete?: () => void;
+};
+
+export const useScreenLockInput = ({
+  onSuccess,
+  onLogoutComplete,
+}: UseScreenLockInputParams) => {
+  const [pin, setPin] = useState<string[]>(["", "", "", ""]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const screenLockPin = useAtomValue(StorageAtoms.screenLockPin);
+  const [screenLockAttempts, setScreenLockAttempts] = useAtom(
+    StorageAtoms.screenLockAttempts,
+  );
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const attempts = Number(screenLockAttempts);
+  const hasWrongAttempts = attempts > 0;
+  const attemptsRemaining = MAX_ATTEMPTS - attempts;
+
+  const handlePinChange = async (text: string, index: number) => {
+    if (text && !/^\d$/.test(text)) return;
+
+    const newPin = [...pin];
+    newPin[index] = text;
+    setPin(newPin);
+
+    if (index !== 3) {
+      inputRefs.current[index + 1]?.focus();
+      return;
+    }
+
+    const newPinString = newPin.join("");
+
+    if (newPinString === screenLockPin) {
+      setScreenLockAttempts("0");
+      setPin(["", "", "", ""]);
+      onSuccess();
+      return;
+    }
+
+    // Final attempt exhausted — logout.
+    if (attempts === MAX_ATTEMPTS - 1) {
+      try {
+        setIsLoggingOut(true);
+        offlineToastHelper("You have missed the last attempt.");
+        await AuthService.logout();
+        onLogoutComplete?.();
+      } catch (error) {
+        console.error("Failed to logout: ", error);
+        offlineToastHelper("Failed to logout");
+      } finally {
+        setIsLoggingOut(false);
+      }
+      return;
+    }
+
+    setScreenLockAttempts(String(attempts + 1));
+    offlineToastHelper("PIN is incorrect. Please try again.");
+    setPin(["", "", "", ""]);
+    inputRefs.current[0]?.focus();
+  };
+
+  const handleKeyPress = (e: TextInputKeyPressEvent, index: number) => {
+    if (e.nativeEvent.key !== "Backspace" || pin[index] || index === 0) {
+      return;
+    }
+
+    const newPin = [...pin];
+    newPin[index - 1] = "";
+    setPin(newPin);
+    inputRefs.current[index - 1]?.focus();
+  };
+
+  return {
+    pin,
+    inputRefs,
+    attemptsRemaining,
+    hasWrongAttempts,
+    isLoggingOut,
+    handlePinChange,
+    handleKeyPress,
+  };
+};

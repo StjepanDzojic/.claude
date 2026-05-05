@@ -1,0 +1,210 @@
+import {
+  createStackNavigator,
+  TransitionPresets,
+} from "@react-navigation/stack";
+import { ElementCallOverlayHost } from "modules/call/components";
+import type { FC, PropsWithChildren } from "react";
+import { Platform } from "react-native";
+import {
+  About,
+  BlockedUsers,
+  CantConfirm,
+  ConfirmIdentity,
+  CreateRoom,
+  DeactivateAccount,
+  EditRoom,
+  Encryption,
+  EnterRecoveryKey,
+  ForwardMessage,
+  Home,
+  InvitePeople,
+  Login,
+  ManageRole,
+  Notifications,
+  NotificationsIntro,
+  NotificationsType,
+  OidcResetWebView,
+  Onboarding,
+  PdfViewer,
+  PinnedEvents,
+  Profile,
+  ReportMessage,
+  Room,
+  RoomDetails,
+  RoomMedia,
+  RoomMembers,
+  RoomNotifications,
+  RoomPermissions,
+  RoomRoles,
+  RoomSecurity,
+  ScreenLockSettings,
+  SecureScreen,
+  SendFile,
+  SendImages,
+  ServerInfo,
+  ServerSelect,
+  Settings,
+  SetUpRecoveryKey,
+  SetupScreenLock,
+  Splash,
+  StartChat,
+  UserProfile,
+  VerifyPin,
+  VerifyUser,
+  VerifyWithDevice,
+  Welcome,
+} from "screens";
+
+const Stack = createStackNavigator<Routes>();
+
+export const RootNavigator: FC<PropsWithChildren> = ({ children }) => {
+  return (
+    <>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="splash" component={Splash} />
+        <Stack.Screen name="about" component={About} />
+        <Stack.Screen name="serverInfo" component={ServerInfo} />
+        <Stack.Screen
+          name="serverSelect"
+          component={ServerSelect}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen name="login" component={Login} />
+        <Stack.Screen name="home" component={Home} />
+        <Stack.Screen name="welcome" component={Welcome} />
+        <Stack.Screen name="room" component={Room} />
+        <Stack.Screen name="settings" component={Settings} />
+        <Stack.Screen name="userProfile" component={UserProfile} />
+        <Stack.Screen name="profile" component={Profile} />
+        <Stack.Screen name="notifications" component={Notifications} />
+        <Stack.Screen
+          name="screenLockSettings"
+          component={ScreenLockSettings}
+        />
+        <Stack.Screen name="setupScreenLock" component={SetupScreenLock} />
+        <Stack.Screen name="verifyPin" component={VerifyPin} />
+        <Stack.Screen name="roomDetails" component={RoomDetails} />
+        <Stack.Screen name="encryption" component={Encryption} />
+        <Stack.Screen name="editRoom" component={EditRoom} />
+        <Stack.Screen name="roomNotifications" component={RoomNotifications} />
+        <Stack.Screen name="roomMedia" component={RoomMedia} />
+        <Stack.Screen name="roomMembers" component={RoomMembers} />
+        <Stack.Screen name="pinnedEvents" component={PinnedEvents} />
+        <Stack.Screen name="roomRoles" component={RoomRoles} />
+        <Stack.Screen name="manageRole" component={ManageRole} />
+        <Stack.Screen name="roomPermissions" component={RoomPermissions} />
+        <Stack.Screen name="roomSecurity" component={RoomSecurity} />
+        <Stack.Screen name="confirmIdentity" component={ConfirmIdentity} />
+        <Stack.Screen
+          name="enterRecoveryKey"
+          component={EnterRecoveryKey}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen name="verifyWithDevice" component={VerifyWithDevice} />
+        <Stack.Screen name="notificationsType" component={NotificationsType} />
+        <Stack.Screen name="onboarding" component={Onboarding} />
+        <Stack.Screen
+          name="notificationsIntro"
+          component={NotificationsIntro}
+        />
+        <Stack.Screen
+          name="verifyUser"
+          component={VerifyUser}
+          options={{
+            presentation: "modal",
+            gestureEnabled: false,
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="cantConfirm"
+          component={CantConfirm}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen name="oidcResetWebView" component={OidcResetWebView} />
+        <Stack.Screen
+          name="startChat"
+          component={StartChat}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="invitePeople"
+          component={InvitePeople}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="createRoom"
+          component={CreateRoom}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen name="sendImages" component={SendImages} />
+        <Stack.Screen name="sendFile" component={SendFile} />
+        <Stack.Screen name="pdfViewer" component={PdfViewer} />
+        <Stack.Screen
+          name="setUpRecoveryKey"
+          component={SetUpRecoveryKey}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="forwardMessage"
+          component={ForwardMessage}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="reportMessage"
+          component={ReportMessage}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen
+          name="blockedUsers"
+          component={BlockedUsers}
+          options={{
+            presentation: "modal",
+            gestureEnabled: Platform.OS === "ios",
+            ...TransitionPresets.ModalPresentationIOS,
+          }}
+        />
+        <Stack.Screen name="deactivateAccount" component={DeactivateAccount} />
+        <Stack.Screen name="secure" component={SecureScreen} />
+        {children}
+      </Stack.Navigator>
+      <ElementCallOverlayHost />
+    </>
+  );
+};

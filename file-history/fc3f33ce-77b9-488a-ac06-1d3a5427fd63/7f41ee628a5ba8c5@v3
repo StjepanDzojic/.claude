@@ -1,0 +1,312 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import {
+  type EventTimelineItem,
+  ProfileDetails_Tags,
+  type RoomInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { getEventId } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Dimensions, Image, Modal, StyleSheet, View } from "react-native";
+import { useMediaTimeline } from "screens/room-media/hooks";
+import { ImageInfoBottomSheet } from "screens/room/fragments/image-info-bottom-sheet";
+import { VideoInfoBottomSheet } from "screens/room/fragments/video-info-bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import { BlurGradientOverlay } from "../blur-gradient-overlay";
+import { Button } from "../button";
+import { MediaImagePage } from "./MediaImagePage";
+import { MediaVideoPage } from "./MediaVideoPage";
+import { getMediaKind } from "./utils";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 80 };
+
+interface Props {
+  payload: MediaViewerPayload;
+}
+
+export const MediaViewerModalContent: FC<Props> = ({ payload }) => {
+  const [, setPayload] = useAtom(TimelineAtoms.mediaViewerPayload);
+  const setImageInfoPayload = useSetAtom(TimelineAtoms.imageInfoPayload);
+  const setVideoInfoPayload = useSetAtom(TimelineAtoms.videoInfoPayload);
+  const listRef = useRef<FlashListRef<EventTimelineItem>>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const localUriByEventIdRef = useRef<Map<string, string | null>>(new Map());
+  const hasScrolledInitiallyRef = useRef(false);
+
+  const room = useMemo<RoomInterface | undefined>(() => {
+    try {
+      return MatrixCore.getRoom(payload.roomId);
+    } catch {
+      return undefined;
+    }
+  }, [payload.roomId]);
+
+  const { mediaItems, loadMore } = useMediaTimeline({
+    room,
+    roomId: payload.roomId,
+  });
+
+  // Keep loadMore + items length in refs so onViewableItemsChanged stays stable.
+  // FlashList/FlatList warns if that callback's identity changes between renders.
+  const loadMoreRef = useRef(loadMore);
+  const itemsLengthRef = useRef(0);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
+  /** Filter to image+video and keep source order (newest first).
+  FlashList is `inverted` so index 0 renders at the right edge; swiping
+  right reveals older (higher-index) items and triggers onEndReached. */
+  const items = useMemo<EventTimelineItem[]>(() => {
+    const filtered = mediaItems.filter((item) => getMediaKind(item) !== null);
+    const next = filtered.length === 0 ? [payload.initialEvent] : filtered;
+    itemsLengthRef.current = next.length;
+    return next;
+  }, [mediaItems, payload.initialEvent]);
+
+  useEffect(() => {
+    if (hasScrolledInitiallyRef.current) return;
+    const idx = items.findIndex(
+      (item) => getEventId(item) === payload.initialEventId,
+    );
+    if (idx < 0) return;
+    hasScrolledInitiallyRef.current = true;
+    setCurrentIndex(idx);
+    if (idx === 0) return;
+    const id = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: idx, animated: false });
+    }, 0);
+    return () => clearTimeout(id);
+  }, [items, payload.initialEventId]);
+
+  const currentItem = items[currentIndex];
+  const currentKind = currentItem ? getMediaKind(currentItem) : null;
+
+  const senderName = useMemo(() => {
+    if (!currentItem) return null;
+    if (currentItem.senderProfile.tag === ProfileDetails_Tags.Ready) {
+      return currentItem.senderProfile.inner.displayName ?? currentItem.sender;
+    }
+    return currentItem.sender;
+  }, [currentItem]);
+
+  const formattedDate = useMemo(() => {
+    if (!currentItem) return null;
+    return format(Number(currentItem.timestamp), "MMM d, HH:mm");
+  }, [currentItem]);
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+  }, [setPayload]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      const first = viewableItems[0];
+      if (first?.index == null) return;
+      setCurrentIndex(first.index);
+
+      // Paginate when the user approaches the oldest edge of the list.
+      // onEndReached is unreliable on inverted horizontal FlashList, so
+      // we drive loadMore from viewability instead.
+      const maxIndex = itemsLengthRef.current - 1;
+      const nearOldest = viewableItems.some(
+        (v) => v.index != null && v.index >= maxIndex - 1,
+      );
+      if (nearOldest) loadMoreRef.current();
+    },
+    [],
+  );
+
+  const handleLocalUriChange = useCallback(
+    (eventId: string | null, uri: string | null) => {
+      if (!eventId) return;
+      localUriByEventIdRef.current.set(eventId, uri);
+    },
+    [],
+  );
+
+  const handleOpenInfo = useCallback(() => {
+    if (!currentItem) return;
+    const eventId = getEventId(currentItem);
+    const localUri = eventId
+      ? (localUriByEventIdRef.current.get(eventId) ?? null)
+      : null;
+    if (currentKind === "image") {
+      setImageInfoPayload({
+        event: currentItem,
+        roomId: payload.roomId,
+        localUri,
+      });
+    } else if (currentKind === "video") {
+      setVideoInfoPayload({
+        event: currentItem,
+        roomId: payload.roomId,
+        localUri,
+      });
+    }
+  }, [
+    currentItem,
+    currentKind,
+    payload.roomId,
+    setImageInfoPayload,
+    setVideoInfoPayload,
+  ]);
+
+  const keyExtractor = useCallback(
+    (item: EventTimelineItem) => getEventId(item) ?? "",
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: EventTimelineItem; index: number }) => {
+      const kind = getMediaKind(item);
+      const eventId = getEventId(item);
+      const onUriChange = (uri: string | null) =>
+        handleLocalUriChange(eventId, uri);
+      return (
+        <View style={styles.page}>
+          {kind === "image" ? (
+            <MediaImagePage
+              event={item}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : kind === "video" ? (
+            <MediaVideoPage
+              event={item}
+              isActive={index === currentIndex}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : null}
+        </View>
+      );
+    },
+    [currentIndex, handleSingleTap, handleLocalUriChange],
+  );
+
+  return (
+    <Modal
+      visible
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <BottomSheetModalProvider>
+        <Block background={Colors.black} flex={1}>
+          <FlashList
+            ref={listRef}
+            data={items}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            horizontal
+            inverted
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onViewableItemsChanged={handleViewableItemsChanged}
+            viewabilityConfig={VIEWABILITY_CONFIG}
+          />
+
+          <Block
+            absolute
+            offsets={{ top: 0, left: 0, right: 0 }}
+            zIndex={10}
+            paddings={[56, 20, 16, 20]}
+            flexDirection="row"
+            align="center"
+            justify="space-between"
+            gap={12}
+            background={Colors.primary}
+            animations={controlsAnimation.animations}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BlurGradientOverlay />
+            <Block width={60} align="flex-start" zIndex={2}>
+              {!!currentItem && (
+                <Button.Wrapper onPress={handleOpenInfo}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    style={styles.infoIcon}
+                    tintColor={Colors.white}
+                  />
+                </Button.Wrapper>
+              )}
+            </Block>
+            <Block flex={1} align="center" gap={2} zIndex={2}>
+              {senderName && (
+                <Text
+                  color={Colors.white}
+                  font="InstrumentSans-Semibold"
+                  numberOfLines={1}
+                >
+                  {senderName}
+                </Text>
+              )}
+              {formattedDate && (
+                <Text
+                  size={TextSize.tiny}
+                  color={Colors.white80}
+                  numberOfLines={1}
+                >
+                  {formattedDate}
+                </Text>
+              )}
+            </Block>
+            <Block width={60} align="flex-end" zIndex={2}>
+              <Button.Wrapper onPress={onClose}>
+                <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                  Close
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          </Block>
+        </Block>
+        <ImageInfoBottomSheet />
+        <VideoInfoBottomSheet />
+      </BottomSheetModalProvider>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  page: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  infoIcon: {
+    width: 24,
+    height: 24,
+  },
+});

@@ -1,0 +1,133 @@
+import { embeddedCheckoutServerService } from '@modules/embedded-checkout/services/embedded-checkout.server.service';
+import {
+  CreateEmbeddedCheckoutErrorSchema,
+  CreateEmbeddedCheckoutRequestSchema,
+  CreateEmbeddedCheckoutResponseSchema,
+} from '@modules/embedded-checkout/types';
+import { ApiError } from '@modules/shared/services/http-server';
+import { Routes } from 'const/Routes';
+import { getProjectById } from 'lib/firebase/server-actions';
+import { NextResponse } from 'next/server';
+import * as z from 'zod';
+
+export const runtime = 'nodejs';
+
+const errorResponse = (
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+) => {
+  const body: CreateEmbeddedCheckoutErrorResponse = {
+    error: { code, message, ...(details !== undefined ? { details } : {}) },
+  };
+  return NextResponse.json(CreateEmbeddedCheckoutErrorSchema.parse(body), {
+    status,
+  });
+};
+
+const getOrigin = (request: Request): string => {
+  const headers = request.headers;
+  const host = headers.get('x-forwarded-host') ?? headers.get('host');
+  const proto = headers.get('x-forwarded-proto') ?? 'https';
+  if (!host) throw new Error('Missing request host header');
+  return `${proto}://${host}`;
+};
+
+export async function POST(request: Request) {
+  let body: CreateEmbeddedCheckoutRequest;
+  try {
+    body = CreateEmbeddedCheckoutRequestSchema.parse(await request.json());
+  } catch (error) {
+    const details =
+      error instanceof z.ZodError ? error.flatten().fieldErrors : undefined;
+    return errorResponse(
+      400,
+      'invalid_body',
+      'Invalid request body.',
+      details,
+    );
+  }
+
+  const { projectId, amount } = body;
+
+  const project = await getProjectById(projectId);
+  if (!project) {
+    return errorResponse(404, 'project_not_found', 'Project does not exist.');
+  }
+
+  if (project.fundraisingEndDate < Date.now()) {
+    return errorResponse(
+      409,
+      'fundraising_closed',
+      'This project is no longer accepting investments.',
+    );
+  }
+
+  const minInvestment = project.financials.minInvestment ?? 0;
+  if (amount < minInvestment) {
+    return errorResponse(
+      400,
+      'amount_below_minimum',
+      `Minimum investment is ${minInvestment}.`,
+    );
+  }
+
+  if (!project.priceId) {
+    return errorResponse(
+      409,
+      'checkout_not_configured',
+      'This project is not set up for checkout yet.',
+    );
+  }
+
+  const origin = getOrigin(request);
+  const successUrl =
+    `${origin}${Routes.INVESTMENT_SUCCESS}` +
+    `?projectName=${encodeURIComponent(project.name)}` +
+    `&amount=${amount}` +
+    `&projectId=${encodeURIComponent(project.id)}` +
+    '&session_id={SESSION_ID}';
+  const cancelUrl = `${origin}${Routes.DISCOVER_PROJECTS}/${encodeURIComponent(project.id)}`;
+
+  try {
+    const session = await embeddedCheckoutServerService.create(
+      {
+        line_items: [{ price_id: project.priceId, quantity: amount }],
+        mode: 'payment',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      },
+      { idempotencyKey: crypto.randomUUID() },
+    );
+
+    const payload: CreateEmbeddedCheckoutResponse = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      message: 'Embedded checkout session created',
+      data: {
+        id: session.id,
+        url: session.url,
+        client_secret: session.client_secret,
+        amount_total: session.amount_total,
+        currency: session.currency,
+        status: session.status,
+        expires_at: session.expires_at,
+      },
+    };
+
+    return NextResponse.json(CreateEmbeddedCheckoutResponseSchema.parse(payload), {
+      status: 201,
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return errorResponse(502, error.code ?? 'checkout_error', error.message);
+    }
+    console.error('Failed to create embedded checkout session', error);
+    return errorResponse(
+      500,
+      'checkout_error',
+      'Could not start checkout. Please try again.',
+    );
+  }
+}

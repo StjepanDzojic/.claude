@@ -1,0 +1,32 @@
+import type { VideoMessageContent } from "@unomed/react-native-matrix-sdk";
+import { atom } from "jotai";
+
+/** One atom; two sheets subscribe. isFailedEcho(payload.event) routes between
+MessageContentBottomSheet (normal) and FailedEchoBottomSheet (send failed).  */
+const longPressPayload = atom<TimelineLongPressPayload | null>(null);
+const replyPayload = atom<TimelineReplyPayload | null>(null);
+const editPayload = atom<TimelineEditPayload | null>(null);
+const forwardPayload = atom<TimelineLongPressPayload | null>(null);
+const reportPayload = atom<TimelineReportPayload | null>(null);
+const scrollToEventId = atom<string | null>(null);
+const seenByUsers = atom<TimelineSeenByUser[] | null>(null);
+const reactionsPayload = atom<TimelineReaction[] | null>(null);
+const imageViewerUri = atom<string | null>(null);
+const videoViewerContent = atom<VideoMessageContent | null>(null);
+const pinnedEventIds = atom<string[]>([]);
+const shieldPayload = atom<TimelineShieldPayload | null>(null);
+
+export const TimelineAtoms = {
+  longPressPayload,
+  replyPayload,
+  editPayload,
+  forwardPayload,
+  reportPayload,
+  scrollToEventId,
+  seenByUsers,
+  reactionsPayload,
+  imageViewerUri,
+  videoViewerContent,
+  pinnedEventIds,
+  shieldPayload,
+};

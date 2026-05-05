@@ -1,0 +1,169 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { EventTimelineItem } from "@unomed/react-native-matrix-sdk";
+import { type FC, useCallback, useEffect, useState } from "react";
+import { TouchableWithoutFeedback, useWindowDimensions } from "react-native";
+import Video, { type OnLoadData } from "react-native-video";
+import { Button } from "shared/components/button";
+import { Colors, TextSize } from "shared/styles";
+import { resolveEncryptedVideo } from "shared/utils/encrypted-video-cache";
+import { Loading } from "../loading";
+import { getVideoContent } from "./utils";
+
+interface Props {
+  event: EventTimelineItem;
+  isActive: boolean;
+  onSingleTap: () => void;
+  onLocalUriChange: (uri: string | null) => void;
+}
+
+export const MediaVideoPage: FC<Props> = ({
+  event,
+  isActive,
+  onSingleTap,
+  onLocalUriChange,
+}) => {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const content = getVideoContent(event);
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const videoSize = naturalSize
+    ? (() => {
+        const scale = Math.min(
+          SCREEN_WIDTH / naturalSize.width,
+          SCREEN_HEIGHT / naturalSize.height,
+        );
+        return {
+          width: Math.round(naturalSize.width * scale),
+          height: Math.round(naturalSize.height * scale),
+        };
+      })()
+    : { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+
+  const load = useCallback(async () => {
+    if (!content) return null;
+    const mxcUrl = content.source.url();
+    const mimeType = content.info?.mimetype || "video/mp4";
+    if (!mxcUrl) return null;
+    try {
+      return await resolveEncryptedVideo({
+        cacheKey: mxcUrl,
+        mediaSource: content.source,
+        mimeType,
+      });
+    } catch {
+      return null;
+    }
+  }, [content]);
+
+  useEffect(() => {
+    if (!isActive || localUri) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setHasError(false);
+
+    load().then((uri) => {
+      if (cancelled) return;
+      if (uri) {
+        setLocalUri(uri);
+      } else {
+        setHasError(true);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isActive, localUri, load]);
+
+  useEffect(() => {
+    onLocalUriChange(localUri);
+  }, [localUri, onLocalUriChange]);
+
+  const handleVideoLoad = useCallback((data: OnLoadData) => {
+    setIsLoading(false);
+    setHasError(false);
+    setNaturalSize({
+      width: data.naturalSize.width,
+      height: data.naturalSize.height,
+    });
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+    const uri = await load();
+    if (uri) setLocalUri(uri);
+    else {
+      setHasError(true);
+      setIsLoading(false);
+    }
+  }, [load]);
+
+  return (
+    <Block
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
+      align="center"
+      justify="center"
+    >
+      <Block width={videoSize.width} height={videoSize.height}>
+        {isLoading && !hasError && (
+          <Block
+            absolute
+            width={videoSize.width}
+            height={videoSize.height}
+            align="center"
+            justify="center"
+            zIndex={5}
+            background={Colors.white10}
+          >
+            <Loading isFullScreen={false} />
+          </Block>
+        )}
+        {hasError ? (
+          <Block
+            width={videoSize.width}
+            height={videoSize.height}
+            align="center"
+            justify="center"
+          >
+            <Text color={Colors.white}>Failed to load video</Text>
+            <Button.Wrapper onPress={handleRetry}>
+              <Text size={TextSize.small} color={Colors.white}>
+                Tap to retry
+              </Text>
+            </Button.Wrapper>
+          </Block>
+        ) : localUri ? (
+          <TouchableWithoutFeedback onPress={onSingleTap}>
+            <Video
+              source={{
+                uri: localUri,
+                type: content?.info?.mimetype || "video/mp4",
+              }}
+              style={{ width: videoSize.width, height: videoSize.height }}
+              resizeMode="contain"
+              controls
+              paused={!isActive}
+              onLoad={handleVideoLoad}
+              onError={handleVideoError}
+            />
+          </TouchableWithoutFeedback>
+        ) : null}
+      </Block>
+    </Block>
+  );
+};

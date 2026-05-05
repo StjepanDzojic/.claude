@@ -1,0 +1,65 @@
+import { z } from 'zod';
+import { envelope, http } from '../../shared/services/http-client';
+
+export const EmbeddedCheckoutLineItemSchema = z.object({
+  price_id: z.string(),
+  quantity: z.number().int().positive(),
+});
+
+export const EmbeddedCheckoutModeSchema = z.enum(['payment', 'subscription']);
+
+export const EmbeddedCheckoutPaymentMethodSchema = z.enum(['card', 'crypto']);
+
+export const CreateEmbeddedCheckoutBodySchema = z.object({
+  line_items: z.array(EmbeddedCheckoutLineItemSchema).min(1),
+  mode: EmbeddedCheckoutModeSchema.optional(),
+  return_url: z.url().optional(),
+  success_url: z.url().optional(),
+  cancel_url: z.url().optional(),
+  customer_email: z.email().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  payment_methods: z
+    .array(EmbeddedCheckoutPaymentMethodSchema)
+    .min(1)
+    .optional(),
+});
+
+export const EmbeddedCheckoutSessionSchema = z.object({
+  id: z.string(),
+  client_secret: z.string(),
+  url: z.string(),
+  amount_total: z.number().int().nonnegative(),
+  currency: z.string(),
+  status: z.string(),
+  expires_at: z.string(),
+});
+
+export type EmbeddedCheckoutLineItem = z.infer<
+  typeof EmbeddedCheckoutLineItemSchema
+>;
+export type EmbeddedCheckoutMode = z.infer<typeof EmbeddedCheckoutModeSchema>;
+export type EmbeddedCheckoutPaymentMethod = z.infer<
+  typeof EmbeddedCheckoutPaymentMethodSchema
+>;
+export type CreateEmbeddedCheckoutBody = z.infer<
+  typeof CreateEmbeddedCheckoutBodySchema
+>;
+export type EmbeddedCheckoutSession = z.infer<
+  typeof EmbeddedCheckoutSessionSchema
+>;
+
+export const embeddedCheckoutService = {
+  /** POST /api/embedded-checkout — Create a new embedded checkout session. */
+  create: async (
+    body: CreateEmbeddedCheckoutBody,
+    opts: { idempotencyKey?: string } = {},
+  ) => {
+    const res = await http.post(envelope(EmbeddedCheckoutSessionSchema), {
+      path: '/v1/api/embedded-checkout/',
+      body: CreateEmbeddedCheckoutBodySchema.parse(body),
+      idempotencyKey: opts.idempotencyKey,
+    });
+
+    return res.data;
+  },
+};

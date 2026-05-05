@@ -1,0 +1,123 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { resolveMatrixImage } from "modules/matrix-client/utils";
+import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Dimensions, Image } from "react-native";
+import { Colors, TextSize } from "shared/styles";
+import { Button } from "../button";
+
+const SCREEN = Dimensions.get("screen");
+
+interface Props {
+  avatarUrl: string | null | undefined;
+  displayName: string | undefined;
+  height?: number;
+  width?: number;
+  borderRadius?: number;
+  downloadWidth?: number;
+  downloadHeight?: number;
+  onPress?: (uri: string) => void;
+}
+
+export const UserImage: FC<Props> = ({
+  avatarUrl,
+  displayName,
+  height = 32,
+  width = 32,
+  borderRadius = 48,
+  downloadWidth = SCREEN.width,
+  downloadHeight = SCREEN.height,
+  onPress,
+}) => {
+  const [uri, setUri] = useState<string | null>(null);
+  const uriRef = useRef<string | null>(null);
+  const textSize = () => {
+    if (height < 20) return TextSize.xtiny;
+    if (height < 28) return TextSize.tiny;
+    if (height < 32) return TextSize.small;
+    if (height < 40) return TextSize.base;
+    if (height < 48) return TextSize.medium;
+    if (height < 56) return TextSize.large;
+
+    return TextSize.xlarge;
+  };
+
+  const resolveAvatar = useCallback(async () => {
+    if (!avatarUrl) return;
+    const cached = await resolveMatrixImage({
+      mxcUrl: avatarUrl,
+      width,
+      height,
+    });
+    if (!cached) return;
+    uriRef.current = cached;
+    setUri(cached);
+  }, [avatarUrl, width, height]);
+
+  const handlePress = useCallback(async () => {
+    if (!onPress || !avatarUrl) return;
+    const largeUri = await resolveMatrixImage({
+      mxcUrl: avatarUrl,
+      width: downloadWidth,
+      height: downloadHeight,
+    });
+    if (largeUri) onPress(largeUri);
+  }, [onPress, avatarUrl, downloadWidth, downloadHeight]);
+
+  useEffect(() => {
+    uriRef.current = null;
+    setUri(null);
+    resolveAvatar();
+  }, [resolveAvatar]);
+
+  // Retry on foreground if the initial fetch failed
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && !uriRef.current && avatarUrl) {
+        resolveAvatar();
+      }
+    });
+    return () => subscription.remove();
+  }, [avatarUrl, resolveAvatar]);
+
+  if (uri) {
+    const image = (
+      <Image
+        source={{ uri }}
+        width={width}
+        height={height}
+        style={{
+          width,
+          height,
+          borderRadius,
+          borderWidth: 2,
+          borderColor: Colors.white20,
+        }}
+      />
+    );
+
+    if (onPress) {
+      return <Button.Wrapper onPress={handlePress}>{image}</Button.Wrapper>;
+    }
+
+    return image;
+  }
+
+  return (
+    <Block
+      width={width}
+      height={height}
+      border={{
+        borderWidth: 1,
+        borderColor: Colors.white20,
+        borderRadius,
+      }}
+      background={Colors.white20}
+      align="center"
+      justify="center"
+    >
+      <Text size={textSize()} color={Colors.white50}>
+        {displayName?.charAt(0).toUpperCase()}
+      </Text>
+    </Block>
+  );
+};

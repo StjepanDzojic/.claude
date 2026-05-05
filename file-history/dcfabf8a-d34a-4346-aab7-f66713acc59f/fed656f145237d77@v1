@@ -1,0 +1,213 @@
+import { ImageZoom } from "@likashefqet/react-native-image-zoom";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import { useAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import type { FC } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Dimensions, Modal, StyleSheet, TouchableOpacity } from "react-native";
+import { Colors, TextSize } from "shared/styles";
+import {
+  cacheImage,
+  getCachedImagePathByURL,
+} from "shared/utils/image-caching";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const isLocalUri = (uri: string) => uri.startsWith("file://");
+
+export const ImageViewerModal: FC = () => {
+  const [imageViewerUri, setImageViewerUri] = useAtom(
+    TimelineAtoms.imageViewerUri,
+  );
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const visible = !!imageViewerUri;
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  useEffect(() => {
+    if (!imageViewerUri) return;
+
+    let cancelled = false;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    const load = async () => {
+      try {
+        if (isLocalUri(imageViewerUri)) {
+          setLocalUri(imageViewerUri);
+          return;
+        }
+
+        await cacheImage(imageViewerUri);
+        if (cancelled) return;
+        setLocalUri(getCachedImagePathByURL(imageViewerUri));
+      } catch {
+        if (cancelled) return;
+        setIsLoading(false);
+        setHasError(true);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageViewerUri]);
+
+  const onClose = useCallback(() => {
+    setImageViewerUri(null);
+    setLocalUri(null);
+    setHasError(false);
+    setIsLoading(true);
+    setShowControls(true);
+  }, [setImageViewerUri]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    if (!imageViewerUri) return;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    try {
+      if (isLocalUri(imageViewerUri)) {
+        setLocalUri(imageViewerUri);
+        return;
+      }
+
+      await cacheImage(imageViewerUri);
+      setLocalUri(getCachedImagePathByURL(imageViewerUri));
+    } catch {
+      setIsLoading(false);
+      setHasError(true);
+    }
+  }, [imageViewerUri]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <Block background={Colors.black} flex={1} justify="center" align="center">
+        <Block
+          absolute
+          offsets={{ top: 0, left: 0, right: 0 }}
+          zIndex={10}
+          paddings={[56, 20, 16, 20]}
+          align="flex-end"
+          background={Colors.primary}
+          animations={controlsAnimation.animations}
+          pointerEvents={showControls ? "auto" : "none"}
+        >
+          <Button.Wrapper onPress={onClose}>
+            <Text font="InstrumentSans-Semibold" color={Colors.white}>
+              Close
+            </Text>
+          </Button.Wrapper>
+        </Block>
+
+        <Block width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+          {isLoading && !hasError && (
+            <Block
+              absolute
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+              zIndex={5}
+              background={Colors.white10}
+            >
+              <Loading isFullScreen={false} />
+            </Block>
+          )}
+
+          {hasError ? (
+            <Block
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+            >
+              <Text color={Colors.white}>Failed to load image</Text>
+              <TouchableOpacity
+                onPress={handleRetry}
+                style={styles.retryButton}
+              >
+                <Text size={TextSize.small} color={Colors.white}>
+                  Tap to retry
+                </Text>
+              </TouchableOpacity>
+            </Block>
+          ) : localUri ? (
+            <ImageZoom
+              key={localUri}
+              uri={localUri}
+              minScale={1}
+              maxScale={5}
+              maxPanPointers={2}
+              isPanEnabled
+              isPinchEnabled
+              isDoubleTapEnabled
+              isSingleTapEnabled
+              style={styles.image}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              onSingleTap={handleSingleTap}
+            />
+          ) : null}
+        </Block>
+      </Block>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  image: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  retryButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+});

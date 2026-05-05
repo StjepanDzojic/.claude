@@ -1,0 +1,23 @@
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
+import { firebaseApp } from './initFirebaseAuth';
+
+export class FirebaseService {
+  public static Auth = getAuth(firebaseApp);
+  public static Firestore = getFirestore(firebaseApp);
+  public static Functions = getFunctions(firebaseApp, 'europe-west1');
+  public static Storage = getStorage(firebaseApp);
+}
+
+// if (process.env.NODE_ENV === 'development') {
+//   console.log('Connecting to Firebase Emulators');
+
+//   connectAuthEmulator(FirebaseService.Auth, 'http://localhost:9099', {
+//     disableWarnings: true,
+//   });
+//   connectFunctionsEmulator(FirebaseService.Functions, 'localhost', 5001);
+//   connectFirestoreEmulator(FirebaseService.Firestore, 'localhost', 8080);
+//   connectStorageEmulator(FirebaseService.Storage, 'localhost', 9199);
+// }

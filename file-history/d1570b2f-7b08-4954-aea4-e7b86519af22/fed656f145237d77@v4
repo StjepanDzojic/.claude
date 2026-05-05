@@ -1,0 +1,217 @@
+import { ImageZoom } from "@likashefqet/react-native-image-zoom";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import { useAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import type { FC } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Modal, StyleSheet, TouchableOpacity } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Colors, TextSize } from "shared/styles";
+import {
+  cacheImage,
+  getCachedImagePathByURL,
+} from "shared/utils/image-caching";
+import { BlurGradientOverlay } from "../blur-gradient-overlay";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const isLocalUri = (uri: string) => uri.startsWith("file://");
+
+export const ImageViewerModal: FC = () => {
+  const [payload, setPayload] = useAtom(TimelineAtoms.imageViewerPayload);
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const uri = payload?.uri ?? null;
+  const visible = !!uri;
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  useEffect(() => {
+    if (!uri) return;
+
+    let cancelled = false;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    const load = async () => {
+      try {
+        if (isLocalUri(uri)) {
+          setLocalUri(uri);
+          return;
+        }
+
+        await cacheImage(uri);
+        if (cancelled) return;
+        setLocalUri(getCachedImagePathByURL(uri));
+      } catch {
+        if (cancelled) return;
+        setIsLoading(false);
+        setHasError(true);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uri]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+    setLocalUri(null);
+    setHasError(false);
+    setIsLoading(true);
+    setShowControls(true);
+  }, [setPayload]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    if (!uri) return;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    try {
+      if (isLocalUri(uri)) {
+        setLocalUri(uri);
+        return;
+      }
+
+      await cacheImage(uri);
+      setLocalUri(getCachedImagePathByURL(uri));
+    } catch {
+      setIsLoading(false);
+      setHasError(true);
+    }
+  }, [uri]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Block
+          background={Colors.black}
+          flex={1}
+          justify="center"
+          align="center"
+        >
+          <Block
+            absolute
+            offsets={{ top: 0, left: 0, right: 0 }}
+            zIndex={10}
+            paddings={[56, 20, 16, 20]}
+            flexDirection="row"
+            align="center"
+            justify="flex-end"
+            gap={12}
+            background={Colors.primary}
+            animations={controlsAnimation.animations}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BlurGradientOverlay />
+            <Block zIndex={2}>
+              <Button.Wrapper onPress={onClose}>
+                <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                  Close
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          </Block>
+
+          <Block flex={1} style={styles.imageContainer}>
+            {isLoading && !hasError && (
+              <Block
+                absolute
+                offsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                align="center"
+                justify="center"
+                zIndex={1}
+              >
+                <Loading isFullScreen={false} />
+              </Block>
+            )}
+
+            {hasError ? (
+              <Block flex={1} align="center" justify="center">
+                <Text color={Colors.white}>Failed to load image</Text>
+                <TouchableOpacity
+                  onPress={handleRetry}
+                  style={styles.retryButton}
+                >
+                  <Text size={TextSize.small} color={Colors.white}>
+                    Tap to retry
+                  </Text>
+                </TouchableOpacity>
+              </Block>
+            ) : localUri ? (
+              <ImageZoom
+                key={localUri}
+                uri={localUri}
+                minScale={1}
+                maxScale={5}
+                maxPanPointers={2}
+                isPanEnabled
+                isPinchEnabled
+                isDoubleTapEnabled
+                isSingleTapEnabled
+                style={styles.imageZoom}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                onSingleTap={handleSingleTap}
+              />
+            ) : null}
+          </Block>
+        </Block>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  retryButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  imageContainer: {
+    alignSelf: "stretch",
+  },
+  imageZoom: {
+    flex: 1,
+  },
+});

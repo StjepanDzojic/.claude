@@ -1,0 +1,37 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { useAtom } from "jotai";
+import { RoomAtoms } from "modules/room/jotai";
+import type { FC } from "react";
+import { Image } from "react-native";
+import { TextSize } from "shared/styles";
+import { RoomBody } from "../../../room/RoomBody";
+
+export const IpadRoomPane: FC = () => {
+  const [roomId, setRoomId] = useAtom(RoomAtoms.selectedRoomId);
+
+  if (!roomId) {
+    return (
+      <Block flex={1} align="center" justify="center" gap={16}>
+        <Image
+          source={require("assets/images/logo.png")}
+          width={120}
+          height={120}
+        />
+        <Text font="Silkscreen-Regular" size={TextSize.medium}>
+          CLOAK
+        </Text>
+      </Block>
+    );
+  }
+
+  return (
+    <Block flex={1}>
+      <RoomBody
+        key={roomId}
+        roomId={roomId}
+        topInset={0}
+        onClose={() => setRoomId(null)}
+      />
+    </Block>
+  );
+};

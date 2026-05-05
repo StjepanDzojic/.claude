@@ -1,0 +1,8 @@
+import type { RoomNotificationMode } from "@unomed/react-native-matrix-sdk";
+import { atom } from "jotai";
+
+const roomNotificationMode = atom<RoomNotificationMode | null>(null);
+
+export const RoomAtoms = {
+  roomNotificationMode,
+};

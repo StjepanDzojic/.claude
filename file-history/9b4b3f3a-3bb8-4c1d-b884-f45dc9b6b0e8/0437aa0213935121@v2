@@ -1,0 +1,35 @@
+import { Title } from '@app/_shared/Title';
+import { generateSeoData } from '@app/lib/generateSeoMetadata';
+import { Metadata } from 'next';
+import { getProjectsConfiguration } from './utils/getProjectsConfiguration';
+import { Archive } from './_fragments/Archive';
+import { MainProjects } from './_fragments/MainProjects';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const configuration = await getProjectsConfiguration();
+
+  const { meta_title, meta_description, meta_image } =
+    configuration?.data || {};
+
+  return await generateSeoData({
+    seoTitle: meta_title,
+    seoDescription: meta_description,
+    path: '/projekti',
+    img: meta_image?.url || null,
+  });
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ kategorija?: string }>;
+}) {
+  const { kategorija } = await searchParams;
+  return (
+    <>
+      <Title>Projekti</Title>
+      <MainProjects />
+      <Archive initialFilter={kategorija} />
+    </>
+  );
+}

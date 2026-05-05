@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+@theme {
+    /* DEFAULT COLORS */
+    --color-inherit: inherit;
+    --color-current: currentcolor;
+    --color-transparent: transparent;
+    --color-black: #000;
+    --color-white: #fff;
+
+    /* HIDROING COLORS */
+    --color-ink: #0D0F0E;
+    --color-ink-2: #2B2F2D;
+    --color-ink-3: #5C635F;
+    --color-ink-4: #9BA19D;
+    --color-rule: #D9DCD8;
+    --color-rule-2: #E8EAE6;
+    --color-paper: #F6F7F5;
+    --color-paper-2: #EDEFEA;
+    --color-green: oklch(0.62 0.17 155);
+    --color-green-ink: oklch(0.38 0.12 155);
+    --color-blue: oklch(0.45 0.16 235);
+    --color-blue-ink: oklch(0.28 0.12 235);
+
+    /* HIDROING FONTS */
+    --font-sans: var(--font-inter-tight, "Inter Tight", "Helvetica Neue", sans-serif);
+    --font-mono: var(--font-jetbrains-mono, "JetBrains Mono", ui-monospace, monospace);
+
+    /* CUSTOM COLORS */
+    --color-primary-lighter-1: #3f3fe4;
+    --color-primary-lighter-2: #6c6cea;
+    --color-primary-lighter-3: #9898f0;
+    --color-primary: #1e1ed2;
+    --color-primary-darker-1: #1818a5;
+    --color-primary-darker-2: #111178;
+
+    --color-secondary-lighter-1: #ee6da3;
+    --color-secondary-lighter-2: #f39bc0;
+    --color-secondary-lighter-3: #f9c8dd;
+    --color-secondary: #e94187;
+    --color-secondary-darker-1: #db1a6b;
+    --color-secondary-darker-2: #ad1455;
+
+    --color-gray-1: #2a363a;
+    --color-gray-2: #5a666b;
+    --color-gray-3: #859095;
+    --color-gray-4: #a5aeb2;
+    --color-gray-5: #d3d8da;
+    --color-gray-6: #edeff0;
+    --color-gray-7: #fdfdfd;
+
+    --color-success-lighter-1: #6ceab5;
+    --color-success-lighter-2: #c5f7e2;
+    --color-success: #1ed286;
+
+    --color-error-lighter-1: #ea7b6c;
+    --color-error-lighter-2: #f7cbc5;
+    --color-error: #d2341e;
+
+    --color-warning-lighter-1: #fed69a;
+    --color-warning-lighter-2: #ffebcc;
+    --color-warning: #fdae37;
+
+    --color-info-info-lighter-1: #aad3f8;
+    --color-info-info-lighter-2: #d9ebfc;
+    --color-info: #4da2f0;
+
+    /* FONT SIZES */
+    --text-micro: 11px;
+    --text-micro--line-height: 16px;
+    --text-tiny: 12px;
+    --text-tiny--line-height: 16px;
+    --text-small: 14px;
+    --text-small--line-height: 20px;
+    --text-base: 16px;
+    --text-base--line-height: 24px;
+    --text-medium: 20px;
+    --text-medium--line-height: 28px;
+    --text-large: 24px;
+    --text-large--line-height: 32px;
+    --text-xlarge: 32px;
+    --text-xlarge--line-height: 40px;
+    --text-2xlarge: 40px;
+    --text-2xlarge--line-height: 48px;
+    --text-3xlarge: 48px;
+    --text-3xlarge--line-height: 56px;
+    --text-4xlarge: 60px;
+    --text-4xlarge--line-height: 72px;
+
+    /* SPACINGS */
+    --spacing-0: 0px;
+    --spacing-1: 1px;
+    --spacing-2: 2px;
+    --spacing-3: 3px;
+    --spacing-4: 4px;
+    --spacing-5: 5px;
+    --spacing-6: 6px;
+    --spacing-7: 7px;
+    --spacing-8: 8px;
+    --spacing-9: 9px;
+    --spacing-10: 10px;
+    --spacing-11: 11px;
+    --spacing-12: 12px;
+    --spacing-14: 14px;
+    --spacing-16: 16px;
+    --spacing-20: 20px;
+    --spacing-24: 24px;
+    --spacing-28: 28px;
+    --spacing-32: 32px;
+    --spacing-36: 36px;
+    --spacing-40: 40px;
+    --spacing-44: 44px;
+    --spacing-48: 48px;
+    --spacing-52: 52px;
+    --spacing-56: 56px;
+    --spacing-60: 60px;
+    --spacing-64: 64px;
+    --spacing-72: 72px;
+    --spacing-80: 80px;
+    --spacing-96: 96px;
+    --spacing-100: 100px;
+    --spacing-px: 1px;
+    --spacing-0_5: 0.5px;
+    --spacing-1_5: 1.5px;
+    --spacing-2_5: 2.5px;
+    --spacing-3_5: 3.5px;
+}
+
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+
+    html, body {
+        @apply bg-paper text-ink font-sans;
+        font-feature-settings: "ss01", "cv11", "tnum";
+        -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+        @apply text-inherit no-underline;
+    }
+
+    img {
+        display: block;
+        max-width: 100%;
+    }
+
+    code {
+        @apply bg-gray-5 rounded-md px-4 py-2;
+    }
+}

@@ -1,0 +1,820 @@
+import type { DocumentPickerResponse } from "@react-native-documents/picker";
+import {
+  type AudioMessageContent,
+  EditedContent,
+  type EventTimelineItem,
+  type FileMessageContent,
+  type ImageMessageContent,
+  type Mentions,
+  messageEventContentFromHtml,
+  messageEventContentFromMarkdown,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  TimelineItemContent_Tags,
+  type UploadParameters,
+  UploadSource,
+  type VideoMessageContent,
+} from "@unomed/react-native-matrix-sdk";
+import { Blurhash } from "react-native-blurhash";
+import { createThumbnail } from "react-native-create-thumbnail";
+import RNFS from "react-native-fs";
+import type { Asset } from "react-native-image-picker";
+import { MatrixCore } from "../../matrix-client/services/MatrixCore";
+import { getEventId } from "../../matrix-client/utils";
+
+export class TimelineService {
+  public static sendMessage = async (
+    roomId: string,
+    message: string,
+    mentions?: Mentions,
+    htmlBody?: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+    let messageContent = htmlBody
+      ? messageEventContentFromHtml(message, htmlBody)
+      : messageEventContentFromMarkdown(message);
+    if (mentions) messageContent = messageContent.withMentions(mentions);
+    await timeline.send(messageContent);
+  };
+
+  public static replyToMessage = async (
+    roomId: string,
+    message: string,
+    eventId: string,
+    mentions?: Mentions,
+    htmlBody?: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+    let messageContent = htmlBody
+      ? messageEventContentFromHtml(message, htmlBody)
+      : messageEventContentFromMarkdown(message);
+    if (mentions) messageContent = messageContent.withMentions(mentions);
+    await timeline.sendReply(messageContent, eventId);
+  };
+
+  public static editMessage = async (
+    roomId: string,
+    event: EventTimelineItem,
+    message: string,
+    mentions?: Mentions,
+    htmlBody?: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+
+    if (!event.eventOrTransactionId) {
+      throw new Error("Event is missing event or transaction id");
+    }
+
+    let messageContent = htmlBody
+      ? messageEventContentFromHtml(message, htmlBody)
+      : messageEventContentFromMarkdown(message);
+    if (mentions) messageContent = messageContent.withMentions(mentions);
+
+    const editedContent = EditedContent.RoomMessage.new({
+      content: messageContent,
+    });
+    await timeline.edit(event.eventOrTransactionId, editedContent);
+  };
+
+  public static reportMessage = async (
+    roomId: string,
+    event: EventTimelineItem,
+    reason: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const eventId = getEventId(event);
+    if (!eventId) throw new Error("Event is missing event id");
+    await room.reportContent(eventId, undefined, reason);
+  };
+
+  public static deleteMessage = async (
+    roomId: string,
+    event: EventTimelineItem,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const eventId = getEventId(event);
+    if (!eventId) throw new Error("Event is missing event id");
+    await room.redact(eventId, undefined);
+  };
+
+  public static forwardMessage = async (
+    roomId: string,
+    event: EventTimelineItem,
+    messageType: ForwardMessageType,
+  ) => {
+    const client = MatrixCore.getClient();
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+
+    if (messageType === "text") {
+      const textContent = this.getTextContent(event);
+      if (!textContent) throw new Error("Text content not found");
+      await timeline.send(messageEventContentFromMarkdown(textContent));
+      return;
+    }
+
+    if (messageType === "image") {
+      const imageContent = this.getImageContent(event);
+      if (!imageContent) throw new Error("Image content not found");
+
+      const mediaFile = await client.getMediaFile(
+        imageContent.source,
+        imageContent.filename,
+        imageContent.info?.mimetype || "image/jpeg",
+        true,
+        undefined,
+      );
+      const filePath = mediaFile.path();
+      const fileSource: UploadParameters = {
+        source: new UploadSource.File({ filename: filePath }),
+        caption: imageContent.caption || undefined,
+        formattedCaption: undefined,
+        mentions: undefined,
+        inReplyTo: undefined,
+      };
+      const imageHandle = timeline.sendImage(
+        fileSource,
+        new UploadSource.File({ filename: filePath }),
+        {
+          height: imageContent.info?.height || BigInt(0),
+          width: imageContent.info?.width || BigInt(0),
+          mimetype: imageContent.info?.mimetype || "image/jpeg",
+          size: imageContent.info?.size || BigInt(0),
+          thumbnailInfo: imageContent.info?.thumbnailInfo,
+          thumbnailSource: undefined,
+          blurhash: imageContent.info?.blurhash || "",
+          isAnimated: false,
+        },
+      );
+      await imageHandle.join();
+      return;
+    }
+
+    if (messageType === "video") {
+      const videoContent = this.getVideoContent(event);
+      if (!videoContent) throw new Error("Video content not found");
+
+      const mediaFile = await client.getMediaFile(
+        videoContent.source,
+        videoContent.filename,
+        videoContent.info?.mimetype || "video/mp4",
+        true,
+        undefined,
+      );
+      const filePath = mediaFile.path();
+      const fileSource: UploadParameters = {
+        source: new UploadSource.File({ filename: filePath }),
+        caption: videoContent.caption || undefined,
+        formattedCaption: undefined,
+        mentions: undefined,
+        inReplyTo: undefined,
+      };
+      const videoHandle = timeline.sendVideo(
+        fileSource,
+        new UploadSource.File({ filename: filePath }),
+        {
+          height: videoContent.info?.height || BigInt(0),
+          width: videoContent.info?.width || BigInt(0),
+          mimetype: videoContent.info?.mimetype || "video/mp4",
+          size: videoContent.info?.size || BigInt(0),
+          duration: videoContent.info?.duration || 0,
+          thumbnailInfo: videoContent.info?.thumbnailInfo,
+          thumbnailSource: undefined,
+          blurhash: videoContent.info?.blurhash || "",
+        },
+      );
+      await videoHandle.join();
+      return;
+    }
+
+    if (messageType === "audio") {
+      const audioContent = this.getAudioContent(event);
+      if (!audioContent) throw new Error("Audio content not found");
+
+      const mediaFile = await client.getMediaFile(
+        audioContent.source,
+        audioContent.filename,
+        audioContent.info?.mimetype || "audio/mpeg",
+        true,
+        undefined,
+      );
+      const filePath = mediaFile.path();
+      const fileSource: UploadParameters = {
+        source: new UploadSource.File({ filename: filePath }),
+        caption: undefined,
+        formattedCaption: undefined,
+        mentions: undefined,
+        inReplyTo: undefined,
+      };
+      const audioHandle = timeline.sendAudio(fileSource, {
+        mimetype: audioContent.info?.mimetype || "audio/mpeg",
+        size: audioContent.info?.size || BigInt(0),
+        duration: audioContent.info?.duration || 0,
+      });
+      await audioHandle.join();
+      return;
+    }
+
+    if (messageType === "file") {
+      const fileContent = this.getFileContent(event);
+      if (!fileContent) throw new Error("File content not found");
+
+      const mediaFile = await client.getMediaFile(
+        fileContent.source,
+        fileContent.filename,
+        fileContent.info?.mimetype || "application/octet-stream",
+        true,
+        undefined,
+      );
+      const filePath = mediaFile.path();
+      const fileHandle = timeline.sendFile(
+        {
+          source: new UploadSource.File({ filename: filePath }),
+          caption: undefined,
+          formattedCaption: undefined,
+          mentions: undefined,
+          inReplyTo: undefined,
+        },
+        {
+          size: fileContent.info?.size || BigInt(0),
+          mimetype: fileContent.info?.mimetype || "application/octet-stream",
+          thumbnailInfo: undefined,
+          thumbnailSource: undefined,
+        },
+      );
+      await fileHandle.join();
+      return;
+    }
+
+    throw new Error(`Unsupported message type: ${messageType}`);
+  };
+
+  public static sendAttachment = async (
+    roomId: string,
+    attachment: DocumentPickerResponse,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+    const fileHandle = timeline.sendFile(
+      {
+        source: new UploadSource.File({
+          filename: decodeURIComponent(attachment.uri.replace("file://", "")),
+        }),
+        caption: undefined,
+        formattedCaption: undefined,
+        mentions: undefined,
+        inReplyTo: undefined,
+      },
+      {
+        size: BigInt(attachment.size || 0),
+        mimetype: attachment.type || "application/octet-stream",
+        thumbnailInfo: undefined,
+        thumbnailSource: undefined,
+      },
+    );
+    await fileHandle.join();
+  };
+
+  public static sendMedia = async (
+    roomId: string,
+    asset: Asset,
+    caption?: string,
+  ) => {
+    if (!asset?.uri) throw new Error("No uri found");
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+
+    const type = asset.type ?? "image/jpeg";
+    const assetWidth = asset.width ?? 0;
+    const assetHeight = asset.height ?? 0;
+    const isVideo = type.startsWith("video/");
+
+    const fileSource: UploadParameters = {
+      source: new UploadSource.File({
+        filename: decodeURIComponent(asset.uri.replace("file://", "")),
+      }),
+      caption: caption || undefined,
+      formattedCaption: undefined,
+      mentions: undefined,
+      inReplyTo: undefined,
+    };
+
+    if (isVideo) {
+      let thumbnailSource: UploadSource | undefined;
+      let thumbnailWidth = assetWidth;
+      let thumbnailHeight = assetHeight;
+      let thumbnailSize = 0;
+      let blurhash = "";
+
+      try {
+        const thumbnail = await createThumbnail({
+          url: asset.uri,
+          timeStamp: 5000,
+          format: "jpeg",
+          maxWidth: 800,
+          maxHeight: 600,
+        });
+
+        const stat = await RNFS.stat(thumbnail.path);
+        thumbnailWidth = thumbnail.width;
+        thumbnailHeight = thumbnail.height;
+        thumbnailSize = Number(stat.size);
+        thumbnailSource = new UploadSource.File({ filename: thumbnail.path });
+
+        blurhash = await Blurhash.encode(`file://${thumbnail.path}`, 3, 3);
+      } catch {
+        // Thumbnail generation is best-effort — send without it if it fails
+      }
+
+      const videoHandle = timeline.sendVideo(fileSource, thumbnailSource, {
+        height: BigInt(assetHeight),
+        width: BigInt(assetWidth),
+        mimetype: type,
+        size: BigInt(asset.fileSize ?? 0),
+        duration: asset.duration ? Math.round(asset.duration * 1000) : 0,
+        thumbnailInfo: thumbnailSource
+          ? {
+              height: BigInt(thumbnailHeight),
+              width: BigInt(thumbnailWidth),
+              mimetype: "image/jpeg",
+              size: BigInt(thumbnailSize),
+            }
+          : undefined,
+        thumbnailSource: undefined,
+        blurhash,
+      });
+      await videoHandle.join();
+    } else {
+      const imageHandle = timeline.sendImage(
+        fileSource,
+        new UploadSource.File({
+          filename: decodeURIComponent(asset.uri.replace("file://", "")),
+        }),
+        {
+          height: BigInt(assetHeight),
+          width: BigInt(assetWidth),
+          mimetype: type,
+          size: BigInt(asset.fileSize ?? 0),
+          thumbnailInfo: {
+            height: BigInt(assetHeight),
+            width: BigInt(assetWidth),
+            mimetype: type,
+            size: BigInt(asset.fileSize ?? 0),
+          },
+          thumbnailSource: undefined,
+          blurhash: "",
+          isAnimated: false,
+        },
+      );
+      await imageHandle.join();
+    }
+  };
+
+  public static sendEvent = async (
+    roomId: string,
+    eventType: string,
+    content: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    await room.sendRaw(eventType, content);
+  };
+
+  public static getSeenBy = (event: EventTimelineItem) => event.readReceipts;
+
+  public static getReadReceiptUsers = (
+    event: EventTimelineItem,
+  ): TimelineSeenByUser[] => {
+    return Array.from(event.readReceipts.entries())
+      .filter(([userId]) => userId !== event.sender)
+      .map(([userId, receipt]) => ({
+        userId,
+        timestamp: this.getReceiptTimestamp(receipt),
+      }))
+      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  };
+
+  public static getReadReceiptUserIds = (
+    event: EventTimelineItem,
+  ): string[] => {
+    return this.getReadReceiptUsers(event).map(({ userId }) => userId);
+  };
+
+  public static isUser = (event: EventTimelineItem) => event.isOwn;
+
+  public static getSenderDetails = (event: EventTimelineItem) => {
+    if (!MatrixCore.instance) return null;
+    const senderId = event.sender;
+    return senderId ? MatrixCore.instance.getProfile(senderId) : null;
+  };
+
+  // Pinned messages
+
+  public static getPinnedEventIds = async (
+    roomId: string,
+  ): Promise<string[]> => {
+    const room = MatrixCore.getRoom(roomId);
+    const roomInfo = await room.roomInfo();
+    return roomInfo.pinnedEventIds || [];
+  };
+
+  public static pinMessage = async (roomId: string, eventId: string) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+    await timeline.pinEvent(eventId);
+  };
+
+  public static unpinMessage = async (roomId: string, eventId: string) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+    await timeline.unpinEvent(eventId);
+  };
+
+  public static isMessagePinned = async (
+    roomId: string,
+    eventId: string,
+  ): Promise<boolean> => {
+    const pinnedEvents = await this.getPinnedEventIds(roomId);
+    return pinnedEvents.includes(eventId);
+  };
+
+  // Private content extractors
+
+  private static getReceiptTimestamp = (receipt: unknown): number | null => {
+    if (typeof receipt === "number") return receipt;
+    if (typeof receipt === "bigint") return Number(receipt);
+    if (!receipt || typeof receipt !== "object") return null;
+
+    const maybeReceipt = receipt as Record<string, unknown>;
+    const candidate =
+      maybeReceipt.ts ??
+      maybeReceipt.timestamp ??
+      maybeReceipt.originServerTs ??
+      maybeReceipt.origin_server_ts;
+
+    if (typeof candidate === "number") return candidate;
+    if (typeof candidate === "bigint") return Number(candidate);
+    if (typeof candidate === "string") {
+      const parsed = Number(candidate);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  };
+
+  private static getTextContent = (event: EventTimelineItem): string | null => {
+    if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = event.content.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        return kind.inner.content.body;
+      }
+    }
+    return null;
+  };
+
+  private static getImageContent = (
+    event: EventTimelineItem,
+  ): ImageMessageContent | null => {
+    if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = event.content.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        const msgType = kind.inner.content.msgType;
+        if (msgType?.tag === MessageType_Tags.Image) {
+          return msgType.inner.content;
+        }
+      }
+    }
+    return null;
+  };
+
+  private static getVideoContent = (
+    event: EventTimelineItem,
+  ): VideoMessageContent | null => {
+    if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = event.content.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        const msgType = kind.inner.content.msgType;
+        if (msgType?.tag === MessageType_Tags.Video) {
+          return msgType.inner.content;
+        }
+      }
+    }
+    return null;
+  };
+
+  private static getAudioContent = (
+    event: EventTimelineItem,
+  ): AudioMessageContent | null => {
+    if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = event.content.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        const msgType = kind.inner.content.msgType;
+        if (msgType?.tag === MessageType_Tags.Audio) {
+          return msgType.inner.content;
+        }
+      }
+    }
+    return null;
+  };
+
+  private static getFileContent = (
+    event: EventTimelineItem,
+  ): FileMessageContent | null => {
+    if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = event.content.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        const msgType = kind.inner.content.msgType;
+        if (msgType?.tag === MessageType_Tags.File) {
+          return msgType.inner.content;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Reactions
+
+  public static toggleReaction = async (
+    roomId: string,
+    event: EventTimelineItem,
+    emoji: string,
+  ) => {
+    const room = MatrixCore.getRoom(roomId);
+    const timeline = await room.timeline();
+    if (!timeline) throw new Error("Timeline not found");
+
+    if (!event.eventOrTransactionId) {
+      throw new Error("Event is missing event or transaction id");
+    }
+
+    return timeline.toggleReaction(event.eventOrTransactionId, emoji);
+  };
+
+  public static getTopReactions = (
+    event: EventTimelineItem,
+    limit = 3,
+  ): TimelineReaction[] => {
+    const normalized = this.getNormalizedReactions(event);
+    return normalized
+      .sort(
+        (a, b) => b.count - a.count || b.latestTimestamp - a.latestTimestamp,
+      )
+      .slice(0, limit);
+  };
+
+  private static getNormalizedReactions = (
+    event: EventTimelineItem,
+  ): TimelineReaction[] => {
+    const reactionCandidates: unknown[] = [
+      this.readValue(event, ["reactions"]),
+      this.readValue(event, ["properties", "reactions"]),
+      this.readValue(event, ["content", "inner", "reactions"]),
+      this.readValue(event, ["content", "inner", "content", "reactions"]),
+      this.readValue(event, [
+        "content",
+        "inner",
+        "content",
+        "kind",
+        "inner",
+        "content",
+        "reactions",
+      ]),
+    ].filter(Boolean);
+
+    for (const candidate of reactionCandidates) {
+      const parsed = this.parseReactionsCandidate(candidate);
+      if (parsed.length) return parsed;
+    }
+
+    return [];
+  };
+
+  private static parseReactionsCandidate = (
+    candidate: unknown,
+  ): TimelineReaction[] => {
+    if (!candidate) return [];
+
+    if (Array.isArray(candidate)) {
+      return candidate
+        .map((reaction) => this.parseSingleReaction(reaction))
+        .filter((reaction): reaction is TimelineReaction => Boolean(reaction));
+    }
+
+    if (candidate instanceof Map) {
+      return Array.from(candidate.entries())
+        .map(([key, value]) => this.parseEntryReaction(key, value))
+        .filter((reaction): reaction is TimelineReaction => Boolean(reaction));
+    }
+
+    if (typeof candidate === "object") {
+      return Object.entries(candidate as Record<string, unknown>)
+        .map(([key, value]) => this.parseEntryReaction(key, value))
+        .filter((reaction): reaction is TimelineReaction => Boolean(reaction));
+    }
+
+    return [];
+  };
+
+  private static parseEntryReaction = (
+    key: string,
+    rawValue: unknown,
+  ): TimelineReaction | null => {
+    const currentUserId = MatrixCore.instance?.userId() ?? "";
+    const normalizedKey = this.normalizeReactionKey(key);
+    if (!normalizedKey) return null;
+
+    const detailedReaction = this.parseSingleReaction(rawValue);
+    if (detailedReaction) {
+      return {
+        ...detailedReaction,
+        key: normalizedKey,
+        displayKey: String(detailedReaction.displayKey || normalizedKey).slice(
+          0,
+          16,
+        ),
+      };
+    }
+
+    const senders = this.toSenders(rawValue, currentUserId);
+    return {
+      key: normalizedKey,
+      displayKey: normalizedKey.slice(0, 16),
+      count: senders.count,
+      latestTimestamp: senders.latestTimestamp,
+      isHighlighted: senders.isHighlighted,
+      senders: senders.senders,
+    };
+  };
+
+  private static parseSingleReaction = (
+    rawReaction: unknown,
+  ): TimelineReaction | null => {
+    if (!rawReaction || typeof rawReaction !== "object") return null;
+    const currentUserId = MatrixCore.instance?.userId() ?? "";
+
+    const reaction = rawReaction as Record<string, unknown>;
+    const normalizedKey = this.normalizeReactionKey(
+      reaction.key ??
+        reaction.displayKey ??
+        reaction.emoji ??
+        reaction.reaction,
+    );
+    if (!normalizedKey) return null;
+
+    const senders = this.toSenders(reaction.senders, currentUserId);
+    const rawCount = Number(reaction.count);
+    const count =
+      Number.isFinite(rawCount) && rawCount > 0 ? rawCount : senders.count;
+
+    return {
+      key: normalizedKey,
+      displayKey: String(reaction.displayKey ?? normalizedKey).slice(0, 16),
+      count,
+      latestTimestamp: senders.latestTimestamp,
+      isHighlighted:
+        Boolean(reaction.isHighlighted) ||
+        Boolean(reaction.highlighted) ||
+        senders.isHighlighted,
+      senders: senders.senders,
+    };
+  };
+
+  private static toSenders = (
+    rawSenders: unknown,
+    currentUserId: string,
+  ): {
+    count: number;
+    latestTimestamp: number;
+    isHighlighted: boolean;
+    senders: TimelineReactionSender[];
+  } => {
+    if (!rawSenders)
+      return {
+        count: 1,
+        latestTimestamp: 0,
+        isHighlighted: false,
+        senders: [],
+      };
+
+    if (Array.isArray(rawSenders)) {
+      const senders: TimelineReactionSender[] = rawSenders
+        .map((sender) => ({
+          userId: this.extractSenderUserId(sender),
+          timestamp: this.extractTimestamp(sender),
+        }))
+        .filter((s) => s.userId);
+      const latestTimestamp = senders.reduce(
+        (max, s) => Math.max(max, s.timestamp),
+        0,
+      );
+      const isHighlighted = senders.some((s) => s.userId === currentUserId);
+      return {
+        count: rawSenders.length || 1,
+        latestTimestamp,
+        isHighlighted,
+        senders,
+      };
+    }
+
+    if (rawSenders instanceof Map) {
+      const entries = Array.from(rawSenders.entries());
+      const senders: TimelineReactionSender[] = entries
+        .map(([senderId, sender]) => ({
+          userId:
+            typeof senderId === "string" && senderId
+              ? senderId
+              : this.extractSenderUserId(sender),
+          timestamp: this.extractTimestamp(sender),
+        }))
+        .filter((s) => s.userId);
+      const latestTimestamp = senders.reduce(
+        (max, s) => Math.max(max, s.timestamp),
+        0,
+      );
+      const isHighlighted = senders.some((s) => s.userId === currentUserId);
+      return {
+        count: entries.length || 1,
+        latestTimestamp,
+        isHighlighted,
+        senders,
+      };
+    }
+
+    if (typeof rawSenders === "object") {
+      const entries = Object.entries(rawSenders as Record<string, unknown>);
+      const senders: TimelineReactionSender[] = entries
+        .map(([senderId, sender]) => ({
+          userId: senderId || this.extractSenderUserId(sender),
+          timestamp: this.extractTimestamp(sender),
+        }))
+        .filter((s) => s.userId);
+      const latestTimestamp = senders.reduce(
+        (max, s) => Math.max(max, s.timestamp),
+        0,
+      );
+      const isHighlighted = senders.some((s) => s.userId === currentUserId);
+      return {
+        count: entries.length || 1,
+        latestTimestamp,
+        isHighlighted,
+        senders,
+      };
+    }
+
+    return { count: 1, latestTimestamp: 0, isHighlighted: false, senders: [] };
+  };
+
+  private static extractTimestamp = (sender: unknown): number => {
+    if (!sender || typeof sender !== "object") return 0;
+    const record = sender as Record<string, unknown>;
+    const rawTimestamp =
+      record.timestamp ??
+      record.ts ??
+      this.readValue(record, ["inner", "timestamp"]);
+    const timestamp = Number(rawTimestamp);
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+
+  private static extractSenderUserId = (sender: unknown): string => {
+    if (!sender || typeof sender !== "object") return "";
+    const record = sender as Record<string, unknown>;
+    const rawUserId =
+      record.userId ??
+      record.senderId ??
+      record.id ??
+      this.readValue(record, ["inner", "userId"]);
+    return typeof rawUserId === "string" ? rawUserId : "";
+  };
+
+  private static normalizeReactionKey = (rawKey: unknown): string => {
+    if (typeof rawKey !== "string") return "";
+    return rawKey.trim();
+  };
+
+  private static readValue = (source: unknown, path: string[]): unknown => {
+    if (!source || typeof source !== "object") return undefined;
+    let current: unknown = source;
+    for (const segment of path) {
+      if (!current || typeof current !== "object") return undefined;
+      current = (current as Record<string, unknown>)[segment];
+    }
+    if (typeof current === "function") {
+      try {
+        return (current as () => unknown)();
+      } catch {
+        return undefined;
+      }
+    }
+    return current;
+  };
+}

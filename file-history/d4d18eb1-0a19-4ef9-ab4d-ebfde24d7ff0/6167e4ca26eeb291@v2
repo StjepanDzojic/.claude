@@ -1,0 +1,113 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { EventTimelineItem } from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import type { FC } from "react";
+import { Image, StyleSheet } from "react-native";
+import { SeenBy } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { MessageSender } from "../message-sender";
+
+interface Props {
+  event: EventTimelineItem;
+  isPreviousSameSender: boolean;
+  onMemberPress?: (member: MemberDetailsPayload) => void;
+}
+
+export const DeletedMessage: FC<Props> = ({
+  event,
+  isPreviousSameSender,
+  onMemberPress,
+}) => {
+  const isUser = event.isOwn;
+  const sender = event.senderProfile;
+  const senderId = event.sender;
+  const seenByUserIds = TimelineService.getReadReceiptUserIds(event);
+
+  return (
+    <Block
+      align={isUser ? "flex-end" : "flex-start"}
+      margins={{ marginTop: isPreviousSameSender ? 6 : 16 }}
+    >
+      <MessageSender
+        sender={sender}
+        senderId={senderId}
+        isUser={isUser}
+        isPreviousSameSender={isPreviousSameSender}
+        onMemberPress={onMemberPress}
+      />
+      <Block
+        paddings={12}
+        background={isUser ? Colors.primary : Colors.message}
+        border={{ borderRadius: 24 }}
+        align="stretch"
+        gap={12}
+      >
+        <Block
+          justify="space-between"
+          align="center"
+          flex={{ flexWrap: "wrap" }}
+          flexDirection={isUser ? "row-reverse" : "row"}
+          gap={{
+            row: 4,
+            col: 16,
+          }}
+        >
+          <Block flexDirection="row" gap={12} align="center">
+            <Image
+              source={require("assets/icons/trash.png")}
+              width={20}
+              height={20}
+              style={styles.trash}
+            />
+            <Text size={TextSize.small} color="white">
+              Message deleted
+            </Text>
+          </Block>
+          <Text size={TextSize.tiny} color={Colors.white50}>
+            {format(Number(event.timestamp), "HH:mm")}
+          </Text>
+        </Block>
+        {isPreviousSameSender && (
+          <Block
+            absolute
+            offsets={
+              isUser
+                ? {
+                    right: 6,
+                    bottom: 2,
+                  }
+                : {
+                    left: 6,
+                    bottom: 2,
+                  }
+            }
+          >
+            <Image
+              source={
+                isUser
+                  ? require("assets/icons/polygon.png")
+                  : require("assets/icons/guest-polygon.png")
+              }
+              width={7}
+              height={6}
+              style={styles.polygon}
+            />
+          </Block>
+        )}
+      </Block>
+      <SeenBy userIds={seenByUserIds} messageWidth={200} isUser={isUser} />
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  polygon: {
+    width: 7,
+    height: 6,
+  },
+  trash: {
+    width: 20,
+    height: 20,
+  },
+});

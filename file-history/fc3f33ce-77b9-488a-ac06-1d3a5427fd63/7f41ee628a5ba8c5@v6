@@ -1,0 +1,400 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import {
+  type EventTimelineItem,
+  ProfileDetails_Tags,
+  type RoomInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { getEventId } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Dimensions, Image, Modal, StyleSheet, View } from "react-native";
+import { useMediaTimeline } from "screens/room-media/hooks";
+import { ImageInfoBottomSheet } from "screens/room/fragments/image-info-bottom-sheet";
+import { VideoInfoBottomSheet } from "screens/room/fragments/video-info-bottom-sheet";
+import { Toast } from "react-native-toast-message/lib/src/Toast";
+import { Colors, TextSize } from "shared/styles";
+import { BlurGradientOverlay } from "../blur-gradient-overlay";
+import { Button } from "../button";
+import { MediaEdgePage } from "./MediaEdgePage";
+import { MediaImagePage } from "./MediaImagePage";
+import { MediaVideoPage } from "./MediaVideoPage";
+import { getMediaKind } from "./utils";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 80 };
+
+const NEWER_END_KEY = "__newer_end__";
+const OLDER_EDGE_KEY = "__older_edge__";
+
+type ViewerPage =
+  | { kind: "event"; event: EventTimelineItem }
+  | { kind: "newer-end" }
+  | { kind: "older-edge"; loading: boolean };
+
+interface Props {
+  payload: MediaViewerPayload;
+}
+
+export const MediaViewerModalContent: FC<Props> = ({ payload }) => {
+  const [, setPayload] = useAtom(TimelineAtoms.mediaViewerPayload);
+  const setImageInfoPayload = useSetAtom(TimelineAtoms.imageInfoPayload);
+  const setVideoInfoPayload = useSetAtom(TimelineAtoms.videoInfoPayload);
+  const listRef = useRef<FlashListRef<ViewerPage>>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const localUriByEventIdRef = useRef<Map<string, string | null>>(new Map());
+  const hasScrolledInitiallyRef = useRef(false);
+  const toastedEdgesRef = useRef<Set<string>>(new Set());
+
+  const room = useMemo<RoomInterface | undefined>(() => {
+    try {
+      return MatrixCore.getRoom(payload.roomId);
+    } catch {
+      return undefined;
+    }
+  }, [payload.roomId]);
+
+  const { mediaItems, loadMore, reachedStart } = useMediaTimeline({
+    room,
+    roomId: payload.roomId,
+  });
+
+  // Keep loadMore + pages in refs so callbacks stay stable (FlashList warns
+  // if onViewableItemsChanged identity changes) and effects can read the
+  // latest pages without retriggering on every render.
+  const loadMoreRef = useRef(loadMore);
+  const pagesLengthRef = useRef(0);
+  const pagesRef = useRef<ViewerPage[]>([]);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
+  /** Filtered events in source order (newest first). */
+  const events = useMemo<EventTimelineItem[]>(() => {
+    const filtered = mediaItems.filter((item) => getMediaKind(item) !== null);
+    return filtered.length === 0 ? [payload.initialEvent] : filtered;
+  }, [mediaItems, payload.initialEvent]);
+
+  /** Pages fed to FlashList: newer-end sentinel + events + older-edge sentinel.
+  FlashList is `inverted` so index 0 (newer-end) renders at the right edge,
+  and the last index (older-edge) renders at the left edge. */
+  const pages = useMemo<ViewerPage[]>(() => {
+    const result: ViewerPage[] = [{ kind: "newer-end" }];
+    for (const event of events) result.push({ kind: "event", event });
+    result.push({ kind: "older-edge", loading: !reachedStart });
+    pagesLengthRef.current = result.length;
+    pagesRef.current = result;
+    return result;
+  }, [events, reachedStart]);
+
+  /** Resolve the pages-index for the tapped event. On first render events has
+  just [initialEvent] (pages-index 1); after hydration it may shift. */
+  const initialPageIndex = useMemo(() => {
+    const eventIdx = events.findIndex(
+      (event) => getEventId(event) === payload.initialEventId,
+    );
+    return eventIdx >= 0 ? eventIdx + 1 : 1;
+  }, [events, payload.initialEventId]);
+
+  // Seed currentIndex so the header shows the tapped event immediately —
+  // before the FlashList emits its first viewability change.
+  const seededInitialIndexRef = useRef(false);
+  if (!seededInitialIndexRef.current) {
+    seededInitialIndexRef.current = true;
+    if (currentIndex !== initialPageIndex) setCurrentIndex(initialPageIndex);
+  }
+
+  useEffect(() => {
+    if (hasScrolledInitiallyRef.current) return;
+    const eventIdx = events.findIndex(
+      (event) => getEventId(event) === payload.initialEventId,
+    );
+    if (eventIdx < 0) return;
+    hasScrolledInitiallyRef.current = true;
+    const pageIdx = eventIdx + 1;
+    setCurrentIndex(pageIdx);
+    // Fallback scroll in case FlashList's initialScrollIndex didn't land
+    // (e.g. when events hydrate later and the target index shifts).
+    const id = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: pageIdx, animated: false });
+    }, 0);
+    return () => clearTimeout(id);
+  }, [events, payload.initialEventId]);
+
+  const currentPage = pages[currentIndex];
+  const currentEvent =
+    currentPage?.kind === "event" ? currentPage.event : null;
+  const currentKind = currentEvent ? getMediaKind(currentEvent) : null;
+
+  // When the user lands on a terminal sentinel, show its loading spinner for
+  // a beat, toast the "no newer/older media" message (once per session), then
+  // snap back to the adjacent event so they're not stuck on a blank page.
+  // Older-edge while still paginating (loading=true) is skipped — real items
+  // will arrive and replace the sentinel's index naturally.
+  useEffect(() => {
+    if (!currentPage) return;
+    if (!hasScrolledInitiallyRef.current) return;
+
+    const isTerminalNewer = currentPage.kind === "newer-end";
+    const isTerminalOlder =
+      currentPage.kind === "older-edge" && !currentPage.loading;
+    if (!isTerminalNewer && !isTerminalOlder) return;
+
+    const timer = setTimeout(() => {
+      const page = pagesRef.current[currentIndex];
+      if (!page) return;
+      if (page.kind !== "newer-end" && page.kind !== "older-edge") return;
+      if (page.kind === "older-edge" && page.loading) return;
+
+      const edgeKey = isTerminalNewer ? "newer" : "older";
+      if (!toastedEdgesRef.current.has(edgeKey)) {
+        toastedEdgesRef.current.add(edgeKey);
+        Toast.show({
+          type: "info",
+          text1: isTerminalNewer ? "No newer media" : "No older media",
+        });
+      }
+
+      const snapIndex = isTerminalNewer ? 1 : currentIndex - 1;
+      if (snapIndex >= 0 && snapIndex < pagesRef.current.length) {
+        listRef.current?.scrollToIndex({ index: snapIndex, animated: true });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [currentPage, currentIndex]);
+
+  const senderName = useMemo(() => {
+    if (!currentEvent) return null;
+    if (currentEvent.senderProfile.tag === ProfileDetails_Tags.Ready) {
+      return (
+        currentEvent.senderProfile.inner.displayName ?? currentEvent.sender
+      );
+    }
+    return currentEvent.sender;
+  }, [currentEvent]);
+
+  const formattedDate = useMemo(() => {
+    if (!currentEvent) return null;
+    return format(Number(currentEvent.timestamp), "MMM d, HH:mm");
+  }, [currentEvent]);
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+  }, [setPayload]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      const first = viewableItems[0];
+      if (first?.index == null) return;
+      setCurrentIndex(first.index);
+
+      // Paginate when the user approaches the oldest edge (the older-edge
+      // sentinel sits at the last index). onEndReached is unreliable on
+      // inverted horizontal FlashList, so drive loadMore from viewability.
+      const maxIndex = pagesLengthRef.current - 1;
+      const nearOldest = viewableItems.some(
+        (v) => v.index != null && v.index >= maxIndex - 1,
+      );
+      if (nearOldest) loadMoreRef.current();
+    },
+    [],
+  );
+
+  const handleLocalUriChange = useCallback(
+    (eventId: string | null, uri: string | null) => {
+      if (!eventId) return;
+      localUriByEventIdRef.current.set(eventId, uri);
+    },
+    [],
+  );
+
+  const handleOpenInfo = useCallback(() => {
+    if (!currentEvent) return;
+    const eventId = getEventId(currentEvent);
+    const localUri = eventId
+      ? (localUriByEventIdRef.current.get(eventId) ?? null)
+      : null;
+    if (currentKind === "image") {
+      setImageInfoPayload({
+        event: currentEvent,
+        roomId: payload.roomId,
+        localUri,
+      });
+    } else if (currentKind === "video") {
+      setVideoInfoPayload({
+        event: currentEvent,
+        roomId: payload.roomId,
+        localUri,
+      });
+    }
+  }, [
+    currentEvent,
+    currentKind,
+    payload.roomId,
+    setImageInfoPayload,
+    setVideoInfoPayload,
+  ]);
+
+  const keyExtractor = useCallback((page: ViewerPage) => {
+    if (page.kind === "newer-end") return NEWER_END_KEY;
+    if (page.kind === "older-edge") return OLDER_EDGE_KEY;
+    return getEventId(page.event) ?? "";
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: ViewerPage; index: number }) => {
+      if (item.kind === "newer-end" || item.kind === "older-edge") {
+        return <MediaEdgePage />;
+      }
+      const event = item.event;
+      const kind = getMediaKind(event);
+      const eventId = getEventId(event);
+      const onUriChange = (uri: string | null) =>
+        handleLocalUriChange(eventId, uri);
+      return (
+        <View style={styles.page}>
+          {kind === "image" ? (
+            <MediaImagePage
+              event={event}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : kind === "video" ? (
+            <MediaVideoPage
+              event={event}
+              isActive={index === currentIndex}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : null}
+        </View>
+      );
+    },
+    [currentIndex, handleSingleTap, handleLocalUriChange],
+  );
+
+  return (
+    <Modal
+      visible
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <BottomSheetModalProvider>
+        <Block background={Colors.black} flex={1}>
+          <FlashList
+            ref={listRef}
+            data={pages}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            horizontal
+            inverted
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialPageIndex}
+            onViewableItemsChanged={handleViewableItemsChanged}
+            viewabilityConfig={VIEWABILITY_CONFIG}
+          />
+
+          <Block
+            absolute
+            offsets={{ top: 0, left: 0, right: 0 }}
+            zIndex={10}
+            paddings={[56, 20, 16, 20]}
+            flexDirection="row"
+            align="center"
+            justify="space-between"
+            gap={12}
+            background={Colors.primary}
+            animations={controlsAnimation.animations}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BlurGradientOverlay />
+            <Block width={60} align="flex-start" zIndex={2}>
+              {!!currentEvent && (
+                <Button.Wrapper onPress={handleOpenInfo}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    style={styles.infoIcon}
+                    tintColor={Colors.white}
+                  />
+                </Button.Wrapper>
+              )}
+            </Block>
+            <Block flex={1} align="center" gap={2} zIndex={2}>
+              {senderName && (
+                <Text
+                  color={Colors.white}
+                  font="InstrumentSans-Semibold"
+                  numberOfLines={1}
+                >
+                  {senderName}
+                </Text>
+              )}
+              {formattedDate && (
+                <Text
+                  size={TextSize.tiny}
+                  color={Colors.white80}
+                  numberOfLines={1}
+                >
+                  {formattedDate}
+                </Text>
+              )}
+            </Block>
+            <Block width={60} align="flex-end" zIndex={2}>
+              <Button.Wrapper onPress={onClose}>
+                <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                  Close
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          </Block>
+        </Block>
+        <ImageInfoBottomSheet />
+        <VideoInfoBottomSheet />
+      </BottomSheetModalProvider>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  page: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  infoIcon: {
+    width: 24,
+    height: 24,
+  },
+});

@@ -1,0 +1,89 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RoomNotificationMode } from "@unomed/react-native-matrix-sdk";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { useState } from "react";
+import {
+  CheckButton,
+  GoBackHeader,
+  IpadScreenWrapper,
+  ScreenLayout,
+} from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+export const NotificationsType: React.FC<
+  NativeStackScreenProps<Routes, "notificationsType">
+> = ({ route }) => {
+  const { type, notificationsType } = route.params;
+  const [localMode, setLocalMode] =
+    useState<RoomNotificationMode>(notificationsType);
+  const [saving, setSaving] = useState(false);
+
+  const handleModeChange = async (mode: RoomNotificationMode) => {
+    setLocalMode(mode);
+    setSaving(true);
+    const isOneToOne = type === "direct";
+
+    try {
+      const client = MatrixCore.getClient();
+      const notificationSettings = await client.getNotificationSettings();
+      await Promise.all([
+        notificationSettings.setDefaultRoomNotificationMode(
+          false,
+          isOneToOne,
+          mode,
+        ),
+        notificationSettings.setDefaultRoomNotificationMode(
+          true,
+          isOneToOne,
+          mode,
+        ),
+      ]);
+    } catch (error) {
+      console.error("Error updating notification settings:", error);
+      setLocalMode(notificationsType);
+      offlineToastHelper("Failed to update notification settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ScreenLayout type="modal">
+      <GoBackHeader
+        title={type === "group" ? "Group chats" : "Direct chats"}
+        margins={{ marginBottom: 40 }}
+      />
+      <IpadScreenWrapper align="center" gap={40}>
+        <Block width="100%" gap={8}>
+          <Text size={TextSize.tiny} color={Colors.white50} paddings={[0, 12]}>
+            On {type === "group" ? "group chats" : "direct chats"} you will
+            receive notifications for
+          </Text>
+          <Block width="100%" gap={8} border={{ borderRadius: 16 }}>
+            <CheckButton
+              checked={localMode === RoomNotificationMode.AllMessages}
+              onToggle={() =>
+                handleModeChange(RoomNotificationMode.AllMessages)
+              }
+              label="All Messages"
+              disabled={saving}
+            />
+            <CheckButton
+              checked={
+                localMode === RoomNotificationMode.MentionsAndKeywordsOnly
+              }
+              onToggle={() =>
+                handleModeChange(RoomNotificationMode.MentionsAndKeywordsOnly)
+              }
+              label="Mentions and Keywords only"
+              description="Your homeserver does not support this option in encrypted rooms, you may not get notifications for mentions and keywords in some rooms."
+              disabled={saving}
+            />
+          </Block>
+        </Block>
+      </IpadScreenWrapper>
+    </ScreenLayout>
+  );
+};

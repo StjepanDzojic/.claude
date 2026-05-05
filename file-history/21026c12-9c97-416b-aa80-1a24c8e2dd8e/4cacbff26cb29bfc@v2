@@ -1,0 +1,144 @@
+import notifee, {
+  AndroidImportance,
+  AndroidVisibility,
+  EventType,
+  type Notification,
+} from "@notifee/react-native";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { MMKV } from "react-native-mmkv";
+
+const storage = new MMKV({ id: "notifee-service" });
+const PENDING_ROOM_KEY = "pending_room_id";
+
+type CreatePayload = {
+  message: string;
+  title?: string;
+  data?: Notification["data"];
+  id: string;
+};
+
+const isInitialNotificationContext = (): boolean => {
+  if (!NavigationContainerRef?.isReady()) {
+    return true;
+  }
+
+  // If Splash is still on screen the app just launched; defer room navigation
+  // until after session restoration instead of navigating immediately.
+  return NavigationContainerRef.getCurrentRoute()?.name === "splash";
+};
+
+export class NotifeeService {
+  private static channelId = "local-push-notifications";
+
+  // Store pending room navigation for when app is opened from notification
+  // This is consumed by the Splash screen after session restoration
+  private static pendingRoomId: string | null = null;
+
+  public static init = async () => {
+    await notifee.createChannel({
+      id: this.channelId,
+      name: "Local push notifications",
+      sound: "default",
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+    });
+
+    // Handle notification press when app is in foreground
+    notifee.onForegroundEvent(async (event) => {
+      if (event.type === EventType.PRESS) {
+        await this.handleNotificationPress(
+          event.detail.notification,
+          isInitialNotificationContext(),
+        );
+      }
+    });
+  };
+
+  /** Must be called at module level in index.js (outside the app) */
+  public static registerBackgroundEventHandler = () => {
+    notifee.onBackgroundEvent(async (event) => {
+      if (event.type === EventType.PRESS) {
+        await this.handleNotificationPress(
+          event.detail.notification,
+          isInitialNotificationContext(),
+        );
+      }
+    });
+  };
+
+  /**
+   * Call this during cold-start (e.g. Splash screen) to check if the app was
+   * opened by tapping a Notifee notification from a quit state.
+   * Stores the pending room ID so Splash can consume it after session restore.
+   */
+  public static checkInitialNotification = async () => {
+    const initialNotification = await notifee.getInitialNotification();
+    if (initialNotification) {
+      await this.handleNotificationPress(initialNotification.notification, true);
+    }
+  };
+
+  /** Get and clear the pending room navigation (used by Splash screen) */
+  public static consumePendingRoomId = (): string | null => {
+    // In-memory covers iOS/foreground press and same-context headless→foreground.
+    // MMKV covers Android headless: the notification was created in the headless
+    // JS context and room_id was persisted before the user ever tapped.
+    const roomId =
+      this.pendingRoomId ?? storage.getString(PENDING_ROOM_KEY) ?? null;
+    this.pendingRoomId = null;
+    storage.delete(PENDING_ROOM_KEY);
+    return roomId;
+  };
+
+  public static setPendingRoomId = (roomId: string) => {
+    this.pendingRoomId = roomId;
+    storage.set(PENDING_ROOM_KEY, roomId);
+  };
+
+  private static handleNotificationPress = async (
+    notification: Notification | undefined,
+    isInitialNotification: boolean,
+  ) => {
+    const roomId = notification?.data?.room_id;
+
+    if (!roomId || typeof roomId !== "string") return;
+
+    // For initial notification (cold start), store the room_id
+    // and let the Splash screen handle navigation after session restoration
+    if (isInitialNotification) {
+      this.setPendingRoomId(roomId);
+      return;
+    }
+
+    // Refresh the room list before navigating to ensure it's up to date
+    await MatrixCore.refreshRoomList();
+    await MatrixCore.getClient().awaitRoomRemoteEcho(roomId);
+
+    // For foreground/background events (app already running), navigate directly to room
+    NavigationContainerRef.navigate("room", { roomId });
+  };
+
+  public static create = (payload: CreatePayload) => {
+    // Persist the room_id before displaying so it survives the headless →
+    // foreground transition: the background JS context writes it here, and
+    // Splash reads it via consumePendingRoomId even if the press event races.
+    const roomId = payload.data?.room_id;
+    if (roomId && typeof roomId === "string") {
+      storage.set(PENDING_ROOM_KEY, roomId);
+    }
+
+    return notifee.displayNotification({
+      android: {
+        pressAction: { id: "default" },
+        channelId: this.channelId,
+        autoCancel: true,
+        color: "#292929",
+      },
+      title: payload.title,
+      body: payload.message,
+      id: payload.id,
+      data: payload.data,
+    });
+  };
+}

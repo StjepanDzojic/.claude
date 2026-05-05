@@ -1,0 +1,18 @@
+{
+  "claude-plugins-official": {
+    "source": {
+      "source": "github",
+      "repo": "anthropics/claude-plugins-official"
+    },
+    "installLocation": "/Users/stjepandzojic/.claude/plugins/marketplaces/claude-plugins-official",
+    "lastUpdated": "2026-05-05T07:48:28.373Z"
+  },
+  "karpathy-skills": {
+    "source": {
+      "source": "github",
+      "repo": "forrestchang/andrej-karpathy-skills"
+    },
+    "installLocation": "/Users/stjepandzojic/.claude/plugins/marketplaces/karpathy-skills",
+    "lastUpdated": "2026-04-20T10:17:28.786Z"
+  }
+}

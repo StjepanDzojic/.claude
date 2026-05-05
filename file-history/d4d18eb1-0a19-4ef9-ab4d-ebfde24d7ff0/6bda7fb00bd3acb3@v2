@@ -1,0 +1,48 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { useSetAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type FC, useCallback } from "react";
+import { Colors, TextSize } from "shared/styles";
+import { Button } from "../button";
+import { SeenByAvatar } from "./SeenByAvatar";
+
+interface Props {
+  userIds: string[];
+  messageWidth: number;
+  isUser: boolean;
+}
+
+export const SeenBy: FC<Props> = ({ userIds, messageWidth, isUser }) => {
+  const setSeenByUserIds = useSetAtom(TimelineAtoms.seenByUserIds);
+
+  const handleOpen = useCallback(
+    () => setSeenByUserIds(userIds),
+    [userIds, setSeenByUserIds],
+  );
+
+  if (!userIds.length) return null;
+
+  const visible = userIds.slice(0, 5);
+  const overflow = userIds.length - 5;
+
+  return (
+    <Button.Wrapper onPress={handleOpen}>
+      <Block
+        margins={{ marginTop: 4 }}
+        flexDirection="row"
+        gap={4}
+        justify={isUser ? "flex-end" : "flex-start"}
+        width={messageWidth}
+      >
+        {visible.map((userId) => (
+          <SeenByAvatar key={userId} userId={userId} />
+        ))}
+        {overflow > 0 && (
+          <Text size={TextSize.tiny} color={Colors.white50}>
+            +{overflow}
+          </Text>
+        )}
+      </Block>
+    </Button.Wrapper>
+  );
+};

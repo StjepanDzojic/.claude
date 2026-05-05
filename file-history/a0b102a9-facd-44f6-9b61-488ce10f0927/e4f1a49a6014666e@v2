@@ -1,0 +1,113 @@
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+
+interface Props {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: 'Team' });
+  return { title: t('seoTitle'), description: t('seoDescription') };
+}
+
+type PortraitVariant = 'default' | 'blue' | 'green' | 'dark';
+
+function PersonCard({ idx, name, role, bio, variant = 'default' }: {
+  idx: string; name: string; role: string; bio: string; variant?: PortraitVariant;
+}) {
+  const variantClass: Record<PortraitVariant, string> = {
+    default: 'person',
+    blue: 'person blue',
+    green: 'person green',
+    dark: 'person dark',
+  };
+
+  return (
+    <div className={variantClass[variant]}>
+      <div className="portrait"><span className="corner">{idx} / 08</span></div>
+      <div>
+        <div className="n">{name}</div>
+        <div className="r">{role}</div>
+      </div>
+      <div className="bio">{bio}</div>
+    </div>
+  );
+}
+
+export default function TeamPage() {
+  const t = useTranslations('Team');
+
+  return (
+    <main>
+      <section className="page-hero wrap">
+        <div className="crumbs">
+          <Link href="/">Hidroing</Link>
+          <span className="sep">/</span>
+          <span>{t('crumb')}</span>
+        </div>
+        <h1 className="h1">{t('title')}</h1>
+        <div className="lede-row">
+          <p className="body-lg">{t('desc')}</p>
+          <div style={{ display: 'grid', gap: 14 }}>
+            {[
+              { label: t('statStaff'), value: '8' },
+              { label: t('statChartered'), value: '6' },
+              { label: t('statTenure'), value: '17' },
+            ].map((stat) => (
+              <div key={stat.label} style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--rule)', paddingTop: 10 }}>
+                <span className="eyebrow">{stat.label}</span>
+                <span className="num" style={{ fontSize: 18 }}>{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="wrap section">
+        <div className="dept">
+          <div className="idx">01</div>
+          <h2>{t('dept1Title')}</h2>
+          <div className="ct">{t('dept1Count')}</div>
+        </div>
+
+        <div className="team-grid">
+          <PersonCard idx="01" name={t('m1Name')} role={t('m1Role')} bio={t('m1Bio')} variant="blue" />
+          <PersonCard idx="02" name={t('m2Name')} role={t('m2Role')} bio={t('m2Bio')} variant="green" />
+          <PersonCard idx="03" name={t('m3Name')} role={t('m3Role')} bio={t('m3Bio')} />
+          <PersonCard idx="04" name={t('m4Name')} role={t('m4Role')} bio={t('m4Bio')} variant="dark" />
+        </div>
+
+        <div className="dept">
+          <div className="idx">02</div>
+          <h2>{t('dept2Title')}</h2>
+          <div className="ct">{t('dept2Count')}</div>
+        </div>
+
+        <div className="team-grid">
+          <PersonCard idx="05" name={t('m5Name')} role={t('m5Role')} bio={t('m5Bio')} />
+          <PersonCard idx="06" name={t('m6Name')} role={t('m6Role')} bio={t('m6Bio')} variant="blue" />
+          <PersonCard idx="07" name={t('m7Name')} role={t('m7Role')} bio={t('m7Bio')} variant="green" />
+          <PersonCard idx="08" name={t('m8Name')} role={t('m8Role')} bio={t('m8Bio')} variant="dark" />
+        </div>
+
+        <div className="join-card">
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>
+              <span className="dot" /><span>{t('joinEyebrow')}</span>
+            </div>
+            <h3 className="h2">{t('joinTitle')}</h3>
+            <p className="body" style={{ marginTop: 12, maxWidth: '52ch' }}>{t('joinDesc')}</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <a href="mailto:info@hidroing.hr" className="btn">
+              {t('joinCta')} <span className="arrow" />
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -1,0 +1,115 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { RoomInterface } from "@unomed/react-native-matrix-sdk";
+import { resolveMatrixImage } from "modules/matrix-client/utils";
+import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import { Dimensions, Image } from "react-native";
+import { Colors, TextSize } from "shared/styles";
+import { Button } from "../button";
+
+const SCREEN = Dimensions.get("screen");
+
+interface Props {
+  width: number;
+  height: number;
+  room: RoomInterface;
+  borderRadius?: number;
+  downloadWidth?: number;
+  downloadHeight?: number;
+  onPress?: (uri: string) => void;
+}
+
+export const RoomImage: FC<Props> = ({
+  room,
+  width,
+  height,
+  borderRadius = 48,
+  downloadWidth = SCREEN.width,
+  downloadHeight = SCREEN.height,
+  onPress,
+}) => {
+  const mxcRef = useRef<string | null>(null);
+  const [uri, setUri] = useState<string | null>(null);
+  const initialMxcUrl = room.avatarUrl();
+
+  const textSize = () => {
+    if (height < 28) return TextSize.tiny;
+    if (height < 32) return TextSize.small;
+    if (height < 40) return TextSize.base;
+    if (height < 48) return TextSize.medium;
+    if (height < 56) return TextSize.large;
+
+    return TextSize.xlarge;
+  };
+
+  useEffect(() => {
+    const fetch = async () => {
+      let mxcUrl = initialMxcUrl;
+      const isDirect = await room.isDirect();
+      if (isDirect && room.heroes()[0]?.avatarUrl) {
+        mxcUrl = room.heroes()[0].avatarUrl;
+      }
+
+      if (!mxcUrl) return;
+      mxcRef.current = mxcUrl;
+
+      const cached = await resolveMatrixImage({ mxcUrl, width, height });
+      if (cached) setUri(cached);
+    };
+
+    fetch();
+  }, [initialMxcUrl, room, width, height]);
+
+  const handlePress = useCallback(async () => {
+    if (!onPress) return;
+    const mxcUrl = mxcRef.current;
+    if (!mxcUrl) return;
+    const largeUri = await resolveMatrixImage({
+      mxcUrl,
+      width: downloadWidth,
+      height: downloadHeight,
+    });
+    if (largeUri) onPress(largeUri);
+  }, [onPress, downloadWidth, downloadHeight]);
+
+  if (uri) {
+    const image = (
+      <Image
+        source={{ uri }}
+        width={width}
+        height={height}
+        style={{
+          width,
+          height,
+          borderRadius,
+          borderWidth: 2,
+          borderColor: Colors.white20,
+        }}
+      />
+    );
+
+    if (onPress) {
+      return <Button.Wrapper onPress={handlePress}>{image}</Button.Wrapper>;
+    }
+
+    return image;
+  }
+
+  return (
+    <Block
+      width={width}
+      height={height}
+      border={{
+        borderRadius,
+        borderWidth: 2,
+        borderColor: Colors.white20,
+      }}
+      background={Colors.white20}
+      align="center"
+      justify="center"
+    >
+      <Text size={textSize()} color="white" textTransform="uppercase">
+        {room.displayName()?.charAt(0)}
+      </Text>
+    </Block>
+  );
+};

@@ -1,0 +1,54 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { NavigationContainerRef } from "modules/navigation/const";
+import type { FC } from "react";
+import { Image, StyleSheet } from "react-native";
+import { Button } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  topic: string | undefined;
+  room: RoomInterface;
+  canEdit: boolean;
+}
+
+export const Topic: FC<Props> = ({ topic, room, canEdit }) => {
+  return (
+    <Block gap={20} margins={{ marginBottom: 20 }}>
+      <Text size={TextSize.tiny} color={Colors.white50}>
+        Topic
+      </Text>
+      {topic ? (
+        <Text>{topic}</Text>
+      ) : canEdit ? (
+        <Button.Wrapper
+          onPress={() => NavigationContainerRef.navigate("editRoom", { room })}
+        >
+          <Block
+            flexDirection="row"
+            align="center"
+            gap={12}
+            background={Colors.white5}
+            border={{ borderRadius: 16 }}
+            paddings={12}
+            justify="space-between"
+          >
+            <Text>Add topic</Text>
+            <Image
+              style={styles.carret}
+              tintColor={Colors.white50}
+              source={require("assets/icons/caret-left.png")}
+            />
+          </Block>
+        </Button.Wrapper>
+      ) : (
+        <Text>No topic</Text>
+      )}
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  carret: {
+    transform: [{ rotate: "180deg" }],
+  },
+});

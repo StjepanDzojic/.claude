@@ -1,0 +1,77 @@
+import { useAtomValue, useSetAtom } from "jotai";
+import { offlineToastHelper } from "shared/utils";
+import { RecorderPlayerAtoms } from "../jotai";
+
+export const useAudioPlayback = (trackId: string) => {
+  const sound = useAtomValue(RecorderPlayerAtoms.soundInstanceAtom);
+  const playbackState = useAtomValue(RecorderPlayerAtoms.audioPlaybackAtom);
+  const isCurrentTrack = playbackState.currentTrack?.trackId === trackId;
+  const isPlaying = isCurrentTrack && playbackState.isPlaying;
+  const currentMs = isCurrentTrack ? playbackState.currentMs : 0;
+
+  const loadTrack = useSetAtom(RecorderPlayerAtoms.loadTrackAtom);
+  const setIsPlaying = useSetAtom(RecorderPlayerAtoms.setIsPlayingAtom);
+  const resetPlayback = useSetAtom(RecorderPlayerAtoms.resetPlaybackAtom);
+
+  const play = async (url: string, duration: number) => {
+    try {
+      const needsTrackSwitch = !isCurrentTrack;
+
+      if (!url) throw new Error("Invalid audio URL");
+
+      // Always stop the player before starting a new track (or replaying)
+      try {
+        await sound.stopPlayer();
+        // Small delay to ensure cleanup completes and file handles are released
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (e) {
+        console.log(`[useAudioPlayback] Stop player result:`, e);
+      }
+
+      if (needsTrackSwitch) loadTrack({ url, trackId, duration });
+
+      await sound.startPlayer(url);
+      setIsPlaying(true);
+    } catch (e) {
+      console.error(`[useAudioPlayback] Error playing audio [${trackId}]:`, e);
+      resetPlayback();
+      offlineToastHelper("Failed to play voice message.");
+    }
+  };
+
+  const pause = async () => {
+    try {
+      await sound.pausePlayer();
+      setIsPlaying(false);
+    } catch (e) {
+      console.error("Error pausing audio:", e);
+    }
+  };
+
+  const resume = async () => {
+    try {
+      await sound.resumePlayer();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error("Error resuming audio:", e);
+    }
+  };
+
+  const stop = async () => {
+    try {
+      await sound.stopPlayer();
+      resetPlayback();
+    } catch (e) {
+      console.error("Error stopping audio:", e);
+    }
+  };
+
+  return {
+    isPlaying,
+    currentMs,
+    play,
+    pause,
+    resume,
+    stop,
+  };
+};

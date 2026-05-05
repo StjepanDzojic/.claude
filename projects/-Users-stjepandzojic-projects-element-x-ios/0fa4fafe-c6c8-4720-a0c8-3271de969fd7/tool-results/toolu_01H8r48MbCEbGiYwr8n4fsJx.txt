@@ -1,0 +1,252 @@
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-816-                return returnValue!
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-817-            }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-818-        }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-819-        set {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-820-            if Thread.isMainThread {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-821-                deactivateAccountAuthDataEraseDataUnderlyingCallsCount = newValue
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-822-            } else {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-823-                DispatchQueue.main.sync {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-824-                    deactivateAccountAuthDataEraseDataUnderlyingCallsCount = newValue
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-825-                }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-826-            }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-827-        }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-828-    }
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-829-    open var deactivateAccountAuthDataEraseDataCalled: Bool {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-830-        return deactivateAccountAuthDataEraseDataCallsCount > 0
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-831-    }
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-832-    open var deactivateAccountAuthDataEraseDataReceivedArguments: (authData: AuthData?, eraseData: Bool)?
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-833-    open var deactivateAccountAuthDataEraseDataReceivedInvocations: [(authData: AuthData?, eraseData: Bool)] = []
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-834-    open var deactivateAccountAuthDataEraseDataClosure: ((AuthData?, Bool) async throws -> Void)?
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-835-
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift:836:    open override func deactivateAccount(authData: AuthData?, eraseData: Bool) async throws {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-837-        if let error = deactivateAccountAuthDataEraseDataThrowableError {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-838-            throw error
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-839-        }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-840-        deactivateAccountAuthDataEraseDataCallsCount += 1
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-841-        deactivateAccountAuthDataEraseDataReceivedArguments = (authData: authData, eraseData: eraseData)
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-842-        DispatchQueue.main.async {
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-843-            self.deactivateAccountAuthDataEraseDataReceivedInvocations.append((authData: authData, eraseData: eraseData))
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-844-        }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-845-        try await deactivateAccountAuthDataEraseDataClosure?(authData, eraseData)
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-846-    }
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-847-
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-848-    /MARK: - deletePusher
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-849-
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-850-    open var deletePusherIdentifiersThrowableError: Error?
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-851-    open var deletePusherIdentifiersUnderlyingCallsCount = 0
+SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-852-    open var deletePusherIdentifiersCallsCount: Int {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-853-        get {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-854-            if Thread.isMainThread {
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-855-                return deletePusherIdentifiersUnderlyingCallsCount
+/Users/stjepandzojic/projects/element-x-ios/SDKMocks/Sources/Generated/SDKGeneratedMocks.swift-856-            } else {
+--
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-775-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-776-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-777-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-778-    func removeUserAvatar() async -> Result<Void, ClientProxyError> {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-779-        do {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-780-            try await client.removeAvatar()
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-781-            Task {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-782-                await self.loadUserAvatarURL()
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-783-            }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-784-            return .success(())
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-785-        } catch {
+ElementX/Sources/Services/Client/ClientProxy.swift-786-            MXLog.error("Failed removing user avatar with error: \(error)")
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-787-            return .failure(.sdkError(error))
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-788-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-789-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-790-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-791-    func linkNewDeviceService() -> LinkNewDeviceServiceProtocol {
+ElementX/Sources/Services/Client/ClientProxy.swift-792-        LinkNewDeviceService(handler: client.newGrantLoginWithQrCodeHandler())
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-793-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-794-    
+ElementX/Sources/Services/Client/ClientProxy.swift:795:    func deactivateAccount(password: String?, eraseData: Bool) async -> Result<Void, ClientProxyError> {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-796-        do {
+ElementX/Sources/Services/Client/ClientProxy.swift-797-            try await client.deactivateAccount(authData: password.map { .password(passwordDetails: .init(identifier: userID, password: $0)) },
+ElementX/Sources/Services/Client/ClientProxy.swift-798-                                               eraseData: eraseData)
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-799-            return .success(())
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-800-        } catch {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-801-            return .failure(.sdkError(error))
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-802-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-803-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-804-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-805-    func logout() async {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-806-        do {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-807-            try await client.logout()
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-808-        } catch {
+ElementX/Sources/Services/Client/ClientProxy.swift-809-            MXLog.error("Failed logging out with error: \(error)")
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-810-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-811-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxy.swift-812-    
+ElementX/Sources/Services/Client/ClientProxy.swift-813-    func setPusher(with configuration: PusherConfiguration) async throws {
+ElementX/Sources/Services/Client/ClientProxy.swift-814-        try await client.setPusher(identifiers: configuration.identifiers,
+ElementX/Sources/Services/Client/ClientProxy.swift-815-                                   kind: configuration.kind,
+--
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-197-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-198-    func roomSummaryForIdentifier(_ identifier: String) -> RoomSummary?
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-199-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-200-    func roomSummaryForAlias(_ alias: String) -> RoomSummary?
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-201-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-202-    /// Will only work for rooms that are in our room list/local store
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-203-    func reportRoomForIdentifier(_ identifier: String, reason: String) async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-204-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-205-    @discardableResult func loadUserDisplayName() async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-206-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-207-    func setUserDisplayName(_ name: String) async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-208-
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-209-    @discardableResult func loadUserAvatarURL() async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-210-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-211-    func setUserAvatar(media: MediaInfo) async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-212-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-213-    func removeUserAvatar() async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-214-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-215-    func linkNewDeviceService() -> LinkNewDeviceServiceProtocol
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-216-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift:217:    func deactivateAccount(password: String?, eraseData: Bool) async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-218-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-219-    func logout() async
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-220-
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-221-    func setPusher(with configuration: PusherConfiguration) async throws
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-222-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-223-    func searchUsers(searchTerm: String, limit: UInt) async -> Result<SearchUsersResultsProxy, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-224-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-225-    func profile(for userID: String) async -> Result<UserProfileProxy, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-226-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-227-    func roomDirectorySearchProxy() -> RoomDirectorySearchProxyProtocol
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-228-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-229-    func resolveRoomAlias(_ alias: String) async -> Result<ResolvedRoomAlias, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-230-    
+ElementX/Sources/Services/Client/ClientProxyProtocol.swift-231-    func isAliasAvailable(_ alias: String) async -> Result<Bool, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-232-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-233-    @discardableResult func clearCaches() async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-234-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-235-    @discardableResult func optimizeStores() async -> Result<Void, ClientProxyError>
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-236-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Services/Client/ClientProxyProtocol.swift-237-    func storeSizes() async -> Result<StoreSizes, ClientProxyError>
+--
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4170-                var returnValue: Result<Void, ClientProxyError>? = nil
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4171-                DispatchQueue.main.sync {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4172-                    returnValue = deactivateAccountPasswordEraseDataUnderlyingReturnValue
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4173-                }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4174-
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4175-                return returnValue!
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4176-            }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4177-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4178-        set {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4179-            if Thread.isMainThread {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4180-                deactivateAccountPasswordEraseDataUnderlyingReturnValue = newValue
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4181-            } else {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4182-                DispatchQueue.main.sync {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4183-                    deactivateAccountPasswordEraseDataUnderlyingReturnValue = newValue
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4184-                }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4185-            }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4186-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4187-    }
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4188-    var deactivateAccountPasswordEraseDataClosure: ((String?, Bool) async -> Result<Void, ClientProxyError>)?
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4189-
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift:4190:    func deactivateAccount(password: String?, eraseData: Bool) async -> Result<Void, ClientProxyError> {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4191-        deactivateAccountPasswordEraseDataCallsCount += 1
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4192-        deactivateAccountPasswordEraseDataReceivedArguments = (password: password, eraseData: eraseData)
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4193-        DispatchQueue.main.async {
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4194-            self.deactivateAccountPasswordEraseDataReceivedInvocations.append((password: password, eraseData: eraseData))
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4195-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4196-        if let deactivateAccountPasswordEraseDataClosure = deactivateAccountPasswordEraseDataClosure {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4197-            return await deactivateAccountPasswordEraseDataClosure(password, eraseData)
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4198-        } else {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4199-            return deactivateAccountPasswordEraseDataReturnValue
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4200-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4201-    }
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4202-    /MARK: - logout
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4203-
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4204-    var logoutUnderlyingCallsCount = 0
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4205-    var logoutCallsCount: Int {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4206-        get {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4207-            if Thread.isMainThread {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4208-                return logoutUnderlyingCallsCount
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4209-            } else {
+ElementX/Sources/Mocks/Generated/GeneratedMocks.swift-4210-                var returnValue: Int? = nil
+--
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-195-        }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-196-    }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-197-
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-198-    @Test
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-199-    func createRoomSpaceSelectionSheet() async throws {
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-200-        AppSettings.resetAllSettings() // Ensure this test's previews start with fresh settings.
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-201-        for (index, preview) in CreateRoomSpaceSelectionSheet_Previews._allPreviews.enumerated() {
+PreviewTests/Sources/GeneratedPreviewTests.swift-202-            try await assertSnapshots(matching: preview, step: index)
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-203-        }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-204-    }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-205-
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-206-    @Test
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-207-    func createRoom() async throws {
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-208-        AppSettings.resetAllSettings() // Ensure this test's previews start with fresh settings.
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-209-        for (index, preview) in CreateRoom_Previews._allPreviews.enumerated() {
+PreviewTests/Sources/GeneratedPreviewTests.swift-210-            try await assertSnapshots(matching: preview, step: index)
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-211-        }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-212-    }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-213-
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-214-    @Test
+PreviewTests/Sources/GeneratedPreviewTests.swift:215:    func deactivateAccountScreen() async throws {
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-216-        AppSettings.resetAllSettings() // Ensure this test's previews start with fresh settings.
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-217-        for (index, preview) in DeactivateAccountScreen_Previews._allPreviews.enumerated() {
+PreviewTests/Sources/GeneratedPreviewTests.swift-218-            try await assertSnapshots(matching: preview, step: index)
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-219-        }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-220-    }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-221-
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-222-    @Test
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-223-    func declineAndBlockScreen() async throws {
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-224-        AppSettings.resetAllSettings() // Ensure this test's previews start with fresh settings.
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-225-        for (index, preview) in DeclineAndBlockScreen_Previews._allPreviews.enumerated() {
+PreviewTests/Sources/GeneratedPreviewTests.swift-226-            try await assertSnapshots(matching: preview, step: index)
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-227-        }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-228-    }
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-229-
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-230-    @Test
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-231-    func editRoomAddressScreen() async throws {
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-232-        AppSettings.resetAllSettings() // Ensure this test's previews start with fresh settings.
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-233-        for (index, preview) in EditRoomAddressScreen_Previews._allPreviews.enumerated() {
+PreviewTests/Sources/GeneratedPreviewTests.swift-234-            try await assertSnapshots(matching: preview, step: index)
+/Users/stjepandzojic/projects/element-x-ios/PreviewTests/Sources/GeneratedPreviewTests.swift-235-        }
+--
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-33-        switch viewAction {
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-34-        case .deactivate:
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-35-            showDeactivationConfirmation()
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-36-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-37-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-38-    
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-39-    / MARK: - Private
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-40-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-41-    private let deactivatingIndicatorID = "\(DeactivateAccountScreenViewModel.self)-Deactivating"
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-42-    
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-43-    func showDeactivationConfirmation() {
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-44-        state.bindings.alertInfo = .init(id: .confirmation,
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-45-                                         title: L10n.screenDeactivateAccountTitle,
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-46-                                         message: L10n.screenDeactivateAccountConfirmationDialogContent,
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-47-                                         primaryButton: .init(title: L10n.actionDeactivate) {
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-48-                                             Task { await self.deactivateAccount() }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-49-                                         },
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-50-                                         secondaryButton: .init(title: L10n.actionCancel, role: .cancel, action: nil))
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-51-    }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-52-
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift:53:    func deactivateAccount() async {
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-54-        userIndicatorController.submitIndicator(UserIndicator(id: deactivatingIndicatorID,
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-55-                                                              type: .modal(progress: .indeterminate, interactiveDismissDisabled: true, allowsInteraction: false),
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-56-                                                              title: L10n.commonPleaseWait,
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-57-                                                              persistent: true))
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-58-        
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-59-        MXLog.warning("Deactivating account.")
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-60-        
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-61-        switch await clientProxy.deactivateAccount(password: nil, eraseData: state.bindings.eraseData) {
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-62-        case .success:
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-63-            MXLog.info("Account deactivated (no password needed).")
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-64-            actionsSubject.send(.accountDeactivated)
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-65-            return
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-66-        case .failure:
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-67-            MXLog.info("Request failed, including password.")
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-68-        }
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-69-        
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-70-        switch await clientProxy.deactivateAccount(password: state.bindings.password, eraseData: state.bindings.eraseData) {
+ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-71-        case .success:
+/Users/stjepandzojic/projects/element-x-ios/ElementX/Sources/Screens/Settings/DeactivateAccountScreen/DeactivateAccountScreenViewModel.swift-72-            MXLog.info("Account deactivated.")
+
+[Showing results with pagination = limit: 250]

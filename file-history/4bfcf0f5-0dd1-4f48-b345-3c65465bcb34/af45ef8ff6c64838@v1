@@ -1,0 +1,5 @@
+import { DoorCollection } from '../types';
+
+export const isCollectionGuard = (value: string): value is DoorCollection => {
+  return ['Horizont'].includes(value);
+};

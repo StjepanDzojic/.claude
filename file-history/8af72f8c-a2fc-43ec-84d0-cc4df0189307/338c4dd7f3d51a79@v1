@@ -1,0 +1,281 @@
+import { atom, useAtomValue, useSetAtom } from 'jotai';
+import {
+  COLLECTIONS,
+  DESIGN_COLLECTIONS,
+  clampDoorHeightMm,
+  clampDoorWidthMm,
+  doorProtections,
+  doorViewers,
+  fingerprintReaderLocations,
+  frameColorPalettes,
+  frameColors,
+  glassStyles,
+  handleHeights,
+  handles,
+  houseNumberStyles,
+  innerHandles,
+  layouts,
+  lockingSystems,
+  locks,
+  openingDirections,
+  outerPanelItems,
+  panelColorPalettes,
+  panelColors,
+  rosettes,
+  sceneLightingModes,
+  sceneWallFacadeColors,
+  sceneWallFinishes,
+  steps,
+} from '../const';
+
+const doorConfigStep = atom<string>(steps[0]);
+
+const doorHeight = atom<number>(2700);
+
+const doorWidth = atom<number>(1250);
+
+const doorOpeningDirection = atom<DoorItem>(openingDirections[0]);
+
+const doorLayout = atom<DoorItem>(layouts[0]);
+
+const doorCollection = atom<DoorItem>(COLLECTIONS[0]);
+
+const doorDesign = atom<DoorItem>(DESIGN_COLLECTIONS['Horizont'][0]);
+
+const innerPanelModel = atom<DoorItem>(DESIGN_COLLECTIONS['Horizont'][0]);
+
+const doorGlassStye = atom<DoorItem>(glassStyles[0]);
+
+const doorSideGlassStyle = atom<DoorItem>(glassStyles[0]);
+
+const doorTopGlassHeight = atom<number>(240);
+
+const doorLeftGlassWidth = atom<number>(240);
+
+const doorRightGlassWidth = atom<number>(240);
+
+const doorPanelType = atom<DoorItem>(outerPanelItems[0]);
+
+const doorHandle = atom<DoorItem>(handles[0]);
+
+const doorKnobType = atom<DoorItem>(glassStyles[0]);
+
+const rosette = atom<DoorItem>(rosettes[0]);
+
+const doorHinges = atom<DoorItem>(glassStyles[0]);
+
+const frameColorPalette = atom<DoorItem>(frameColorPalettes[0]);
+
+const panelColorPalette = atom<DoorItem>(panelColorPalettes[0]);
+
+const panelTwoColorPalette = atom<DoorItem>(panelColorPalettes[0]);
+
+const frameColor = atom<DoorItem>(frameColors['Mat'][0]);
+
+const panelColor = atom<DoorItem>(panelColors['Mat'][0]);
+
+const panelTwoColor = atom<DoorItem>(panelColors['Mat'][0]);
+
+const sceneExteriorWallFinish = atom<DoorItem>(sceneWallFinishes[0]);
+
+const sceneExteriorWallColor = atom<DoorItem>(sceneWallFacadeColors[1]);
+
+const sceneLightingMode = atom<DoorItem>(sceneLightingModes[0]);
+
+const sceneInteriorWallFinish = atom<DoorItem>(sceneWallFinishes[0]);
+
+const sceneInteriorWallColor = atom<DoorItem>(sceneWallFacadeColors[0]);
+
+const doorApplication = atom<DoorItem>(panelColors['Ral'][0]);
+
+const applicationColor = atom<DoorItem>(panelColors['Ral'][0]);
+
+const fingerprintReaderLoaction = atom<DoorItem>(fingerprintReaderLocations[0]);
+
+const hasKeypad = atom<boolean>(false);
+
+const hasElectricPreparation = atom<boolean>(false);
+
+const outerHandle = atom<DoorItem>(handles[0]);
+
+const innerHandle = atom<DoorItem>(innerHandles[0]);
+
+const handleHeight = atom<DoorItem>(handleHeights[0]);
+
+const doorLock = atom<DoorItem>(locks[0]);
+
+const doorLockingSystem = atom<DoorItem>(lockingSystems[0]);
+
+const hasConnectors = atom<boolean>(true);
+
+const doorProtection = atom<DoorItem>(doorProtections[0]);
+
+const doorViewer = atom<DoorItem>(doorViewers[0]);
+
+const hasHouseNumber = atom<boolean>(true);
+
+const houseNumber = atom<string>('121');
+
+const houseNumberStyle = atom<DoorItem>(houseNumberStyles[0]);
+
+const isInqueryModelOpen = atom<boolean>(false);
+
+const isWholeModelShown = atom<boolean>(false);
+
+const isFrontSide = atom<boolean>(true);
+
+export const doorModelAtoms = {
+  doorConfigStep,
+  doorWidth,
+  doorHeight,
+  doorOpeningDirection,
+  doorLayout,
+  doorCollection,
+  doorDesign,
+  innerPanelModel,
+  doorGlassStye,
+  doorSideGlassStyle,
+  doorPanelType,
+  doorHandle,
+  doorKnobType,
+  doorTopGlassHeight,
+  doorLeftGlassWidth,
+  doorRightGlassWidth,
+  rosette,
+  doorHinges,
+  frameColorPalette,
+  panelColorPalette,
+  panelTwoColorPalette,
+  frameColor,
+  panelColor,
+  panelTwoColor,
+  sceneExteriorWallFinish,
+  sceneExteriorWallColor,
+  sceneLightingMode,
+  sceneInteriorWallFinish,
+  sceneInteriorWallColor,
+  fingerprintReaderLoaction,
+  hasKeypad,
+  hasElectricPreparation,
+  outerHandle,
+  innerHandle,
+  handleHeight,
+  doorLock,
+  doorLockingSystem,
+  hasConnectors,
+  doorProtection,
+  doorViewer,
+  hasHouseNumber,
+  houseNumber,
+  houseNumberStyle,
+};
+
+export const useDoorConfigStep = () => useAtomValue(doorConfigStep);
+export const useDoorHeight = () => clampDoorHeightMm(useAtomValue(doorHeight));
+export const useDoorWidth = () => clampDoorWidthMm(useAtomValue(doorWidth));
+export const useDoorOpeningDirection = () => useAtomValue(doorOpeningDirection);
+export const useDoorLayout = () => useAtomValue(doorLayout);
+export const useDoorCollection = () => useAtomValue(doorCollection);
+export const useDoorDesign = () => useAtomValue(doorDesign);
+export const useDoorGlassStyle = () => useAtomValue(doorGlassStye);
+export const useDoorPanelType = () => useAtomValue(doorPanelType);
+export const useDoorHandle = () => useAtomValue(doorHandle);
+export const useInnerPanelModel = () => useAtomValue(innerPanelModel);
+export const useDoorSideGlassStyle = () => useAtomValue(doorSideGlassStyle);
+export const useDoorUpperGlassHeight = () => useAtomValue(doorTopGlassHeight);
+export const useDoorLeftGlassWidth = () => useAtomValue(doorLeftGlassWidth);
+export const useDoorRightGlassWidth = () => useAtomValue(doorRightGlassWidth);
+export const useDoorKnobType = () => useAtomValue(doorKnobType);
+export const useRosette = () => useAtomValue(rosette);
+export const useDoorHinges = () => useAtomValue(doorHinges);
+export const useFrameColorPalette = () => useAtomValue(frameColorPalette);
+export const usePanelColorPalette = () => useAtomValue(panelColorPalette);
+export const usePanelTwoColorPalette = () => useAtomValue(panelTwoColorPalette);
+export const useFrameColor = () => useAtomValue(frameColor);
+export const usePanelColor = () => useAtomValue(panelColor);
+export const usePanelTwoColor = () => useAtomValue(panelTwoColor);
+export const useSceneExteriorWallFinish = () =>
+  useAtomValue(sceneExteriorWallFinish);
+export const useSceneExteriorWallColor = () =>
+  useAtomValue(sceneExteriorWallColor);
+export const useSceneLightingMode = () => useAtomValue(sceneLightingMode);
+export const useSceneInteriorWallFinish = () =>
+  useAtomValue(sceneInteriorWallFinish);
+export const useSceneInteriorWallColor = () =>
+  useAtomValue(sceneInteriorWallColor);
+export const useApplicationColor = () => useAtomValue(applicationColor);
+export const useFingerprintReaderLocation = () =>
+  useAtomValue(fingerprintReaderLoaction);
+export const useHasKeypad = () => useAtomValue(hasKeypad);
+export const useHasElectricPreparation = () =>
+  useAtomValue(hasElectricPreparation);
+export const useOuterHandle = () => useAtomValue(outerHandle);
+export const useInnerHandle = () => useAtomValue(innerHandle);
+export const useHandleHeight = () => useAtomValue(handleHeight);
+export const useDoorLock = () => useAtomValue(doorLock);
+export const useDoorLockingSystem = () => useAtomValue(doorLockingSystem);
+export const useHasConnectors = () => useAtomValue(hasConnectors);
+export const useDoorProtection = () => useAtomValue(doorProtection);
+export const useDoorViewer = () => useAtomValue(doorViewer);
+export const useHasHouseNumber = () => useAtomValue(hasHouseNumber);
+export const useHouseNumber = () => useAtomValue(houseNumber);
+export const useHouseNumberStyle = () => useAtomValue(houseNumberStyle);
+export const useIsInqueryModelOpen = () => useAtomValue(isInqueryModelOpen);
+export const useIsWholeModelShown = () => useAtomValue(isWholeModelShown);
+export const useIsFrontSide = () => useAtomValue(isFrontSide);
+
+export const useSetDoorConfigStep = () => useSetAtom(doorConfigStep);
+export const useSetDoorHeight = () => useSetAtom(doorHeight);
+export const useSetDoorWidth = () => useSetAtom(doorWidth);
+export const useSetDoorOpeningDirection = () =>
+  useSetAtom(doorOpeningDirection);
+export const useSetDoorLayout = () => useSetAtom(doorLayout);
+export const useSetDoorCollection = () => useSetAtom(doorCollection);
+export const useSetDoorDesign = () => useSetAtom(doorDesign);
+export const useSetDoorGlassStyle = () => useSetAtom(doorGlassStye);
+export const useSetDoorPanelType = () => useSetAtom(doorPanelType);
+export const useSetDoorHandle = () => useSetAtom(doorHandle);
+export const useSetInnerPanelModel = () => useSetAtom(innerPanelModel);
+export const useSetDoorSideGlassStyle = () => useSetAtom(doorSideGlassStyle);
+export const useSetDoorUpperGlassHeight = () => useSetAtom(doorTopGlassHeight);
+export const useSetDoorLeftGlassWidth = () => useSetAtom(doorLeftGlassWidth);
+export const useSetDoorRightGlassWidth = () => useSetAtom(doorRightGlassWidth);
+export const useSetDoorKnobType = () => useSetAtom(doorKnobType);
+export const useSetRosette = () => useSetAtom(rosette);
+export const useSetDoorHinges = () => useSetAtom(doorHinges);
+export const useSetFrameColorPalette = () => useSetAtom(frameColorPalette);
+export const useSetPanelColorPalette = () => useSetAtom(panelColorPalette);
+export const useSetPanelTwoColorPalette = () =>
+  useSetAtom(panelTwoColorPalette);
+export const useSetFrameColor = () => useSetAtom(frameColor);
+export const useSetPanelColor = () => useSetAtom(panelColor);
+export const useSetPanelTwoColor = () => useSetAtom(panelTwoColor);
+export const useSetSceneExteriorWallFinish = () =>
+  useSetAtom(sceneExteriorWallFinish);
+export const useSetSceneExteriorWallColor = () =>
+  useSetAtom(sceneExteriorWallColor);
+export const useSetSceneLightingMode = () => useSetAtom(sceneLightingMode);
+export const useSetSceneInteriorWallFinish = () =>
+  useSetAtom(sceneInteriorWallFinish);
+export const useSetSceneInteriorWallColor = () =>
+  useSetAtom(sceneInteriorWallColor);
+export const useSetApplicationColor = () => useSetAtom(applicationColor);
+export const useSetFingerprintReaderLocation = () =>
+  useSetAtom(fingerprintReaderLoaction);
+export const useSetHasKeypad = () => useSetAtom(hasKeypad);
+export const useSetHasElectricPreparation = () =>
+  useSetAtom(hasElectricPreparation);
+export const useSetOuterHandle = () => useSetAtom(outerHandle);
+export const useSetInnerHandle = () => useSetAtom(innerHandle);
+export const useSetHandleHeight = () => useSetAtom(handleHeight);
+export const useSetDoorLock = () => useSetAtom(doorLock);
+export const useSetDoorLockingSystem = () => useSetAtom(doorLockingSystem);
+export const useSetHasConnectors = () => useSetAtom(hasConnectors);
+export const useSetDoorProtection = () => useSetAtom(doorProtection);
+export const useSetDoorViewer = () => useSetAtom(doorViewer);
+export const useSetHasHouseNumber = () => useSetAtom(hasHouseNumber);
+export const useSetHouseNumber = () => useSetAtom(houseNumber);
+export const useSetHouseNumberStyle = () => useSetAtom(houseNumberStyle);
+export const useSetIsInqueryModelOpen = () => useSetAtom(isInqueryModelOpen);
+export const useSetIsWholeModelShown = () => useSetAtom(isWholeModelShown);
+export const useSetIsFrontSide = () => useSetAtom(isFrontSide);

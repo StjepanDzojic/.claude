@@ -1,0 +1,560 @@
+'use client';
+import { OrbitControls, SoftShadows } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
+import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
+import { folder, useControls } from 'leva';
+import { FC, useEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { clampDoorHeightMm, lights } from '../const';
+import { useDoorHeight, useIsFrontSide, useSceneLightingMode } from '../store';
+import { Connectors } from './Connectors';
+import { Cylinder } from './Cylinder';
+import { DoorApplication } from './DoorApplication';
+import { InnerHandle } from './InnerHandle';
+import { OuterHandle } from './OuterHandle';
+import { HardwareGroup, ParametricDoor, ParametricHouse } from './parametric';
+import {
+  WALL_CENTER_Z,
+  WALL_HEIGHT,
+  WALL_THICKNESS,
+} from './parametric/ParametricWall';
+
+interface Props {
+  proposal?: Proposal;
+}
+
+const interiorLampPosition: [number, number, number] = [0, 1.72, -5.15];
+const wallLightPositions: [number, number, number][] = [
+  [-1.08, 1.58, 0.11],
+  [1.08, 1.58, 0.11],
+];
+
+interface DoorCameraControllerProps {
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  doorFocusY: number;
+  isFront: boolean;
+}
+
+const DoorCameraController: FC<DoorCameraControllerProps> = ({
+  controlsRef,
+  doorFocusY,
+  isFront,
+}) => {
+  const { camera, invalidate } = useThree();
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+
+    if (!controls) return;
+
+    const interiorTargetZ = WALL_CENTER_Z - WALL_THICKNESS / 2 - 0.02;
+    const target = new THREE.Vector3(
+      0,
+      doorFocusY,
+      isFront ? 0 : interiorTargetZ,
+    );
+    const offset = isFront
+      ? new THREE.Vector3(-1.4, 2.6, 5.8)
+      : new THREE.Vector3(1.2, 1.5, -4.2);
+
+    controls.target.copy(target);
+    camera.position.copy(target).add(offset);
+    camera.lookAt(target);
+    controls.update();
+    invalidate();
+  }, [camera, controlsRef, doorFocusY, invalidate, isFront]);
+
+  return null;
+};
+
+const ExposureController: FC<{ exposure: number }> = ({ exposure }) => {
+  const { gl, invalidate } = useThree();
+  useEffect(() => {
+    gl.toneMappingExposure = exposure;
+    invalidate();
+  }, [gl, exposure, invalidate]);
+  return null;
+};
+
+const InteriorNightLamp: FC<{
+  isNightMode: boolean;
+  pointIntensity?: number;
+  spotIntensity?: number;
+}> = ({ isNightMode, pointIntensity = 11, spotIntensity = 13 }) => {
+  const target = useMemo(() => {
+    const nextTarget = new THREE.Object3D();
+    nextTarget.position.set(0, -1.9, 0);
+    return nextTarget;
+  }, []);
+
+  return (
+    <group position={interiorLampPosition}>
+      <primitive object={target} />
+      <mesh position={[0, 0.11, 0]}>
+        <cylinderGeometry args={[0.045, 0.045, 0.22, 24]} />
+        <meshStandardMaterial
+          color="#2c3137"
+          roughness={0.72}
+          metalness={0.18}
+        />
+      </mesh>
+      <mesh castShadow position={[0, -0.03, 0]}>
+        <cylinderGeometry args={[0.22, 0.28, 0.18, 32]} />
+        <meshStandardMaterial
+          color="#d8c7a2"
+          metalness={0.08}
+          roughness={0.55}
+        />
+      </mesh>
+      <mesh position={[0, -0.09, 0]}>
+        <sphereGeometry args={[0.11, 24, 24]} />
+        <meshStandardMaterial
+          color="#ffe5b7"
+          emissive="#ffcc7a"
+          emissiveIntensity={isNightMode ? 2.9 : 0.12}
+          roughness={0.2}
+        />
+      </mesh>
+      <pointLight
+        position={[0, -0.16, 0]}
+        intensity={isNightMode ? pointIntensity : 0}
+        distance={9}
+        decay={1.4}
+        color="#ffd8a6"
+      />
+      <spotLight
+        position={[0, -0.07, 0]}
+        target={target}
+        angle={1.05}
+        penumbra={1}
+        decay={1.15}
+        distance={11}
+        intensity={isNightMode ? spotIntensity : 0}
+        color="#ffd8a6"
+        castShadow
+        shadow-radius={3}
+      />
+    </group>
+  );
+};
+
+const WallMountedLights: FC<{
+  isNightMode: boolean;
+  isVisible: boolean;
+  nightIntensity?: number;
+}> = ({ isNightMode, isVisible, nightIntensity = 18 }) => {
+  const targets = useMemo(
+    () =>
+      wallLightPositions.map((_, index) => {
+        const target = new THREE.Object3D();
+        target.position.set(index === 0 ? 0.92 : -0.92, -1.15, -1.05);
+        return target;
+      }),
+    [],
+  );
+
+  return (
+    <group>
+      {wallLightPositions.map((position, index) => (
+        <group key={`wall-light-${index}`} position={position}>
+          <primitive object={targets[index]} />
+          <mesh castShadow position={[0, 0, -0.025]}>
+            <boxGeometry args={[0.16, 0.22, 0.05]} />
+            <meshStandardMaterial
+              color="#2c3137"
+              roughness={0.82}
+              metalness={0.18}
+            />
+          </mesh>
+          <mesh position={[0, -0.02, 0.005]}>
+            <boxGeometry args={[0.09, 0.11, 0.03]} />
+            <meshStandardMaterial
+              color="#ffe1b3"
+              emissive="#ffc76d"
+              emissiveIntensity={isNightMode ? 2.3 : 0.06}
+              roughness={0.3}
+            />
+          </mesh>
+          <spotLight
+            position={[0, -0.02, 0.03]}
+            target={targets[index]}
+            angle={1.08}
+            penumbra={1}
+            decay={1}
+            distance={13}
+            intensity={isNightMode && isVisible ? nightIntensity : 0}
+            color="#ffe0b0"
+            castShadow
+            shadow-bias={-0.0001}
+            shadow-radius={3}
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+          />
+        </group>
+      ))}
+    </group>
+  );
+};
+
+export const Door: FC<Props> = ({ proposal }) => {
+  const isFront = useIsFrontSide();
+  const selectedDoorHeightMm = useDoorHeight();
+  const selectedLightingMode = useSceneLightingMode();
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const isNightMode = selectedLightingMode?.id === 'night';
+  const minDistance = isFront ? 3 : 3.2;
+  const maxDistance = isFront ? 12 : 6.5;
+  const minPolarAngle = isFront ? Math.PI / 3 : 1.22;
+  const maxPolarAngle = isFront ? Math.PI / 2 : 1.5;
+  const maxAzimuthAngle = useMemo(
+    () => (isFront ? Math.PI / 6 : Math.PI + Math.PI / 6),
+    [isFront],
+  );
+  const minAzimuthAngle = useMemo(() => {
+    return isFront ? -Math.PI / 6 : Math.PI - Math.PI / 6;
+  }, [isFront]);
+  const doorFocusY = useMemo(() => {
+    const doorHeight =
+      clampDoorHeightMm(proposal?.doorHeight ?? selectedDoorHeightMm) / 1000;
+
+    return -WALL_HEIGHT / 2 + 0.03 + doorHeight / 2;
+  }, [proposal?.doorHeight, selectedDoorHeightMm]);
+
+  const {
+    exposure,
+    bloomEnabled,
+    bloomIntensity,
+    bloomThreshold,
+    bloomSmoothing,
+    bloomRadius,
+    vignetteEnabled,
+    vignetteOffset,
+    vignetteDarkness,
+    dayKeyX,
+    dayKeyY,
+    dayKeyZ,
+    dayKeyIntensity,
+    dayDetailX,
+    dayDetailY,
+    dayDetailZ,
+    dayDetailIntensity,
+    dayAmbIntensity,
+    dayHemiIntensity,
+    nightDirIntensity,
+    nightAmbIntensity,
+    nightHemiIntensity,
+    nightWallLampIntensity,
+    nightPointLampIntensity,
+    nightSpotLampIntensity,
+  } = useControls({
+    'Post FX': folder({
+      exposure: { value: 1.0, min: 0.1, max: 3, step: 0.05, label: 'Exposure' },
+      bloomEnabled: { value: true, label: 'Bloom' },
+      bloomIntensity: {
+        value: 0.25,
+        min: 0,
+        max: 5,
+        step: 0.05,
+        label: 'Bloom Intensity',
+      },
+      bloomThreshold: {
+        value: 0.9,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        label: 'Bloom Threshold',
+      },
+      bloomSmoothing: {
+        value: 0.05,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: 'Bloom Smooth',
+      },
+      bloomRadius: {
+        value: 0.35,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: 'Bloom Radius',
+      },
+      vignetteEnabled: { value: true, label: 'Vignette' },
+      vignetteOffset: {
+        value: 0.35,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: 'V-Offset',
+      },
+      vignetteDarkness: {
+        value: 0.45,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        label: 'V-Dark',
+      },
+    }),
+    'Day Lights': folder(
+      {
+        'Key Light (raking)': folder({
+          dayKeyX: { value: -8, min: -8, max: 10, step: 0.1, label: 'X' },
+          dayKeyY: { value: 10, min: 0, max: 10, step: 0.1, label: 'Y' },
+          dayKeyZ: { value: 1.5, min: -2, max: 12, step: 0.1, label: 'Z' },
+          dayKeyIntensity: {
+            value: 3.6,
+            min: 0,
+            max: 6,
+            step: 0.05,
+            label: 'Intensity',
+          },
+        }),
+        'Detail Fill (opposite side)': folder({
+          dayDetailX: { value: 4.6, min: -8, max: 8, step: 0.1, label: 'X' },
+          dayDetailY: { value: 3.0, min: 0, max: 8, step: 0.1, label: 'Y' },
+          dayDetailZ: { value: -5.3, min: -8, max: 10, step: 0.1, label: 'Z' },
+          dayDetailIntensity: {
+            value: 0.7,
+            min: 0,
+            max: 3,
+            step: 0.05,
+            label: 'Intensity',
+          },
+        }),
+        dayAmbIntensity: {
+          value: 0.2,
+          min: 0,
+          max: 3,
+          step: 0.05,
+          label: 'Ambient',
+        },
+        dayHemiIntensity: {
+          value: 0.25,
+          min: 0,
+          max: 3,
+          step: 0.05,
+          label: 'Hemisphere',
+        },
+      },
+      { collapsed: false },
+    ),
+    'Night Lights': folder(
+      {
+        nightDirIntensity: {
+          value: 0,
+          min: 0,
+          max: 3,
+          step: 0.05,
+          label: 'Directional',
+        },
+        nightAmbIntensity: {
+          value: 0.59,
+          min: 0,
+          max: 2,
+          step: 0.05,
+          label: 'Ambient',
+        },
+        nightHemiIntensity: {
+          value: 0,
+          min: 0,
+          max: 2,
+          step: 0.05,
+          label: 'Hemisphere',
+        },
+        nightWallLampIntensity: {
+          value: 18,
+          min: 0,
+          max: 60,
+          step: 0.5,
+          label: 'Wall Lamps',
+        },
+        nightPointLampIntensity: {
+          value: 11,
+          min: 0,
+          max: 30,
+          step: 0.5,
+          label: 'Interior Pt',
+        },
+        nightSpotLampIntensity: {
+          value: 13,
+          min: 0,
+          max: 40,
+          step: 0.5,
+          label: 'Interior Sp',
+        },
+      },
+      { collapsed: true },
+    ),
+  });
+
+  return (
+    <group position={[0, 0, 0]}>
+      <ExposureController exposure={exposure} />
+      <DoorCameraController
+        controlsRef={controlsRef}
+        doorFocusY={doorFocusY}
+        isFront={isFront}
+      />
+      <OrbitControls
+        ref={controlsRef}
+        minDistance={minDistance}
+        maxDistance={maxDistance}
+        maxPolarAngle={maxPolarAngle}
+        minPolarAngle={minPolarAngle}
+        maxAzimuthAngle={maxAzimuthAngle}
+        minAzimuthAngle={minAzimuthAngle}
+        target={[0, doorFocusY, 0]}
+        enablePan={false}
+      />
+      <SoftShadows size={25} samples={17} focus={0} />
+      <color attach="background" args={[isNightMode ? '#0d1320' : '#edf1f4']} />
+      <fog
+        attach="fog"
+        args={[
+          isNightMode ? '#0d1320' : '#edf1f4',
+          isNightMode ? 8 : 180,
+          isNightMode ? 24 : 240,
+        ]}
+      />
+      {isFront ? (
+        <>
+          {/* Key light — raking from the side to reveal engraved details */}
+          <directionalLight
+            {...lights.front}
+            position={[dayKeyX, dayKeyY, dayKeyZ] as [number, number, number]}
+            castShadow
+            intensity={isNightMode ? nightDirIntensity : dayKeyIntensity}
+            color={isNightMode ? '#a9bce0' : '#ffffff'}
+            shadow-bias={-0.0005}
+            shadow-normalBias={0.05}
+            shadow-radius={3}
+            shadow-mapSize-width={4096}
+            shadow-mapSize-height={4096}
+            shadow-camera-left={-3}
+            shadow-camera-right={3}
+            shadow-camera-top={4}
+            shadow-camera-bottom={-2}
+            shadow-camera-near={0.5}
+            shadow-camera-far={25}
+          />
+          {/* Detail fill — from the opposite side, softer, prevents full black shadows */}
+          {!isNightMode && (
+            <directionalLight
+              position={
+                [dayDetailX, dayDetailY, dayDetailZ] as [number, number, number]
+              }
+              intensity={dayDetailIntensity}
+              color="#e8eeff"
+            />
+          )}
+          <ambientLight
+            intensity={isNightMode ? nightAmbIntensity : dayAmbIntensity}
+            color={isNightMode ? '#8d9ab0' : '#ffffff'}
+          />
+          <hemisphereLight
+            color={isNightMode ? '#94a7c6' : '#ffffff'}
+            groundColor={isNightMode ? '#1b2028' : '#888888'}
+            intensity={isNightMode ? nightHemiIntensity : dayHemiIntensity}
+          />
+          <directionalLight
+            position={[2, 2, -3]}
+            intensity={isNightMode ? 0.22 : 0.35}
+            color={isNightMode ? '#b0c1dd' : '#ffffff'}
+          />
+          <pointLight
+            position={[-2, 2, -2]}
+            intensity={isNightMode ? 0 : 0.3}
+            distance={7}
+          />
+          <pointLight
+            position={[2, 2, -2]}
+            intensity={isNightMode ? 0 : 0.3}
+            distance={7}
+          />
+        </>
+      ) : (
+        <>
+          <ambientLight
+            intensity={isNightMode ? nightAmbIntensity * 0.75 : 1.6}
+            color={isNightMode ? '#7d8ca3' : '#fffef7'}
+          />
+          <hemisphereLight
+            color={isNightMode ? '#7183a0' : '#fffef7'}
+            groundColor={isNightMode ? '#16181f' : '#c7c0b6'}
+            intensity={isNightMode ? nightHemiIntensity * 0.52 : 1.6}
+          />
+          <pointLight
+            position={[-2, 2.4, -2.6]}
+            intensity={isNightMode ? 0.45 : 1.9}
+            distance={9}
+            color={isNightMode ? '#f3d6ae' : '#fffef7'}
+          />
+          <pointLight
+            position={[2, 2.4, -2.6]}
+            intensity={isNightMode ? 0.45 : 1.9}
+            distance={9}
+            color={isNightMode ? '#f3d6ae' : '#fffef7'}
+          />
+          <pointLight
+            position={[0, 3.9, -3.6]}
+            intensity={isNightMode ? 0.65 : 2.4}
+            distance={11}
+            color={isNightMode ? '#f3d6ae' : '#fffef7'}
+          />
+          <pointLight
+            position={[0, 1.9, -1.8]}
+            intensity={isNightMode ? 0.4 : 1.3}
+            distance={6}
+            color={isNightMode ? '#f3d6ae' : '#fffef7'}
+          />
+          <pointLight
+            position={[0, -1.1, -2.8]}
+            intensity={isNightMode ? 0.45 : 1.6}
+            distance={8}
+            color={isNightMode ? '#f3d6ae' : '#fffef7'}
+          />
+        </>
+      )}
+      <WallMountedLights
+        isNightMode={isNightMode}
+        isVisible={isFront}
+        nightIntensity={nightWallLampIntensity}
+      />
+      <InteriorNightLamp
+        isNightMode={isNightMode}
+        pointIntensity={nightPointLampIntensity}
+        spotIntensity={nightSpotLampIntensity}
+      />
+
+      {/* Parametric door system - all dimensions in meters */}
+      <ParametricDoor showWall={false} />
+
+      {/* House structure with the first-floor slab/ceiling restored */}
+      <ParametricHouse proposal={proposal} />
+
+      {/* Hardware components wrapped with coordinate transformation */}
+      <HardwareGroup>
+        <DoorApplication proposal={proposal} />
+        <Cylinder proposal={proposal} />
+        <Connectors proposal={proposal} />
+        <OuterHandle proposal={proposal} />
+        <InnerHandle proposal={proposal} />
+      </HardwareGroup>
+
+      <EffectComposer>
+        <Bloom
+          intensity={bloomEnabled ? bloomIntensity : 0}
+          luminanceThreshold={bloomThreshold}
+          luminanceSmoothing={bloomSmoothing}
+          mipmapBlur
+          radius={bloomRadius}
+        />
+        <Vignette
+          offset={vignetteEnabled ? vignetteOffset : 0}
+          darkness={vignetteEnabled ? vignetteDarkness : 0}
+          eskil={false}
+        />
+      </EffectComposer>
+    </group>
+  );
+};

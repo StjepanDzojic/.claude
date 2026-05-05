@@ -1,0 +1,42 @@
+import { useGLTF } from '@react-three/drei';
+import { FC, useDeferredValue } from 'react';
+import * as THREE from 'three';
+import { useInnerHandleCalculations } from '../hooks/useInnerHandleCalculations';
+
+interface Props {
+  proposal?: Proposal;
+}
+
+export const InnerHandle: FC<Props> = ({ proposal }) => {
+  const { positionX, positionY, positionZ, innerHandle, directionId } =
+    useInnerHandleCalculations(proposal);
+
+  const modelSrc = innerHandle.modelSrc ?? '/models/door/G-kvake.glb';
+  const deferredSrc = useDeferredValue(modelSrc);
+  const { nodes, materials } = useGLTF(deferredSrc) as unknown as {
+    nodes: Record<string, THREE.Mesh>;
+    materials: Record<string, THREE.MeshStandardMaterial>;
+  };
+
+  const mirrored = directionId === 'left';
+  const nodeKey = innerHandle.name ?? '';
+  const node = nodes[nodeKey];
+  const material = Object.values(materials)[0];
+
+  if (!node || !material) return null;
+
+  return (
+    <group
+      dispose={null}
+      position={[positionX, positionY, positionZ]}
+      rotation={[0, Math.PI, 0]}
+      scale={[mirrored ? -1 : 1, 1, 1]}>
+      <mesh
+        castShadow
+        receiveShadow
+        geometry={node.geometry}
+        material={material}
+      />
+    </group>
+  );
+};

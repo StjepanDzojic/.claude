@@ -1,0 +1,3 @@
+import { Platform } from "react-native";
+
+export const isIpad = (): boolean => Platform.OS === "ios" && Platform.isPad;

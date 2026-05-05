@@ -1,0 +1,74 @@
+'use client';
+
+import { useTranslations, useLocale } from 'next-intl';
+import { useParams } from 'next/navigation';
+import { Link, usePathname, useRouter } from 'modules/i18n/utils/navigation';
+
+const NAV_ITEMS = [
+  { href: '/' as const, key: 'home' },
+  { href: '/services' as const, key: 'services' },
+  { href: '/projects' as const, key: 'projects' },
+  { href: '/team' as const, key: 'team' },
+  { href: '/about' as const, key: 'about' },
+  { href: '/contact' as const, key: 'contact' },
+] satisfies Array<{ href: '/' | '/services' | '/projects' | '/team' | '/about' | '/contact'; key: string }>;
+
+export function Nav() {
+  const t = useTranslations('Nav');
+  const locale = useLocale();
+  const pathname = usePathname();
+  const params = useParams();
+  const router = useRouter();
+
+  function switchLocale(next: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const href = (params && Object.keys(params).length > 0 ? { pathname, params } : pathname) as any;
+    router.replace(href, { locale: next });
+  }
+
+  function isActive(href: string) {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  }
+
+  return (
+    <header className="nav">
+      <div className="nav__inner">
+        <Link href="/" className="nav__logo" aria-label="Hidroing">
+          <span className="footer__wordmark" style={{ fontSize: 22 }}>
+            hidroing<span className="dot">.</span>
+          </span>
+        </Link>
+
+        <nav className="nav__links" aria-label="Primary">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={isActive(item.href) ? 'active' : ''}
+            >
+              {t(item.key)}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="nav__right">
+          <div className="lang-toggle" role="group" aria-label="Language">
+            <button
+              onClick={() => switchLocale('hr')}
+              className={locale === 'hr' ? 'active' : ''}
+            >
+              HR
+            </button>
+            <button
+              onClick={() => switchLocale('en')}
+              className={locale === 'en' ? 'active' : ''}
+            >
+              EN
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

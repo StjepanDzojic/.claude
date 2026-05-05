@@ -1,0 +1,293 @@
+'use client';
+
+import { Routes } from '@app/_const/Routes';
+import { AnimatedText } from '@app/_shared/AnimatedText';
+import { Grid } from '@app/_shared/Grid';
+import { RelatedArticle } from '@app/_shared/RelatedArticle';
+import { getProjects } from '@app/_shared/utils/getProjects';
+import { createClient } from 'prismicio';
+import { PrismicNextImage } from '@prismicio/next';
+import { PrismicRichText } from '@prismicio/react';
+import Arrow from 'assets/icons/arrow-right.svg';
+import Email from 'assets/icons/email.svg';
+import Facebook from 'assets/icons/socials/facebook.svg';
+import Linkedin from 'assets/icons/socials/linkedin.svg';
+import Twitter from 'assets/icons/socials/twitter.svg';
+import clsx from 'clsx';
+import { format } from 'date-fns';
+import { hr } from 'date-fns/locale';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { EventDocument, NewsDocument, ProjectDocument } from 'prismicio-types';
+import { FC, useEffect, useMemo, useState } from 'react';
+import {
+  EmailShareButton,
+  FacebookShareButton,
+  LinkedinShareButton,
+  TwitterShareButton,
+} from 'react-share';
+import { Gallery } from '../../vijesti/_fragments/Gallery';
+
+interface SingleProjectProps {
+  project: ProjectDocument<string>;
+}
+
+export const SingleProject: FC<SingleProjectProps> = ({ project }) => {
+  const {
+    title,
+    date,
+    end_date,
+    hero_image,
+    content,
+    opening_text,
+    related_articles,
+    gallery,
+    category,
+    status,
+  } = project.data;
+  const shareUrl = `https://sportosijek.hr/projekti/${project.uid}`;
+  const [relatedItems, setRelatedItems] = useState<
+    (NewsDocument<string> | EventDocument<string> | ProjectDocument<string>)[]
+  >([]);
+  const [actualProjects, setActualProjects] = useState<
+    ProjectDocument<string>[]
+  >([]);
+  const itemsToDisplay = [...relatedItems, ...actualProjects].slice(0, 3);
+  const hasGallery = gallery.some(
+    (item) => item.normal_image.url || item.cropped_image.url,
+  );
+
+  const validRelatedArticles = useMemo(
+    () =>
+      related_articles?.filter((item) =>
+        Boolean(
+          item.related_article &&
+            'uid' in item.related_article &&
+            item.related_article.uid,
+        ),
+      ),
+    [related_articles],
+  );
+
+  useEffect(() => {
+    if (validRelatedArticles?.length < 3) {
+      getProjects({ page: 1, limit: 4 })
+        .then((data) =>
+          setActualProjects(
+            data.projects.filter((p) => p.uid !== project.uid).slice(0, 3),
+          ),
+        )
+        .catch(() => setActualProjects([]));
+    }
+
+    if (!validRelatedArticles?.length) return;
+
+    const fetchRelated = async () => {
+      const client = createClient();
+      const related = await Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        related_articles.slice(0, 3).map(async ({ related_article }: any) => {
+          if (!related_article?.uid) return null;
+          try {
+            return await client.getByUID(related_article.type, related_article.uid);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setRelatedItems(
+        related.filter((item) => item !== null) as (
+          | NewsDocument<string>
+          | EventDocument<string>
+          | ProjectDocument<string>
+        )[],
+      );
+    };
+
+    fetchRelated();
+  }, [validRelatedArticles, project.uid]);
+
+  return (
+    <>
+      <Grid Wrapper="section" className="md:gap-24">
+        <div className="col-[2/24] md:col-[4/22] lg:col-[6/20] flex flex-col gap-20 md:gap-40 my-20 md:my-40">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="uppercase flex items-center gap-12 text-small">
+            <Link
+              href={Routes.projects}
+              className="group flex items-center gap-4 font-medium">
+              <Arrow
+                viewBox="0 0 24 24"
+                className="w-12 h-12 rotate-180 group-hover:[&>path]:fill-primary [&>path]:transition-all [&>path]:duration-150 [&>path]:ease-out"
+              />{' '}
+              Projekti
+            </Link>{' '}
+            <span className="text-white/50">/</span>
+            <span className="text-white/50">
+              {format(
+                new Date(date ?? project.first_publication_date),
+                'dd MMMM yyyy',
+                { locale: hr },
+              )}
+            </span>
+            {status && (
+              <>
+                <span className="text-white/50">/</span>
+                <span
+                  className={clsx(
+                    'text-tiny font-medium px-10 py-6 rounded-2xl normal-case',
+                    status === 'U tijeku' && 'bg-green-600/80 text-white',
+                    status === 'Planiran' && 'bg-blue-600/80 text-white',
+                    status === 'Završen' && 'bg-gray-600/80 text-white',
+                  )}>
+                  {status}
+                </span>
+              </>
+            )}
+          </motion.div>
+          {category && (
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut', delay: 0.1 }}
+              className="text-primary font-medium uppercase text-small tracking-wider">
+              {category}
+            </motion.p>
+          )}
+          {title && (
+            <AnimatedText
+              text={title}
+              className="text-white text-5xlarge-fluid font-medium justify-start"
+            />
+          )}
+          {end_date && date && (
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut', delay: 0.5 }}
+              className="text-white/60 text-small">
+              {format(new Date(date), 'dd/MM/yyyy', { locale: hr })} —{' '}
+              {format(new Date(end_date), 'dd/MM/yyyy', { locale: hr })}
+            </motion.p>
+          )}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut', delay: 0.7 }}
+            className="flex gap-12 flex-col">
+            <p className="text-large font-semibold text-white">Podijeli</p>
+            <div className="flex gap-12 items-center">
+              <FacebookShareButton url={shareUrl} title={title ?? ''}>
+                <div className="group border border-white/20 hover:border-white transition-all duration-150 ease-out rounded-full w-44 h-44 flex items-center justify-center">
+                  <Facebook
+                    viewBox="0 0 24 24"
+                    className="w-24 h-24 shrink-0 [&>path]:fill-white/60 group-hover:[&>path]:fill-white [&>path]:transition-all [&>path]:duration-150 [&>path]:ease-out"
+                  />
+                </div>
+              </FacebookShareButton>
+
+              <LinkedinShareButton url={shareUrl} title={title ?? ''}>
+                <div className="group border border-white/20 hover:border-white transition-all duration-150 ease-out rounded-full w-44 h-44 flex items-center justify-center">
+                  <Linkedin
+                    viewBox="0 0 24 24"
+                    className="w-24 h-24 shrink-0 [&>path]:fill-white/60 group-hover:[&>path]:fill-white [&>path]:transition-all [&>path]:duration-150 [&>path]:ease-out"
+                  />
+                </div>
+              </LinkedinShareButton>
+
+              <TwitterShareButton url={shareUrl} title={title ?? ''}>
+                <div className="group border border-white/20 hover:border-white transition-all duration-150 ease-out rounded-full w-44 h-44 flex items-center justify-center">
+                  <Twitter
+                    viewBox="0 0 24 24"
+                    className="w-24 h-24 shrink-0 [&>path]:fill-white/60 group-hover:[&>path]:fill-white [&>path]:transition-all [&>path]:duration-150 [&>path]:ease-out"
+                  />
+                </div>
+              </TwitterShareButton>
+
+              <EmailShareButton url={shareUrl} title={title ?? ''}>
+                <div className="group border border-white/20 hover:border-white transition-all duration-150 ease-out rounded-full w-44 h-44 flex items-center justify-center">
+                  <Email
+                    viewBox="0 0 12 12"
+                    className="w-24 h-24 shrink-0 [&>path]:fill-white/60 group-hover:[&>path]:fill-white [&>path]:transition-all [&>path]:duration-150 [&>path]:ease-out"
+                  />
+                </div>
+              </EmailShareButton>
+            </div>
+          </motion.div>
+        </div>
+      </Grid>
+      <motion.div
+        initial={{ opacity: 0, filter: 'blur(10px)' }}
+        animate={{ opacity: 1, filter: 'blur(0px)' }}
+        transition={{ duration: 1.3, ease: 'easeOut' }}
+        className="w-[calc(100%+32px)] xsm:w-[calc(100%+40px)] min-[1600px]:w-full min-[1600px]:mx-auto max-w-[1600px] -mx-16 xsm:-mx-20 h-auto mb-40 md:mb-80">
+        {hero_image && (
+          <PrismicNextImage
+            field={hero_image}
+            width={1600}
+            height={720}
+            className="w-full h-auto object-cover"
+          />
+        )}
+      </motion.div>
+      <Grid Wrapper="section" className="md:gap-24">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="col-[2/24] md:col-[4/22] lg:col-[7/19] news-content">
+          {opening_text && <p>{opening_text}</p>}
+          <PrismicRichText field={content} />
+        </motion.div>
+        {hasGallery && <Gallery gallery={gallery} />}
+      </Grid>
+      {itemsToDisplay.length > 0 && (
+        <Grid Wrapper="section" className="md:gap-24 mt-40 md:mt-80">
+          <div className="col-span-24">
+            <h3 className="text-xlarge-fluid font-medium mb-24">
+              Preporučeni projekti
+            </h3>
+            <ul className="flex flex-col md:flex-row gap-24 overflow-x-auto">
+              {itemsToDisplay.map((item, index) => {
+                const type =
+                  item.type === 'news'
+                    ? 'vijesti'
+                    : item.type === 'project'
+                      ? 'projekti'
+                      : 'dogadaji';
+                const badge =
+                  item.type === 'project'
+                    ? (item as ProjectDocument<string>).data.category ?? ''
+                    : (item as NewsDocument<string>).data.sports?.[0]?.sport ??
+                      '';
+                const date =
+                  item.type === 'news'
+                    ? (item as NewsDocument<string>).data.date
+                    : item.type === 'project'
+                      ? (item as ProjectDocument<string>).data.date
+                      : (item as EventDocument<string>).data.start_time;
+
+                return (
+                  <li key={index}>
+                    <RelatedArticle
+                      type={type}
+                      uid={item.uid}
+                      title={item.data.title}
+                      date={date}
+                      hero_image={item.data.hero_image}
+                      sport={badge}
+                      className="aspect-[369/208]"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Grid>
+      )}
+    </>
+  );
+};

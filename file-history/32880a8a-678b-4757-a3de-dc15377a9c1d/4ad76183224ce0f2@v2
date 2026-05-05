@@ -1,0 +1,224 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { UserProfile } from "@unomed/react-native-matrix-sdk";
+import { useAtom } from "jotai";
+import { MatrixAtoms } from "modules/matrix-client/jotai";
+import { UserService } from "modules/user/service/UserService";
+import { VerificationService } from "modules/verification/service/VerificationService";
+import { type FC, useEffect, useState } from "react";
+import { Image } from "react-native";
+import { Button, ScreenLayout, UserImage } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+import { EmojiVerification } from "./fragments";
+
+export const VerifyUser: FC<NativeStackScreenProps<Routes, "verifyUser">> = ({
+  route,
+  navigation,
+}) => {
+  const { userId, flowId } = route.params;
+  const [loading, setLoading] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useAtom(
+    MatrixAtoms.verificationStatus,
+  );
+  const [userProfile, setUserProfile] = useState<UserProfile | undefined>(
+    undefined,
+  );
+  const isIncomingRequest = verificationStatus === "incomingRequest";
+  const isWaiting = verificationStatus === "waiting" || loading;
+  const isCancelled = verificationStatus === "cancelled";
+  const isAccepted = verificationStatus === "accepted";
+  const isSasStarted = verificationStatus === "sasStarted";
+  const isEmojis = verificationStatus === "emojis";
+
+  const getTitleText = () => {
+    if (isIncomingRequest) return "Verification request received";
+    if (isSasStarted) return "SAS verification started";
+    if (isWaiting) return "Waiting for the other user";
+    if (isAccepted) return "Ready to start emoji verification";
+    if (isCancelled) return "Verification canceled";
+    return "Verify this user?";
+  };
+
+  const getBodyText = () => {
+    if (isIncomingRequest) {
+      return "This user wants to verify you. Accept to compare emojis and confirm your identity.";
+    }
+    if (isSasStarted) {
+      return "Waiting for the other device to respond with emojis...";
+    }
+    if (isWaiting) {
+      return "Once accepted you'll be able to continue with the verification.";
+    }
+    if (isAccepted) {
+      return "The other device accepted the request. Start the emoji verification.";
+    }
+    if (isCancelled) {
+      return "The other device canceled the verification. You can try again.";
+    }
+    return "For extra security, verify this user by comparing a set of emojis on your devices. Do this by using a trusted way to communicate.";
+  };
+
+  const getPrimaryAction = () => {
+    if (isIncomingRequest) return handleAcceptIncomingRequest;
+    if (isAccepted) return handleStartEmojiVerification;
+    return handleStartVerification;
+  };
+
+  const getPrimaryLabel = () => {
+    if (isIncomingRequest) return "Accept verification";
+    if (isAccepted) return "Start emoji verification";
+    return "Start verification";
+  };
+
+  const handleStartVerification = async () => {
+    try {
+      setLoading(true);
+      setVerificationStatus("waiting");
+      await VerificationService.verifyOtherUser(userId);
+    } catch (error) {
+      console.error(error);
+      setVerificationStatus("idle");
+      offlineToastHelper("Failed to start verification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptIncomingRequest = async () => {
+    if (!flowId) {
+      offlineToastHelper("Failed to accept verification request");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setVerificationStatus("waiting");
+      // Acknowledge was fired by VerificationProvider when the request arrived.
+      await VerificationService.acceptVerificationRequest();
+      setVerificationStatus("accepted");
+    } catch (error) {
+      console.error(error);
+      setVerificationStatus("failed");
+      offlineToastHelper("Failed to accept verification request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartEmojiVerification = async () => {
+    try {
+      setLoading(true);
+      setVerificationStatus("sasStarted");
+      await VerificationService.startVerification();
+    } catch (error) {
+      console.error(error);
+      setVerificationStatus("failed");
+      offlineToastHelper("Failed to start emoji verification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoBack = async () => {
+    try {
+      if (verificationStatus !== "idle") {
+        await VerificationService.cancelVerification();
+        return;
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setVerificationStatus("cancelled");
+    }
+  };
+
+  useEffect(() => {
+    if (
+      verificationStatus === "success" ||
+      verificationStatus === "failed" ||
+      verificationStatus === "cancelled"
+    ) {
+      setVerificationStatus("idle");
+      navigation.goBack();
+    }
+  }, [verificationStatus]);
+
+  useEffect(() => {
+    UserService.getUserProfile(userId)
+      .then(setUserProfile)
+      .catch(console.error);
+  }, [userId]);
+
+  const renderContent = () => {
+    if (isEmojis) return <EmojiVerification />;
+
+    return (
+      <Block flex={1} justify="space-between" align="center">
+        <Block align="center" justify="center" width="100%">
+          <Image
+            source={
+              isWaiting || isSasStarted
+                ? require("assets/images/hourglass.png")
+                : require("assets/images/lock.png")
+            }
+            width={108}
+            height={120}
+          />
+          <Text
+            size={TextSize.large}
+            margins={{ marginTop: 40, marginBottom: 8 }}
+          >
+            {getTitleText()}
+          </Text>
+          <Text color={Colors.white80} textAlign="center">
+            {getBodyText()}
+          </Text>
+          {userProfile && (
+            <Block
+              align="center"
+              gap={12}
+              flexDirection="row"
+              width="100%"
+              background={Colors.white5}
+              paddings={[12, 16]}
+              margins={{ marginTop: 24 }}
+              border={{ borderRadius: 16 }}
+            >
+              <UserImage
+                avatarUrl={userProfile?.avatarUrl}
+                displayName={userProfile?.displayName}
+                width={64}
+                height={64}
+                borderRadius={999}
+              />
+              <Block gap={8}>
+                <Text size={TextSize.medium} font="InstrumentSans-Bold">
+                  {userProfile?.displayName}
+                </Text>
+                <Text size={TextSize.tiny} color={Colors.white50}>
+                  {userId}
+                </Text>
+              </Block>
+            </Block>
+          )}
+        </Block>
+
+        <Block paddings={[40, 52, 0]} gap={12} width="100%">
+          {!isWaiting && !isSasStarted && (
+            <Button.Primary
+              width="100%"
+              disabled={isWaiting || isSasStarted}
+              onPress={getPrimaryAction()}
+            >
+              {getPrimaryLabel()}
+            </Button.Primary>
+          )}
+          <Button.Ghost onPress={handleGoBack}>Cancel</Button.Ghost>
+        </Block>
+      </Block>
+    );
+  };
+
+  return <ScreenLayout type="modal">{renderContent()}</ScreenLayout>;
+};

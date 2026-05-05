@@ -1,0 +1,163 @@
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAtomValue } from "jotai";
+import { AuthService } from "modules/auth/service/AuthService";
+import { CallKitService } from "modules/call/service/CallKitService";
+import { CallOverlayService } from "modules/call/service/CallOverlayService";
+import { MatrixBaseURL } from "modules/matrix-client/const";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { PushNotificationsAtoms } from "modules/push-notifications/jotai";
+import { NotifeeService } from "modules/push-notifications/service";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { VerificationService } from "modules/verification/service/VerificationService";
+import { useEffect, useRef } from "react";
+import { Image, Platform, StyleSheet } from "react-native";
+import { ScreenLayout } from "shared/components";
+import { TextSize } from "shared/styles";
+
+export const Splash: React.FC<NativeStackScreenProps<Routes, "splash">> = ({
+  navigation,
+}) => {
+  const screenLockPin = useAtomValue(StorageAtoms.screenLockPin);
+  const hasSeenOnboarding = useAtomValue(StorageAtoms.hasSeenOnboarding);
+  const hasSeenNotificationsIntro = useAtomValue(
+    PushNotificationsAtoms.hasSeenNotificationsIntro,
+  );
+  const transition = useRef(
+    animateParallel(
+      { opacity: [0, 1], translateY: [40, 0] },
+      { duration: 200 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    const checkAuthAndNavigate = async () => {
+      const minSplashDelay = new Promise<void>((resolve) =>
+        setTimeout(resolve, 2000),
+      );
+
+      let navigate: () => void;
+
+      try {
+        if (Platform.OS === "ios") {
+          // Register CallKit listeners as early as possible so buffered
+          // cold-start answer/end actions are captured before navigation.
+          await CallKitService.setup();
+        }
+
+        // Check if we have stored credentials
+        if (AuthService.hasStoredCredentials()) {
+          const sessionRestored = await AuthService.restoreSession();
+          const isVerified = VerificationService.isDeviceVerified();
+
+          if (sessionRestored && !isVerified) {
+            navigate = () => navigation.replace("confirmIdentity");
+          } else if (!hasSeenOnboarding) {
+            navigate = () => navigation.replace("onboarding");
+          } else if (!hasSeenNotificationsIntro) {
+            navigate = () => navigation.replace("notificationsIntro");
+          } else if (screenLockPin && sessionRestored) {
+            //If there is a screen lock pin, navigate to the verify pin screen
+            navigate = () =>
+              navigation.replace("verifyPin", { isSettingsScreen: false });
+          } else if (sessionRestored) {
+            // Start sync — no-op if offline, rooms are served from local cache
+            AuthService.startSync();
+
+            // Check if app was launched by accepting a CallKit call (quit state)
+            const pendingCall = CallKitService.consumePendingAnsweredCall();
+            const hasPendingCall = !!pendingCall?.roomId;
+            if (hasPendingCall && pendingCall) {
+              await MatrixCore.refreshRoomList();
+              await MatrixCore.getClient().awaitRoomRemoteEcho(
+                pendingCall.roomId,
+              );
+
+              navigate = () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "home" }],
+                });
+                setTimeout(() => {
+                  CallOverlayService.openCall(
+                    pendingCall.roomId,
+                    pendingCall.roomName,
+                  );
+                }, 250);
+              };
+            } else {
+              // Check if app was opened from a Notifee notification (quit state)
+              await NotifeeService.checkInitialNotification();
+
+              // Check if app was opened from a notification
+              const pendingRoomId = NotifeeService.consumePendingRoomId();
+              await MatrixCore.refreshRoomList();
+
+              if (pendingRoomId) {
+                await MatrixCore.getClient().awaitRoomRemoteEcho(pendingRoomId);
+
+                navigate = () =>
+                  navigation.reset({
+                    index: 1,
+                    routes: [
+                      { name: "home" },
+                      { name: "room", params: { roomId: pendingRoomId } },
+                    ],
+                  });
+              } else {
+                navigate = () => navigation.replace("home");
+              }
+            }
+          } else {
+            await AuthService.initialize(MatrixBaseURL);
+            navigate = () => navigation.replace("welcome");
+          }
+        } else {
+          await AuthService.initialize(MatrixBaseURL);
+          navigate = () => navigation.replace("welcome");
+        }
+      } catch (error) {
+        console.warn("Error during auth check:", error);
+        navigate = () => navigation.replace("welcome");
+      }
+
+      await minSplashDelay;
+      navigate();
+    };
+
+    transition.start(checkAuthAndNavigate);
+  }, [
+    navigation,
+    hasSeenOnboarding,
+    hasSeenNotificationsIntro,
+    screenLockPin,
+    transition,
+  ]);
+
+  return (
+    <ScreenLayout>
+      <Block
+        animations={transition.animations}
+        flex={1}
+        align="center"
+        justify="space-between"
+      >
+        <Image
+          source={require("assets/images/logo.png")}
+          width={88}
+          height={66}
+          style={styles.logo}
+        />
+        <Text font="Silkscreen-Regular" size={TextSize.medium}>
+          CLOAK
+        </Text>
+      </Block>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  logo: {
+    marginVertical: "auto",
+  },
+});

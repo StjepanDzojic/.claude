@@ -1,0 +1,323 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { Block, Text, useAnimateParallel } from "@prototyp/skeletor";
+import { BlurView } from "@react-native-community/blur";
+import { ProfileDetails_Tags } from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  StyleSheet,
+  TouchableWithoutFeedback,
+} from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import Video, { type OnLoadData } from "react-native-video";
+import { VideoInfoBottomSheet } from "screens/room/fragments/video-info-bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import { resolveEncryptedVideo } from "shared/utils/encrypted-video-cache";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+export const VideoViewerModal: FC = () => {
+  const [payload, setPayload] = useAtom(TimelineAtoms.videoViewerPayload);
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [naturalSize, setNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const content = payload?.content ?? null;
+  const event = payload?.event ?? null;
+  const roomId = payload?.roomId ?? null;
+  const visible = !!content;
+  const hasEventContext = !!event && !!roomId;
+  const setVideoInfoPayload = useSetAtom(TimelineAtoms.videoInfoPayload);
+
+  const senderName = useMemo(() => {
+    if (!event) return null;
+    if (event.senderProfile.tag === ProfileDetails_Tags.Ready) {
+      return event.senderProfile.inner.displayName ?? event.sender;
+    }
+    return event.sender;
+  }, [event]);
+
+  const formattedDate = useMemo(() => {
+    if (!event) return null;
+    return format(Number(event.timestamp), "MMM d, HH:mm");
+  }, [event]);
+
+  const videoSize = naturalSize
+    ? (() => {
+        const scale = Math.min(
+          SCREEN_WIDTH / naturalSize.width,
+          SCREEN_HEIGHT / naturalSize.height,
+        );
+        return {
+          width: Math.round(naturalSize.width * scale),
+          height: Math.round(naturalSize.height * scale),
+        };
+      })()
+    : { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+
+  const controlsAnimation = useAnimateParallel(
+    { translateY: [-120, 0], opacity: [0, 1] },
+    { duration: 280 },
+  );
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  useEffect(() => {
+    if (!content) return;
+
+    let cancelled = false;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    const load = async () => {
+      const mxcUrl = content.source.url();
+      const mimeType = content.info?.mimetype || "video/mp4";
+
+      if (!mxcUrl) {
+        setHasError(true);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const resolved = await resolveEncryptedVideo({
+          cacheKey: mxcUrl,
+          mediaSource: content.source,
+          mimeType,
+        });
+        if (cancelled) return;
+        if (!resolved) {
+          setHasError(true);
+          setIsLoading(false);
+          return;
+        }
+        setLocalUri(resolved);
+      } catch {
+        if (!cancelled) {
+          setHasError(true);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+    setLocalUri(null);
+    setHasError(false);
+    setIsLoading(false);
+    setShowControls(true);
+    setNaturalSize(null);
+  }, [setPayload]);
+
+  const handleVideoLoad = useCallback((data: OnLoadData) => {
+    setIsLoading(false);
+    setHasError(false);
+    setNaturalSize({
+      width: data.naturalSize.width,
+      height: data.naturalSize.height,
+    });
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    if (!payload) return;
+    const current = payload;
+    setPayload(null);
+    setTimeout(() => setPayload(current), 0);
+  }, [payload, setPayload]);
+
+  const handleOpenInfo = useCallback(() => {
+    if (!event || !roomId) return;
+    setVideoInfoPayload({ event, roomId, localUri });
+  }, [event, roomId, localUri, setVideoInfoPayload]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <BottomSheetModalProvider>
+        <Block
+          background={Colors.black}
+          flex={1}
+          justify="center"
+          align="center"
+        >
+          <Block
+            absolute
+            offsets={{ top: 0, left: 0, right: 0 }}
+            zIndex={10}
+            paddings={[56, 20, 16, 20]}
+            flexDirection="row"
+            align="center"
+            justify="space-between"
+            gap={12}
+            background={Colors.primary}
+            animations={controlsAnimation.animations}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BlurView
+              blurAmount={100}
+              blurType="regular"
+              style={styles.blurOverlay}
+            />
+            <LinearGradient
+              colors={["rgba(255, 255, 255, 0.3)", "rgba(255, 255, 255, 0.01)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientOverlay}
+              pointerEvents="none"
+            />
+            <Block width={60} align="flex-start" zIndex={2}>
+              {hasEventContext && (
+                <Button.Wrapper onPress={handleOpenInfo}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    style={styles.infoIcon}
+                    tintColor={Colors.white}
+                  />
+                </Button.Wrapper>
+              )}
+            </Block>
+            <Block flex={1} align="center" gap={2} zIndex={2}>
+              {senderName && (
+                <Text
+                  color={Colors.white}
+                  font="InstrumentSans-Semibold"
+                  numberOfLines={1}
+                >
+                  {senderName}
+                </Text>
+              )}
+              {formattedDate && (
+                <Text
+                  size={TextSize.tiny}
+                  color={Colors.white80}
+                  numberOfLines={1}
+                >
+                  {formattedDate}
+                </Text>
+              )}
+            </Block>
+            <Block width={60} align="flex-end" zIndex={2}>
+              <Button.Wrapper onPress={onClose}>
+                <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                  Close
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          </Block>
+
+          <Block width={videoSize.width} height={videoSize.height}>
+            {isLoading && !hasError && (
+              <Block
+                absolute
+                width={videoSize.width}
+                height={videoSize.height}
+                align="center"
+                justify="center"
+                zIndex={5}
+                background={Colors.black70}
+              >
+                <Loading isFullScreen={false} />
+              </Block>
+            )}
+
+            {hasError ? (
+              <Block
+                width={videoSize.width}
+                height={videoSize.height}
+                align="center"
+                justify="center"
+              >
+                <Text color={Colors.white}>Failed to load video</Text>
+                <Button.Wrapper onPress={handleRetry}>
+                  <Text size={TextSize.small} color={Colors.white}>
+                    Tap to retry
+                  </Text>
+                </Button.Wrapper>
+              </Block>
+            ) : localUri ? (
+              <TouchableWithoutFeedback onPress={handleTap}>
+                <Video
+                  source={{
+                    uri: localUri,
+                    type: content?.info?.mimetype || "video/mp4",
+                  }}
+                  style={{ width: videoSize.width, height: videoSize.height }}
+                  resizeMode="contain"
+                  controls
+                  paused={false}
+                  onLoad={handleVideoLoad}
+                  onError={handleVideoError}
+                />
+              </TouchableWithoutFeedback>
+            ) : null}
+          </Block>
+        </Block>
+        <VideoInfoBottomSheet />
+      </BottomSheetModalProvider>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  infoIcon: {
+    width: 24,
+    height: 24,
+  },
+  blurOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+    opacity: 0.5,
+    width: "120%",
+    pointerEvents: "none",
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+});

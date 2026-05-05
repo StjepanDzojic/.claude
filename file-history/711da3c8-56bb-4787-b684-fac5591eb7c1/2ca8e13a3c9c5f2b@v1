@@ -1,0 +1,37 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { useAtomValue } from "jotai";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import type { FC } from "react";
+import { Button, UserImage } from "shared/components";
+import { TextSize } from "shared/styles";
+
+export const Header: FC = () => {
+  const user = useAtomValue(StorageAtoms.cachedProfile);
+
+  return (
+    <Block
+      flexDirection="row"
+      justify="space-between"
+      align="center"
+      margins={[40, 0]}
+      paddings={[0, 20]}
+    >
+      <Text size={TextSize.large}>Chat</Text>
+      {user ? (
+        <Button.Wrapper
+          onPress={() => NavigationContainerRef.navigate("settings")}
+        >
+          <UserImage
+            avatarUrl={user.avatarUrl}
+            displayName={user.displayName}
+            width={32}
+            height={32}
+          />
+        </Button.Wrapper>
+      ) : (
+        <Block />
+      )}
+    </Block>
+  );
+};

@@ -1,0 +1,72 @@
+import { useAtomValue, useSetAtom } from "jotai";
+import { offlineToastHelper } from "shared/utils";
+import { RecorderPlayerAtoms } from "../jotai";
+import { OggPlayerService } from "../services/ogg-player-service";
+
+export const useOggAudioPlayback = (trackId: string) => {
+  const sound = useAtomValue(RecorderPlayerAtoms.soundInstanceAtom);
+  const playbackState = useAtomValue(RecorderPlayerAtoms.audioPlaybackAtom);
+  const isCurrentTrack = playbackState.currentTrack?.trackId === trackId;
+  const isPlaying = isCurrentTrack && playbackState.isPlaying;
+  const currentMs = isCurrentTrack ? playbackState.currentMs : 0;
+
+  const loadTrack = useSetAtom(RecorderPlayerAtoms.loadTrackAtom);
+  const setIsPlaying = useSetAtom(RecorderPlayerAtoms.setIsPlayingAtom);
+  const setCurrentMs = useSetAtom(RecorderPlayerAtoms.setCurrentMsAtom);
+  const resetPlayback = useSetAtom(RecorderPlayerAtoms.resetPlaybackAtom);
+
+  const play = async (url: string, duration: number) => {
+    try {
+      if (!url) throw new Error("Invalid audio URL");
+
+      // Stop the nitro-sound player in case a non-OGG track was playing
+      try {
+        await sound.stopPlayer();
+      } catch {}
+
+      OggPlayerService.stop();
+      loadTrack({ url, trackId, duration });
+
+      await OggPlayerService.play(
+        url,
+        (ms) => setCurrentMs(ms),
+        () => resetPlayback(),
+      );
+
+      setIsPlaying(true);
+    } catch (e) {
+      console.error(`[useOggAudioPlayback] Error playing [${trackId}]:`, e);
+      resetPlayback();
+      offlineToastHelper("Failed to play voice message.");
+    }
+  };
+
+  const pause = async () => {
+    try {
+      await OggPlayerService.pause();
+      setIsPlaying(false);
+    } catch (e) {
+      console.error("Error pausing OGG audio:", e);
+    }
+  };
+
+  const resume = async () => {
+    try {
+      await OggPlayerService.resume();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error("Error resuming OGG audio:", e);
+    }
+  };
+
+  const stop = async () => {
+    try {
+      OggPlayerService.stop();
+      resetPlayback();
+    } catch (e) {
+      console.error("Error stopping OGG audio:", e);
+    }
+  };
+
+  return { isPlaying, currentMs, play, pause, resume, stop };
+};

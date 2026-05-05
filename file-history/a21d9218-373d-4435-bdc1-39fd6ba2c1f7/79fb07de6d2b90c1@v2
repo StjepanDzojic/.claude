@@ -1,0 +1,85 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  type EventTimelineItem,
+  ShieldState_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { type FC, useMemo, useState } from "react";
+import { Image, StyleSheet } from "react-native";
+import { ShieldModal } from "screens/room/fragments";
+import { Colors, TextSize } from "shared/styles";
+import { Button } from "../button";
+import { DeliveryStatus } from "../delivery-status";
+
+interface Props {
+  event: EventTimelineItem;
+  isUser: boolean;
+  isEdited?: boolean;
+}
+
+export const MessageTimestamp: FC<Props> = ({ event, isUser, isEdited }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const shieldState = useMemo(
+    () => event.lazyProvider.getShields(false),
+    [event],
+  );
+  const isRed = shieldState?.tag === ShieldState_Tags.Red;
+  const isGrey = shieldState?.tag === ShieldState_Tags.Grey;
+  const hasShield = isRed || isGrey;
+  const shieldMessage =
+    shieldState && "inner" in shieldState ? shieldState.inner.message : "";
+
+  return (
+    <>
+      {hasShield && !isUser ? (
+        <Button.Wrapper onPress={() => setModalVisible(true)} hitSlop={12}>
+          <Block
+            flexDirection={isUser ? "row" : "row-reverse"}
+            gap={4}
+            align="center"
+          >
+            <Image
+              source={require("assets/icons/info.png")}
+              style={styles.infoIcon}
+              tintColor={Colors.error}
+            />
+            {isEdited && (
+              <Text size={TextSize.tiny} color={Colors.white50}>
+                (edited)
+              </Text>
+            )}
+            <Text size={TextSize.tiny} color={Colors.error}>
+              {format(Number(event.timestamp), "HH:mm")}
+            </Text>
+          </Block>
+        </Button.Wrapper>
+      ) : (
+        <Block flexDirection="row" gap={8} align="center">
+          {isUser && <DeliveryStatus event={event} />}
+          {isEdited && (
+            <Text size={TextSize.tiny} color={Colors.white50}>
+              (edited)
+            </Text>
+          )}
+          <Text size={TextSize.tiny} color={Colors.white50}>
+            {format(Number(event.timestamp), "HH:mm")}
+          </Text>
+        </Block>
+      )}
+
+      <ShieldModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        isRed={isRed}
+        message={shieldMessage}
+      />
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  infoIcon: {
+    width: 14,
+    height: 14,
+  },
+});

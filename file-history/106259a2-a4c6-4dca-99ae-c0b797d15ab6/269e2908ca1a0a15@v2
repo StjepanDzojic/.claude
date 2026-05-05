@@ -1,0 +1,7 @@
+import { atom } from "jotai";
+
+const splashFinished = atom<boolean>(false);
+
+export const NavigationAtoms = {
+  splashFinished,
+};

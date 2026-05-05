@@ -1,0 +1,232 @@
+import {
+  animateParallel,
+  Block,
+  InputFocusScrollView,
+  Text,
+  useForm,
+} from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAtomValue } from "jotai";
+import { AuthService } from "modules/auth/service/AuthService";
+import { NetworkAtoms } from "modules/network/jotai";
+import { VerificationService } from "modules/verification/service/VerificationService";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Image, StyleSheet } from "react-native";
+import Toast from "react-native-toast-message";
+import {
+  Button,
+  GoBackHeader,
+  Input,
+  Loading,
+  ScreenLayout,
+} from "shared/components";
+import { MOCKED_AUTH_DATA } from "shared/const/mocked-auth-data";
+import { useNavigateToCorrectScreenHelper } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+type FormState = {
+  username: string;
+  password: string;
+};
+
+const animateUsername = animateParallel(
+  {
+    opacity: [0, 1],
+    translateY: [-20, 0],
+  },
+  { duration: 200, native: false },
+);
+
+const animatePassword = animateParallel(
+  {
+    opacity: [0, 1],
+    translateY: [-20, 0],
+  },
+  { duration: 200, native: false },
+);
+
+export const Login: React.FC<NativeStackScreenProps<Routes, "login">> = ({
+  navigation,
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const form = useForm<FormState>({
+    username: MOCKED_AUTH_DATA("prototest").username,
+    password: MOCKED_AUTH_DATA("prototest").password,
+  });
+  const isOffline = useAtomValue(NetworkAtoms.isOffline);
+
+  const navigateToCorrectScreen = useNavigateToCorrectScreenHelper();
+
+  const submit = async () => {
+    try {
+      if (!form.validateForm()) return;
+      if (isOffline) {
+        offlineToastHelper("No internet connection");
+        return;
+      }
+
+      setLoading(true);
+      const session = await AuthService.login(form.state);
+      await AuthService.setup(session);
+
+      Toast.show({
+        type: "success",
+        text1: "Successfully signed in",
+      });
+
+      const isVerified = VerificationService.isDeviceVerified();
+
+      if (!isVerified) navigation.replace("confirmIdentity");
+      else navigateToCorrectScreen();
+    } catch (e: unknown) {
+      console.error("Failed to authenticate properly: ", e);
+
+      const error = e as { inner?: { kind?: { tag?: string } } };
+      const isRateLimited = error?.inner?.kind?.tag === "LimitExceeded";
+
+      offlineToastHelper(
+        isRateLimited ? "Too many login attempts" : "Failed to login",
+        isRateLimited
+          ? "Please wait a moment and try again"
+          : "Username or password is incorrect",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.state.username) animateUsername.start();
+    else animateUsername.reverse();
+  }, [form.state.username]);
+
+  useEffect(() => {
+    if (form.state.password) animatePassword.start();
+    else animatePassword.reverse();
+  }, [form.state.password]);
+
+  return (
+    <ScreenLayout>
+      {loading && <Loading text="Signing in and syncing..." />}
+      <InputFocusScrollView>
+        {(focus) => (
+          <Block flex={1}>
+            <GoBackHeader />
+            <Block gap={8} margins={{ marginBottom: 40 }}>
+              <Text font="InstrumentSans-Medium" size={TextSize.large}>
+                Sign in
+              </Text>
+              <Text
+                color={Colors.white80}
+                font="InstrumentSans-Regular"
+                size={TextSize.base}
+              >
+                Enter your details to sign in.
+              </Text>
+            </Block>
+
+            <Block gap={8} margins={{ marginBottom: 32 }}>
+              <Text
+                style={animateUsername.animations}
+                size={TextSize.tiny}
+                color={Colors.white50}
+                paddings={[0, 16]}
+              >
+                Username
+              </Text>
+              <Input
+                placeholder="Username"
+                value={form.state.username}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                onFocus={focus}
+                onBlur={() => form.validate("username")}
+                onChangeText={(value) => form.update("username", value)}
+              />
+              <Text
+                color="red"
+                opacity={form.validation.username === false ? 1 : 0}
+                size={TextSize.tiny}
+                paddings={[0, 16]}
+                absolute
+                offsets={{ bottom: -20 }}
+              >
+                Please enter a valid username.
+              </Text>
+            </Block>
+
+            <Block gap={8}>
+              <Text
+                style={animatePassword.animations}
+                size={TextSize.tiny}
+                color={Colors.white50}
+                paddings={[0, 16]}
+              >
+                Password
+              </Text>
+              <Input
+                placeholder="Password"
+                secureTextEntry={!passwordVisible}
+                value={form.state.password}
+                onFocus={focus}
+                onBlur={() => form.validate("password")}
+                onChangeText={(value) => form.update("password", value)}
+                onSubmitEditing={submit}
+                rightIcon={
+                  <Button.Wrapper
+                    onPress={() => setPasswordVisible((prev) => !prev)}
+                    hitSlop={8}
+                    style={styles.passwordVisibleIconContainer}
+                  >
+                    <Image
+                      source={
+                        passwordVisible
+                          ? require("assets/icons/eye.png")
+                          : require("assets/icons/eye-slash.png")
+                      }
+                      style={styles.passwordVisibleIcon}
+                    />
+                  </Button.Wrapper>
+                }
+              />
+              <Text
+                color="red"
+                opacity={form.validation.password === false ? 1 : 0}
+                size={TextSize.tiny}
+                paddings={[0, 16]}
+                absolute
+                offsets={{ bottom: -20 }}
+              >
+                Please enter a valid password.
+              </Text>
+            </Block>
+          </Block>
+        )}
+      </InputFocusScrollView>
+      <Block
+        paddings={{ padding: 20 }}
+        gap={12}
+        justify="flex-end"
+        minHeight={200}
+      >
+        <Button.Primary disabled={loading} onPress={submit}>
+          Continue
+        </Button.Primary>
+      </Block>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  passwordVisibleIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "white",
+  },
+  passwordVisibleIconContainer: {
+    paddingRight: 16,
+  },
+});

@@ -1,0 +1,102 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { UserProfile } from "@unomed/react-native-matrix-sdk";
+import { format, isToday } from "date-fns";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { useEffect, useState } from "react";
+import {
+  AppBottomSheet,
+  AppBottomSheetScrollView,
+} from "shared/components/bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import { UserProfileImage } from "../user-profile-image";
+
+interface RowProps {
+  userId: string;
+  timestamp: number | null;
+}
+
+const SeenByRow: React.FC<RowProps> = ({ userId, timestamp }) => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const displayName =
+    profile?.displayName ?? userId.replace("@", "").split(":")[0];
+
+  useEffect(() => {
+    MatrixCore.getClient().getProfile(userId).then(setProfile).catch();
+  }, [userId]);
+
+  return (
+    <Block
+      flexDirection="row"
+      align="center"
+      gap={12}
+      paddings={{ paddingVertical: 12 }}
+      border={{ borderBottomWidth: 1, borderColor: Colors.white5 }}
+    >
+      <UserProfileImage user={profile} width={36} height={36} />
+      <Block flex={1} gap={2}>
+        <Text color={Colors.white} font="InstrumentSans-Bold">
+          {displayName}
+        </Text>
+        <Text
+          size={TextSize.small}
+          color={Colors.white50}
+          font="InstrumentSans-Regular"
+        >
+          {userId}
+        </Text>
+      </Block>
+      {!!timestamp && (
+        <Text
+          size={TextSize.small}
+          color={Colors.white50}
+          font="InstrumentSans-Regular"
+        >
+          {isToday(timestamp)
+            ? format(timestamp, "HH:mm")
+            : format(timestamp, "MMM d, HH:mm")}
+        </Text>
+      )}
+    </Block>
+  );
+};
+
+interface Props {
+  isOpen: boolean;
+  users: TimelineSeenByUser[];
+  onClose: () => void;
+}
+
+export const SeenByBottomSheet: React.FC<Props> = ({
+  isOpen,
+  users,
+  onClose,
+}) => {
+  return (
+    <AppBottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      enableContentPanningGesture={false}
+    >
+      <AppBottomSheetScrollView stickyHeaderIndices={[0]}>
+        <Block
+          paddings={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 }}
+          background={Colors.blackMinus1}
+        >
+          <Text
+            font="InstrumentSans-Bold"
+            color={Colors.white}
+            size={TextSize.medium}
+            margins={{ marginBottom: 16 }}
+          >
+            Seen by
+          </Text>
+        </Block>
+        <Block paddings={{ paddingHorizontal: 20, paddingBottom: 56 }}>
+          {users.map(({ userId, timestamp }) => (
+            <SeenByRow key={userId} userId={userId} timestamp={timestamp} />
+          ))}
+        </Block>
+      </AppBottomSheetScrollView>
+    </AppBottomSheet>
+  );
+};

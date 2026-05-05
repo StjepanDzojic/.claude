@@ -1,0 +1,36 @@
+import { Block } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DebugHelpers } from "modules/matrix-client/helpers";
+import { useState } from "react";
+import { ScreenLayout } from "shared/components";
+import {
+  Filters,
+  Header,
+  NewChatButton,
+  NoRoomWrapper,
+  ProtectAccountMessage,
+  Rooms,
+  Search,
+  SecurityFilter,
+} from "./fragments";
+
+export const Home: React.FC<NativeStackScreenProps<Routes, "home">> = () => {
+  const [search, setSearch] = useState<string>("");
+
+  return (
+    <ScreenLayout paddings={{ paddingHorizontal: 0 }}>
+      <Block flex={1}>
+        <Header />
+        <DebugHelpers />
+        <ProtectAccountMessage />
+        <NoRoomWrapper>
+          <Filters />
+          <Search search={search} setSearch={setSearch} />
+          <SecurityFilter />
+          <NewChatButton />
+        </NoRoomWrapper>
+        <Rooms search={search} />
+      </Block>
+    </ScreenLayout>
+  );
+};

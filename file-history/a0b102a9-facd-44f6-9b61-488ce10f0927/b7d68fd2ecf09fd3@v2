@@ -1,0 +1,19 @@
+'use client';
+
+import { useParams } from 'next/navigation';
+import { Link, usePathname } from '../utils';
+
+export const LanguageSwitcher: React.FC = () => {
+  const pathname = usePathname();
+  const params = useParams();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const href = (params && Object.keys(params).length > 0 ? { pathname, params } : pathname) as any;
+
+  return (
+    <div className="absolute right-0 z-2 flex justify-end gap-x-8 p-12">
+      <Link href={href} locale="en">EN</Link>
+      <Link href={href} locale="hr">HR</Link>
+    </div>
+  );
+};

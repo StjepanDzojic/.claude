@@ -1,0 +1,66 @@
+import type {
+  ClientInterface,
+  RoomInfo,
+  RoomInterface,
+  SyncServiceInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { atom } from "jotai";
+import { MatrixJotaiStore } from "../const/matrx-jotai-store";
+
+type VerificationStatus =
+  | "idle"
+  | "waiting"
+  | "accepted"
+  | "sasStarted"
+  | "emojis"
+  | "success"
+  | "failed"
+  | "cancelled"
+  | "incomingRequest";
+
+type VerificationEmoji = {
+  symbol: string;
+  description: string;
+};
+
+const roomList = atom<RoomInterface[]>([]);
+
+const roomInfoMap = atom<Map<string, RoomInfo>>(new Map());
+
+const roomListLoading = atom<boolean>(true);
+
+const matrixClient = atom<ClientInterface | null>(null);
+
+const syncService = atom<SyncServiceInterface | null>(null);
+
+const ignoredUsers = atom<string[] | null>(null);
+
+const verificationStatus = atom<VerificationStatus>("idle");
+
+const verificationEmojis = atom<VerificationEmoji[] | null>(null);
+
+const verificationSenderName = atom<string | null>(null);
+
+export const MatrixAtoms = {
+  roomList,
+  roomInfoMap,
+  roomListLoading,
+  matrixClient,
+  syncService,
+  ignoredUsers,
+  verificationStatus,
+  verificationEmojis,
+  verificationSenderName,
+};
+
+export const resetMatrixAtoms = () => {
+  MatrixJotaiStore.set(roomList, []);
+  MatrixJotaiStore.set(roomInfoMap, new Map());
+  MatrixJotaiStore.set(roomListLoading, true);
+  MatrixJotaiStore.set(matrixClient, null);
+  MatrixJotaiStore.set(syncService, null);
+  MatrixJotaiStore.set(ignoredUsers, null);
+  MatrixJotaiStore.set(verificationStatus, "idle");
+  MatrixJotaiStore.set(verificationEmojis, null);
+  MatrixJotaiStore.set(verificationSenderName, null);
+};

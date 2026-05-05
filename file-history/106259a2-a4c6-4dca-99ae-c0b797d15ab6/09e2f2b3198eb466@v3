@@ -1,0 +1,79 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { Block, SkeletorProvider } from "@prototyp/skeletor";
+import { NavigationContainer } from "@react-navigation/native";
+import { useAtomValue } from "jotai";
+import { CallKitProvider } from "modules/call/provider";
+import { MatrixAtoms } from "modules/matrix-client/jotai";
+import {
+  IgnoredUsersProvider,
+  RoomListProvider,
+  SyncLifecycleProvider,
+  VerificationProvider,
+} from "modules/matrix-client/providers";
+import { RootNavigator } from "modules/navigation/components";
+import { NavigationContainerRef } from "modules/navigation/const";
+import { NetworkStatusBanner } from "modules/network/provider";
+import { PushNotificationsProvider } from "modules/push-notifications/provider";
+import { AudioPlaybackProvider } from "modules/recorder-player/providers";
+import { ScreenLockOverlay } from "modules/screen-lock/components";
+import { ScreenLockProvider } from "modules/screen-lock/provider";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import "react-native-reanimated";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+import { IpadSidebar } from "screens/home/fragments";
+import { ImageViewerModal, MediaViewerModal } from "shared/components";
+import { SkeletonDefault, ThemeDefault, ToastConfig } from "shared/const";
+import { isIpad } from "shared/utils";
+
+const SIDEBAR_WIDTH = 440;
+
+export const App: React.FC = () => {
+  const ipad = isIpad();
+  const matrixClient = useAtomValue(MatrixAtoms.matrixClient);
+  const showSidebar = ipad && matrixClient !== null;
+
+  return (
+    <SafeAreaProvider>
+      <SkeletorProvider {...SkeletonDefault}>
+        <GestureHandlerRootView>
+          <BottomSheetModalProvider>
+            <AudioPlaybackProvider>
+              <NavigationContainer
+                ref={NavigationContainerRef}
+                theme={ThemeDefault}
+              >
+                <CallKitProvider />
+                <VerificationProvider />
+                <RoomListProvider />
+                <IgnoredUsersProvider />
+                <SyncLifecycleProvider />
+                <PushNotificationsProvider />
+                <ScreenLockProvider />
+                <Block flex={1}>
+                  <Block
+                    flex={1}
+                    margins={{ marginLeft: ipad ? SIDEBAR_WIDTH : 0 }}
+                  >
+                    <NetworkStatusBanner />
+                    <RootNavigator />
+                    <ImageViewerModal />
+                    <MediaViewerModal />
+                    <Toast
+                      config={ToastConfig}
+                      position="top"
+                      topOffset={140}
+                      visibilityTime={2000}
+                    />
+                    <ScreenLockOverlay />
+                  </Block>
+                  {showSidebar && <IpadSidebar />}
+                </Block>
+              </NavigationContainer>
+            </AudioPlaybackProvider>
+          </BottomSheetModalProvider>
+        </GestureHandlerRootView>
+      </SkeletorProvider>
+    </SafeAreaProvider>
+  );
+};

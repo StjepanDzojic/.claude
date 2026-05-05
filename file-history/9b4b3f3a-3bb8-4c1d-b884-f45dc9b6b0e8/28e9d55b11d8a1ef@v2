@@ -1,0 +1,27 @@
+import { filter } from '@prismicio/client';
+import { createClient } from 'prismicio';
+
+interface Props {
+  search?: string;
+  limit?: number;
+  page?: number;
+}
+
+export async function getProjectsSearch({ search, limit, page }: Props) {
+  const client = createClient();
+
+  const projects = await client.getByType('project', {
+    filters: [filter.fulltext('document', search ?? '')],
+    orderings: {
+      field: 'my.project.date',
+      direction: 'desc',
+    },
+    pageSize: limit,
+    page,
+  });
+
+  return {
+    projects: projects.results,
+    totalPages: projects.total_pages,
+  };
+}

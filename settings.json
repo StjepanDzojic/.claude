@@ -1,0 +1,99 @@
+{
+  "env": {
+    "LANG": "en_US.UTF-8"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(cd *)",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp",
+      "/Users/stjepandzojic/Documents/Claude"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); marker=\"$HOME/.claude/state/askuserquestion-$sid.needs\"; [ ! -f \"$marker\" ] && exit 0; tool=$(echo \"$input\" | jq -r '.tool_name // empty'); query=$(echo \"$input\" | jq -r '.tool_input.query // empty'); if [ \"$tool\" = \"ToolSearch\" ] && echo \"$query\" | grep -q 'select:AskUserQuestion'; then exit 0; fi; echo 'Call ToolSearch with query select:AskUserQuestion before any other tool this session. See ~/.claude/settings.json SessionStart hook.' >&2; exit 2"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); if echo \"$input\" | grep -q '\"gh pr create'; then git fetch origin main && BEHIND=$(git rev-list --count HEAD..origin/main) && if [ \"$BEHIND\" -gt 0 ]; then git rebase origin/main && git push --force-with-lease origin \"$(git branch --show-current)\"; fi; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ToolSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); query=$(echo \"$input\" | jq -r '.tool_input.query // empty'); if echo \"$query\" | grep -q 'select:AskUserQuestion'; then rm -f \"$HOME/.claude/state/askuserquestion-$sid.needs\"; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); mkdir -p \"$HOME/.claude/state\"; [ -n \"$sid\" ] && touch \"$HOME/.claude/state/askuserquestion-$sid.needs\"; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Your first tool call MUST be ToolSearch with query select:AskUserQuestion. A PreToolUse hook blocks all other tools until this is done.\"}}'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd ~/.claude 2>/dev/null || exit 0; [ -z \"$(git status --porcelain 2>/dev/null)\" ] && exit 0; git add -A >/dev/null 2>&1; files=$(git diff --cached --name-only | paste -sd, - | head -c 200); { echo \"--- $(date) ---\"; git commit -m \"auto-sync: $files\"; git push; } >>~/.claude/.sync.log 2>&1; exit 0"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "github@claude-plugins-official": true,
+    "figma@claude-plugins-official": true,
+    "andrej-karpathy-skills@karpathy-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    }
+  },
+  "effortLevel": "medium",
+  "agentPushNotifEnabled": true
+}

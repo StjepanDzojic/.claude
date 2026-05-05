@@ -1,0 +1,113 @@
+import { MMKV } from "react-native-mmkv";
+import { SecureStoreKeys } from "../models";
+
+const minimalMMKVStorage = new MMKV({
+  id: "matrix-js-sdk-minimal-data",
+});
+
+class MMKVMinimalStore {
+  private mmkv: MMKV;
+  private prefix: string;
+
+  constructor() {
+    this.mmkv = minimalMMKVStorage;
+    this.prefix = "mx_minimal_sdk_";
+  }
+
+  startup = async (): Promise<void> => {
+    const syncToken: string | undefined = this.mmkv.getString(
+      `${this.prefix}syncToken`,
+    );
+
+    if (syncToken) {
+      super.setSyncToken(syncToken);
+    }
+
+    return super.startup();
+  };
+
+  deleteAllData = async (): Promise<void> => {
+    const keysToDelete: string[] = this.mmkv
+      .getAllKeys()
+      .filter((key) => key.startsWith(this.prefix));
+
+    for (const key of keysToDelete) {
+      this.mmkv.delete(key);
+    }
+
+    await super.deleteAllData();
+  };
+
+  setSyncToken = (token: string) => {
+    this.mmkv.set(`${this.prefix}syncToken`, token);
+    super.setSyncToken(token);
+  };
+
+  getSyncToken = (): string | null => {
+    const token: string | null =
+      this.mmkv.getString(`${this.prefix}syncToken`) || null;
+
+    return token || super.getSyncToken();
+  };
+
+  // Login credentials storage methods
+  saveLoginCredentials = (credentials: {
+    accessToken: string;
+    refreshToken?: string;
+    userId: string;
+    deviceId: string;
+    baseUrl: string;
+  }) => {
+    this.mmkv.set(SecureStoreKeys.MATRIX_ACCESS_TOKEN, credentials.accessToken);
+    this.mmkv.set(SecureStoreKeys.MATRIX_USER_ID, credentials.userId);
+    this.mmkv.set(SecureStoreKeys.MATRIX_DEVICE_ID, credentials.deviceId);
+    this.mmkv.set(SecureStoreKeys.MATRIX_BASE_URL, credentials.baseUrl);
+
+    if (credentials.refreshToken) {
+      this.mmkv.set(
+        SecureStoreKeys.MATRIX_REFRESH_TOKEN,
+        credentials.refreshToken,
+      );
+    }
+  };
+
+  getLoginCredentials = () => {
+    const accessToken = this.mmkv.getString(
+      SecureStoreKeys.MATRIX_ACCESS_TOKEN,
+    );
+    const userId = this.mmkv.getString(SecureStoreKeys.MATRIX_USER_ID);
+    const deviceId = this.mmkv.getString(SecureStoreKeys.MATRIX_DEVICE_ID);
+    const baseUrl = this.mmkv.getString(SecureStoreKeys.MATRIX_BASE_URL);
+    const refreshToken = this.mmkv.getString(
+      SecureStoreKeys.MATRIX_REFRESH_TOKEN,
+    );
+
+    if (!accessToken || !userId || !deviceId || !baseUrl) {
+      return null;
+    }
+
+    return {
+      accessToken,
+      userId,
+      deviceId,
+      baseUrl,
+      ...(refreshToken && { refreshToken }),
+    };
+  };
+
+  clearLoginCredentials = () => {
+    this.mmkv.delete(SecureStoreKeys.MATRIX_ACCESS_TOKEN);
+    this.mmkv.delete(SecureStoreKeys.MATRIX_REFRESH_TOKEN);
+    this.mmkv.delete(SecureStoreKeys.MATRIX_USER_ID);
+    this.mmkv.delete(SecureStoreKeys.MATRIX_DEVICE_ID);
+    this.mmkv.delete(SecureStoreKeys.MATRIX_BASE_URL);
+    this.mmkv.delete(`${this.prefix}syncToken`);
+  };
+
+  hasStoredCredentials = () => !!this.getLoginCredentials();
+
+  // All other methods will fall back to MemoryStore's in-memory implementation.
+  // They won't persist across app restarts unless explicitly overridden.
+}
+
+export const MatrixStorage = new MMKVMinimalStore();

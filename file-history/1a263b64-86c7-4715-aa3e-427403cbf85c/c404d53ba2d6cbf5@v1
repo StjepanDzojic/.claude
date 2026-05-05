@@ -1,0 +1,262 @@
+'use client';
+
+import { DoorPanel } from '@modules/door-model/components/DoorPanel';
+import { useDoorSize } from '@modules/door-model/hooks/useDoorSize';
+import { FC } from 'react';
+import {
+    clampDoorHeightMm,
+    clampDoorWidthMm,
+} from '../../const';
+import {
+    useDoorDesign,
+    useDoorGlassStyle,
+    useDoorHeight,
+    useDoorLayout,
+    useDoorLeftGlassWidth,
+    useDoorOpeningDirection,
+    useDoorRightGlassWidth,
+    useDoorSideGlassStyle,
+    useDoorUpperGlassHeight,
+    useDoorWidth,
+    useFrameColor,
+    usePanelColor,
+} from '../../store';
+import { ParametricFrame } from './ParametricFrame';
+import { ParametricGlassPanel } from './ParametricGlassPanel';
+import { ParametricWall, WALL_CENTER_Z, WALL_HEIGHT } from './ParametricWall';
+
+// Constants for door geometry (in meters)
+const FRAME_PROFILE_WIDTH = 0.066; // 66mm frame profile (sides and top)
+const FRAME_PROFILE_WIDTH_BOTTOM = 0.03; // 30mm frame profile (bottom)
+const PANEL_OFFSET_Z = 0.01; // Panel offset from center
+
+// Glass frame widths
+const GLASS_FRAME_STANDARD = 0.066; // 66mm standard glass frame
+const GLASS_FRAME_ADJACENT = 0.03; // 30mm where glass touches door
+
+// Convert mm to meters
+const mmToM = (mm: number) => mm / 1000;
+
+interface ParametricDoorProps {
+  showWall?: boolean;
+}
+
+/**
+ * Main parametric door component that integrates all parts:
+ * - Door panel with optional glass cutouts
+ * - Outer frame
+ * - Side glass panels (left, right, top)
+ * - Surrounding wall
+ *
+ * All dimensions are in meters (1 Three.js unit = 1 meter).
+ * Door width: 1.0m - 1.25m
+ * Door height: 2.2m - 2.9m
+ */
+
+export const ParametricDoor: FC<ParametricDoorProps> = ({
+  showWall = true,
+}) => {
+  const size = useDoorSize();
+  const design = useDoorDesign();
+  const selectedDoorWidthMm = useDoorWidth();
+  const selectedDoorHeightMm = useDoorHeight();
+  const clampedDoorWidthMm = clampDoorWidthMm(selectedDoorWidthMm);
+  const clampedDoorHeightMm = clampDoorHeightMm(selectedDoorHeightMm);
+
+  // Door dimensions come directly from selected values (in mm -> m).
+  const doorWidth = mmToM(clampedDoorWidthMm);
+  const doorHeight = mmToM(clampedDoorHeightMm);
+
+  // Glass dimensions from store (stored in mm, convert to meters)
+  const topGlassHeightMm = useDoorUpperGlassHeight();
+  const leftGlassWidthMm = useDoorLeftGlassWidth();
+  const rightGlassWidthMm = useDoorRightGlassWidth();
+
+  const topGlassHeight = mmToM(topGlassHeightMm);
+  const leftGlassWidth = mmToM(leftGlassWidthMm);
+  const rightGlassWidth = mmToM(rightGlassWidthMm);
+
+  // Get opening direction for panel mirroring
+  const openingDirection = useDoorOpeningDirection();
+  const isMirrored = openingDirection?.id === 'left';
+
+  // Get layout and colors
+  const layout = useDoorLayout();
+  const frameColorItem = useFrameColor();
+  const panelColorItem = usePanelColor();
+  const glassStyle = useDoorGlassStyle();
+  const sideGlassStyle = useDoorSideGlassStyle();
+
+  // Parse colors (modelSrc contains hex color)
+  const frameColor = frameColorItem?.modelSrc || '#4a4a4a';
+  const panelColor = panelColorItem?.modelSrc || '#7a7a7a';
+  const glassColor = glassStyle?.modelSrc || '#87CEEB';
+  const sideGlassColor = sideGlassStyle?.modelSrc || '#87CEEB';
+
+  // Check if color items have materialId (for RAL materials from Blender)
+  const panelMaterialId = (panelColorItem as any)?.materialId;
+  const frameMaterialId = (frameColorItem as any)?.materialId;
+
+  // Determine which glass panels are visible based on layout
+  const hasTopGlass = layout?.id?.includes('top') ?? false;
+  const hasLeftGlass = layout?.id?.includes('left') ?? false;
+  const hasRightGlass = layout?.id?.includes('right') ?? false;
+
+  // Calculate actual glass dimensions (0 if not visible)
+  const actualTopGlassHeight = hasTopGlass ? topGlassHeight : 0;
+  const actualLeftGlassWidth = hasLeftGlass ? leftGlassWidth : 0;
+  const actualRightGlassWidth = hasRightGlass ? rightGlassWidth : 0;
+
+  // Wall opening must encompass entire assembly including all frames
+  // Width calculation: door + door frames + side glass panels (glass panel dimensions include frames)
+  const frameOuterWidth =
+    doorWidth +
+    actualLeftGlassWidth +
+    actualRightGlassWidth +
+    FRAME_PROFILE_WIDTH * 2; // door frame left & right (always present)
+
+  // Height calculation: door + frames
+  // Glass panel dimensions include their frames, so no extra height needed for side glass
+  const bottomOffset = FRAME_PROFILE_WIDTH_BOTTOM; // door frame bottom (30mm)
+
+  // Top offset: door frame top + optional top glass (glass panel height includes its frames)
+  let topOffset = FRAME_PROFILE_WIDTH; // door frame top (66mm, always present)
+  if (hasTopGlass) {
+    topOffset += actualTopGlassHeight; // top glass panel (frames already included)
+  }
+
+  const frameOuterHeight = doorHeight + bottomOffset + topOffset;
+
+  // Floor Y matches the wall bottom so the door is anchored there
+  const FLOOR_Y = -WALL_HEIGHT / 2;
+
+  // Calculate positions
+  // Door panel center X position (offset if side glass exists)
+  const doorPanelX = (actualLeftGlassWidth - actualRightGlassWidth) / 2;
+  // Door panel center Y: bottom of frame sits at FLOOR_Y, door grows upward
+  const doorPanelY = FLOOR_Y + FRAME_PROFILE_WIDTH_BOTTOM + doorHeight / 2;
+
+  // Side glass panels extend from door frame bottom to door frame top only
+  // Height: door + door frame top + door frame bottom (top glass sits on top of this)
+  const sideGlassHeight =
+    doorHeight + FRAME_PROFILE_WIDTH + FRAME_PROFILE_WIDTH_BOTTOM;
+  // Center Y: offset by difference between top and bottom frames
+  const sideGlassCenterY =
+    doorPanelY + (FRAME_PROFILE_WIDTH - FRAME_PROFILE_WIDTH_BOTTOM) / 2;
+
+  // Top glass width spans door + door frames + side glass panels
+  const topGlassWidth =
+    doorWidth +
+    FRAME_PROFILE_WIDTH * 2 + // door frame left & right (always present)
+    (hasLeftGlass ? actualLeftGlassWidth : 0) +
+    (hasRightGlass ? actualRightGlassWidth : 0);
+
+  // Top glass X position: adjust to center over the entire assembly including side glass
+  const topGlassCenterX =
+    doorPanelX + (actualRightGlassWidth - actualLeftGlassWidth) / 2;
+
+  if (!design.modelSrc || !design.id) return null;
+
+  return (
+    <group>
+      {/* Door panel (3D model), centered and positioned inside the frame */}
+      <DoorPanel
+        modelSrc={design.modelSrc}
+        designId={design.id}
+        size={size}
+        materialId={panelMaterialId}
+        targetWidth={doorWidth}
+        targetHeight={doorHeight}
+        position={[doorPanelX, doorPanelY, PANEL_OFFSET_Z]}
+        mirrored={isMirrored}
+      />
+
+      {/* Outer frame - only frames the door panel */}
+      <ParametricFrame
+        doorWidth={doorWidth}
+        doorHeight={doorHeight}
+        color={frameColor}
+        materialId={frameMaterialId}
+        position={[doorPanelX, doorPanelY, 0]}
+      />
+
+      {/* Left glass panel - extends from bottom to top, right edge (30mm) touches door frame (66mm) */}
+      {hasLeftGlass && (
+        <ParametricGlassPanel
+          width={actualLeftGlassWidth}
+          height={sideGlassHeight}
+          glassColor={sideGlassColor}
+          frameColor={frameColor}
+          frameMaterialId={frameMaterialId}
+          frameWidthTop={GLASS_FRAME_STANDARD}
+          frameWidthBottom={GLASS_FRAME_STANDARD}
+          frameWidthLeft={GLASS_FRAME_STANDARD}
+          frameWidthRight={GLASS_FRAME_ADJACENT}
+          position={[
+            doorPanelX -
+              doorWidth / 2 -
+              FRAME_PROFILE_WIDTH -
+              actualLeftGlassWidth / 2,
+            sideGlassCenterY,
+            0,
+          ]}
+        />
+      )}
+
+      {/* Right glass panel - extends from bottom to top, left edge (30mm) touches door frame (66mm) */}
+      {hasRightGlass && (
+        <ParametricGlassPanel
+          width={actualRightGlassWidth}
+          height={sideGlassHeight}
+          glassColor={sideGlassColor}
+          frameColor={frameColor}
+          frameMaterialId={frameMaterialId}
+          frameWidthTop={GLASS_FRAME_STANDARD}
+          frameWidthBottom={GLASS_FRAME_STANDARD}
+          frameWidthLeft={GLASS_FRAME_ADJACENT}
+          frameWidthRight={GLASS_FRAME_STANDARD}
+          position={[
+            doorPanelX +
+              doorWidth / 2 +
+              FRAME_PROFILE_WIDTH +
+              actualRightGlassWidth / 2,
+            sideGlassCenterY,
+            0,
+          ]}
+        />
+      )}
+
+      {/* Top glass panel - spans door + side glass widths, bottom edge (30mm) sits on top of door frame (66mm) */}
+      {hasTopGlass && (
+        <ParametricGlassPanel
+          width={topGlassWidth}
+          height={actualTopGlassHeight}
+          glassColor={glassColor}
+          frameColor={frameColor}
+          frameMaterialId={frameMaterialId}
+          frameWidthTop={GLASS_FRAME_STANDARD}
+          frameWidthBottom={GLASS_FRAME_ADJACENT}
+          frameWidthLeft={GLASS_FRAME_STANDARD}
+          frameWidthRight={GLASS_FRAME_STANDARD}
+          position={[
+            topGlassCenterX,
+            doorPanelY +
+              doorHeight / 2 +
+              FRAME_PROFILE_WIDTH +
+              actualTopGlassHeight / 2,
+            0,
+          ]}
+        />
+      )}
+
+      {/* Surrounding wall with door opening */}
+      {showWall && (
+        <ParametricWall
+          openingWidth={frameOuterWidth}
+          openingHeight={frameOuterHeight}
+          position={[0, 0, WALL_CENTER_Z]}
+        />
+      )}
+    </group>
+  );
+};

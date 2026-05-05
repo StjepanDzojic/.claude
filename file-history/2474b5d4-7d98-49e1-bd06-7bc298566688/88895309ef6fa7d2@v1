@@ -1,0 +1,53 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Image } from "react-native";
+import { Button, ScreenLayout } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+export const Welcome: React.FC<NativeStackScreenProps<Routes, "welcome">> = ({
+  navigation,
+}) => {
+  async function handleSignIn() {
+    navigation.navigate("serverInfo");
+  }
+
+  return (
+    <ScreenLayout>
+      <Block flex={1} align="center" justify="center">
+        <Block align="center" margins={{ marginVertical: "auto" }}>
+          <Image
+            source={require("assets/images/logo.png")}
+            width={108}
+            height={120}
+          />
+          <Text
+            size={TextSize.xlarge}
+            font="InstrumentSans-Medium"
+            textAlign="center"
+            margins={{ marginBottom: 4, marginTop: 20 }}
+          >
+            Your space to connect
+          </Text>
+          <Text
+            font="InstrumentSans-Medium"
+            color={Colors.white80}
+            textAlign="center"
+          >
+            Simple, secure, and built for every conversation — making it easy to
+            stay connected, your way.
+          </Text>
+        </Block>
+        <Block width="100%" paddings={[0, 52]} gap={40}>
+          <Block gap={12}>
+            <Button.Primary onPress={handleSignIn} width="100%">
+              Sign in
+            </Button.Primary>
+          </Block>
+          <Text size={TextSize.small} color={Colors.white50} textAlign="center">
+            Cloak 2025©
+          </Text>
+        </Block>
+      </Block>
+    </ScreenLayout>
+  );
+};

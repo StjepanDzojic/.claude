@@ -1,0 +1,20 @@
+import { Block } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { useWindowDimensions } from "react-native";
+import { Colors } from "shared/styles";
+import { Loading } from "../loading";
+
+export const MediaEdgePage: FC = () => {
+  const { width, height } = useWindowDimensions();
+  return (
+    <Block
+      background={Colors.black}
+      align="center"
+      justify="center"
+      width={width}
+      height={height}
+    >
+      <Loading isFullScreen={false} />
+    </Block>
+  );
+};

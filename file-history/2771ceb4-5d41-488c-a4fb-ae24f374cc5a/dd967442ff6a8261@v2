@@ -1,0 +1,102 @@
+import { loadEnvConfig } from '@next/env';
+
+loadEnvConfig(process.cwd());
+
+import { INVESTMENT_TIERS } from '../const/investment-tiers';
+import {
+  createProduct,
+  createProductPrice,
+} from '../lib/easy-api/products';
+
+const BOOTSTRAP_ID = 'beni-investment-v1';
+const PRODUCT_NAME = 'Beni Investment';
+const PRODUCT_DESCRIPTION =
+  'Investment in a Beni Capital project. The specific project is identified per-payment via the payment-link tags.';
+const PRODUCT_IMAGE_URL = 'https://benicapital.com/images/i.png';
+const CURRENCY = 'USD';
+
+const FORCE = process.argv.includes('--force');
+
+function fail(msg: string, detail?: unknown): never {
+  console.error(msg);
+  if (detail !== undefined) {
+    console.error(JSON.stringify(detail, null, 2));
+  }
+  process.exit(1);
+}
+
+async function main() {
+  if (process.env.EASY_API_PRODUCT_ID && !FORCE) {
+    fail(
+      'EASY_API_PRODUCT_ID is already set in env — bootstrap appears to have run.\n' +
+        'Re-run with --force to create new entities anyway.',
+    );
+  }
+
+  console.log(`Creating Easy API product "${PRODUCT_NAME}"...`);
+  const productResult = await createProduct({
+    name: PRODUCT_NAME,
+    description: PRODUCT_DESCRIPTION,
+    active: true,
+    metadata: { bootstrap_id: BOOTSTRAP_ID, app: 'beni-capital' },
+    image_url: PRODUCT_IMAGE_URL,
+  });
+
+  if (!productResult.ok) {
+    fail(
+      `Failed to create product (HTTP ${productResult.status}):`,
+      productResult.error,
+    );
+  }
+
+  const productId = productResult.data.id;
+  console.log(`  -> ${productId}`);
+
+  const priceIds: Record<string, string> = {};
+
+  for (const tier of INVESTMENT_TIERS) {
+    const label = `$${tier.dollars.toLocaleString()}`;
+    console.log(`Creating ${label} price (${tier.cents} cents ${CURRENCY})...`);
+    const priceResult = await createProductPrice({
+      product_id: productId,
+      currency: CURRENCY,
+      unit_amount: tier.cents,
+      recurring: false,
+      active: true,
+      tax_behavior: 'exclusive',
+      description: `Investment of ${label}`,
+      metadata: {
+        bootstrap_id: BOOTSTRAP_ID,
+        tier_dollars: String(tier.dollars),
+      },
+    });
+
+    if (!priceResult.ok) {
+      fail(
+        `Failed to create ${label} price (HTTP ${priceResult.status}):`,
+        priceResult.error,
+      );
+    }
+
+    priceIds[tier.envKey] = priceResult.data.id;
+    console.log(`  -> ${priceResult.data.id} (unit_amount=${priceResult.data.unit_amount})`);
+  }
+
+  console.log('\nBootstrap complete. Add the following to .env.local:\n');
+  console.log(`EASY_API_PRODUCT_ID=${productId}`);
+  for (const [envKey, id] of Object.entries(priceIds)) {
+    console.log(`${envKey}=${id}`);
+  }
+  console.log();
+  console.log(
+    'Sanity check: each unit_amount printed above should match the cents value.',
+  );
+  console.log(
+    'If $5,000 came back as unit_amount=5000 (not 500000), Easy API treats unit_amount as dollars × 100 and we need to adjust.',
+  );
+}
+
+main().catch((err) => {
+  console.error('Bootstrap failed:', err);
+  process.exit(1);
+});

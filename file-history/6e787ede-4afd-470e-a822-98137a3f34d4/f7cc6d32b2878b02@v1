@@ -1,0 +1,103 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useSetAtom } from "jotai";
+import { PushNotificationsAtoms } from "modules/push-notifications/jotai";
+import { PushNotificationsService } from "modules/push-notifications/service";
+import type { FC } from "react";
+import { Image, StyleSheet } from "react-native";
+import { Button, IpadScreenWrapper, ScreenLayout } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { MockedRoomListItem } from "./fragments";
+
+const mockedRoomList = [
+  {
+    name: "Rachel",
+    imageSource: require("assets/images/avatar-mock-1.png"),
+  },
+  {
+    name: "John",
+    imageSource: require("assets/images/avatar-mock-2.png"),
+  },
+];
+
+export const NotificationsIntro: FC<
+  NativeStackScreenProps<Routes, "notificationsIntro">
+> = ({ navigation }) => {
+  const sethasAllowedNotificationsIntro = useSetAtom(
+    PushNotificationsAtoms.hasAllowedNotificationsIntro,
+  );
+  const sethasSeenNotificationsIntro = useSetAtom(
+    PushNotificationsAtoms.hasSeenNotificationsIntro,
+  );
+
+  const handleSkip = () => {
+    navigation.replace("home");
+    sethasSeenNotificationsIntro(true);
+  };
+
+  const handleConfirm = async () => {
+    try {
+      await PushNotificationsService.requestPermissions();
+      sethasAllowedNotificationsIntro(true);
+    } catch (error) {
+      console.error("Failed to request permissions:", error);
+    }
+    handleSkip();
+  };
+
+  return (
+    <ScreenLayout>
+      <IpadScreenWrapper justify="space-between" align="center">
+        <Block
+          align="center"
+          justify="center"
+          margins={{ marginVertical: "auto" }}
+        >
+          <Block align="center" justify="center">
+            <Image
+              source={require("assets/images/bell.png")}
+              width={108}
+              height={120}
+            />
+            <Text
+              size={TextSize.large}
+              margins={{ marginTop: 40, marginBottom: 8 }}
+            >
+              Stay in the loop
+            </Text>
+            <Text color={Colors.white80} textAlign="center">
+              Turn on notifications so we can let you know when someone reaches
+              out. You’re always in control.
+            </Text>
+          </Block>
+          <Block width="100%">
+            {mockedRoomList.map((room) => (
+              <MockedRoomListItem
+                key={room.name}
+                name={room.name}
+                imageSource={room.imageSource}
+              />
+            ))}
+          </Block>
+        </Block>
+
+        <Block paddings={[40, 52]} gap={12} width="100%">
+          <Button.Primary style={styles.button} onPress={handleConfirm}>
+            OK
+          </Button.Primary>
+          <Button.Wrapper style={styles.button} onPress={handleSkip}>
+            <Text textAlign="center" width="100%" paddings={[16, 0]}>
+              Not now
+            </Text>
+          </Button.Wrapper>
+        </Block>
+      </IpadScreenWrapper>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    width: "100%",
+  },
+});

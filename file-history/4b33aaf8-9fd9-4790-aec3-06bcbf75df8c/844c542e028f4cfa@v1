@@ -1,0 +1,220 @@
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
+import { Link } from 'modules/i18n/utils/navigation';
+import { Placeholder } from '@modules/shared/components/Placeholder';
+import { SectionHeader } from '@modules/shared/components/SectionHeader';
+
+interface Props {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: 'Services' });
+  return { title: t('seoTitle'), description: t('seoDescription') };
+}
+
+function Phase({
+  idx,
+  title,
+  desc,
+}: {
+  idx: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="grid grid-cols-[36px_1fr] gap-4 py-3.5 border-b border-rule-2 last:border-b-0 items-baseline">
+      <div className="font-mono text-[11px] text-ink-4 tracking-[0.05em]">
+        {idx}
+      </div>
+      <div>
+        <div className="font-medium text-[15px] tracking-[-0.005em]">
+          {title}
+        </div>
+        <div className="text-ink-3 text-[13px] mt-0.5 leading-normal">
+          {desc}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ServicesPage() {
+  const t = useTranslations('Services');
+
+  const services = [
+    {
+      id: 'water-supply',
+      idx: '01',
+      tag: t('s1Tag'),
+      title: t('s1Title'),
+      lede: t('s1Lede'),
+      imgLabel: t('s1ImgLabel'),
+      imgVariant: 'blue' as const,
+      phases: [
+        { idx: 'a', title: t('s1aTitle'), desc: t('s1aDesc') },
+        { idx: 'b', title: t('s1bTitle'), desc: t('s1bDesc') },
+        { idx: 'c', title: t('s1cTitle'), desc: t('s1cDesc') },
+        { idx: 'd', title: t('s1dTitle'), desc: t('s1dDesc') },
+      ],
+    },
+    {
+      id: 'treatment',
+      idx: '02',
+      tag: t('s2Tag'),
+      title: t('s2Title'),
+      lede: t('s2Lede'),
+      imgLabel: t('s2ImgLabel'),
+      imgVariant: 'green' as const,
+      phases: [
+        { idx: 'a', title: t('s2aTitle'), desc: t('s2aDesc') },
+        { idx: 'b', title: t('s2bTitle'), desc: t('s2bDesc') },
+        { idx: 'c', title: t('s2cTitle'), desc: t('s2cDesc') },
+      ],
+    },
+    {
+      id: 'rivers',
+      idx: '03',
+      tag: t('s3Tag'),
+      title: t('s3Title'),
+      lede: t('s3Lede'),
+      imgLabel: t('s3ImgLabel'),
+      imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s3aTitle'), desc: t('s3aDesc') },
+        { idx: 'b', title: t('s3bTitle'), desc: t('s3bDesc') },
+      ],
+    },
+    {
+      id: 'irrigation',
+      idx: '04',
+      tag: t('s4Tag'),
+      title: t('s4Title'),
+      lede: t('s4Lede'),
+      imgLabel: t('s4ImgLabel'),
+      imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s4aTitle'), desc: t('s4aDesc') },
+        { idx: 'b', title: t('s4bTitle'), desc: t('s4bDesc') },
+      ],
+    },
+    {
+      id: 'ports',
+      idx: '05',
+      tag: t('s5Tag'),
+      title: t('s5Title'),
+      lede: t('s5Lede'),
+      imgLabel: t('s5ImgLabel'),
+      imgVariant: 'dark' as const,
+      phases: [
+        { idx: 'a', title: t('s5aTitle'), desc: t('s5aDesc') },
+        { idx: 'b', title: t('s5bTitle'), desc: t('s5bDesc') },
+      ],
+    },
+    {
+      id: 'eia',
+      idx: '06',
+      tag: t('s6Tag'),
+      title: t('s6Title'),
+      lede: t('s6Lede'),
+      imgLabel: null,
+      imgVariant: 'default' as const,
+      phases: [
+        { idx: 'a', title: t('s6aTitle'), desc: t('s6aDesc') },
+        { idx: 'b', title: t('s6bTitle'), desc: t('s6bDesc') },
+        { idx: 'c', title: t('s6cTitle'), desc: t('s6cDesc') },
+      ],
+    },
+  ];
+
+  const licenses = [
+    { k: 'HKIG', v: t('lic1v'), s: '6×' },
+    { k: 'HKIG', v: t('lic2v'), s: '3×' },
+    { k: 'MGIPU', v: t('lic3v'), s: '2018. →' },
+    { k: 'ISO 9001', v: t('lic4v'), s: '2016. →' },
+  ];
+
+  return (
+    <main>
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] pt-[clamp(80px,10vw,140px)] pb-[clamp(48px,6vw,80px)] border-b border-rule">
+        <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 mb-5 flex gap-2.5 items-center">
+          <Link href="/">Hidroing</Link>
+          <span className="opacity-50">/</span>
+          <span>{t('crumb')}</span>
+        </div>
+        <h1 className="font-medium tracking-[-0.025em] leading-[1.02] text-[clamp(40px,5.4vw,88px)] text-balance m-0">
+          {t('title')}
+        </h1>
+        <p className="text-[clamp(18px,1.4vw,22px)] leading-normal tracking-[-0.005em] text-ink-2 text-pretty mt-8 max-w-[66ch]">
+          {t('desc')}
+        </p>
+      </section>
+
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]">
+        {services.map((svc) => (
+          <div
+            key={svc.id}
+            id={svc.id}
+            className="border-t border-rule last:border-b last:border-rule py-16 grid grid-cols-[80px_1.1fr_1.6fr] gap-8 items-start max-md:grid-cols-[1fr] max-md:gap-5">
+            <div className="font-mono text-[12px] text-ink-4 tracking-[0.08em] pt-1.5">
+              {svc.idx}
+            </div>
+            <div>
+              <div className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3">
+                {svc.tag}
+              </div>
+              <h3 className="text-[clamp(28px,3vw,44px)] font-medium tracking-[-0.02em] leading-[1.05] m-0 mb-[18px] mt-1">
+                {svc.title}
+              </h3>
+              <p className="text-[17px] leading-[1.55] text-ink-2 max-w-[46ch]">
+                {svc.lede}
+              </p>
+              {svc.imgLabel && (
+                <div className="aspect-4/3 mt-7 relative">
+                  <Placeholder
+                    variant={svc.imgVariant}
+                    corner={`S-0${svc.idx}`}
+                    label={svc.imgLabel}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="grid gap-3 mt-2">
+              {svc.phases.map((ph) => (
+                <Phase
+                  key={ph.idx}
+                  idx={ph.idx}
+                  title={ph.title}
+                  desc={ph.desc}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="max-w-[1440px] mx-auto px-[clamp(20px,4vw,64px)] py-[clamp(56px,9vw,140px)]">
+        <SectionHeader eyebrow={t('licNum')} title={t('licTitle')} description={t('licDesc')} />
+
+        <div className="grid grid-cols-4 gap-6 mt-12 max-md:grid-cols-2">
+          {licenses.map((lic, i) => (
+            <div
+              key={i}
+              className="p-6 border border-rule rounded-[4px] bg-white">
+              <div className="font-mono text-[11px] tracking-[0.08em] text-ink-3 uppercase">
+                {lic.k}
+              </div>
+              <div className="mt-2.5 font-medium text-[17px] tracking-[-0.01em]">
+                {lic.v}
+              </div>
+              <div className="mt-2 text-ink-3 text-[13px]">{lic.s}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}

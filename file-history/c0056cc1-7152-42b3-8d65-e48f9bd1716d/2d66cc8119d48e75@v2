@@ -1,0 +1,36 @@
+import { z } from 'zod';
+import { envelope, httpServer } from '../../shared/services/http-server';
+import {
+  CreateEmbeddedCheckoutBodySchema,
+  EmbeddedCheckoutSessionSchema,
+} from './embedded-checkout.service';
+
+export type {
+  EmbeddedCheckoutLineItem,
+  EmbeddedCheckoutMode,
+  EmbeddedCheckoutPaymentMethod,
+  CreateEmbeddedCheckoutBody,
+  EmbeddedCheckoutSession,
+} from './embedded-checkout.service';
+
+export const embeddedCheckoutServerService = {
+  /** POST /api/embedded-checkout — Create a new embedded checkout session. */
+  create: async (
+    body: CreateEmbeddedCheckoutBody,
+    opts: { idempotencyKey?: string } = {},
+  ) => {
+    const parsedBody = CreateEmbeddedCheckoutBodySchema.parse(body);
+
+    const raw = await httpServer.post<z.ZodUnknown, CreateEmbeddedCheckoutBody>(
+      z.unknown(),
+      {
+        path: '/v1/api/embedded-checkout/',
+        body: parsedBody,
+        idempotencyKey: opts.idempotencyKey,
+      },
+    );
+
+    const res = envelope(EmbeddedCheckoutSessionSchema).parse(raw);
+    return res.data;
+  },
+};

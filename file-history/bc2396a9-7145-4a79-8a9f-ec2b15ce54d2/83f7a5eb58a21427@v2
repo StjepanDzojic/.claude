@@ -1,0 +1,153 @@
+import {
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from "@gorhom/bottom-sheet";
+import { Block, Text, useAndroidBackHandler } from "@prototyp/skeletor";
+import { resetToRoom } from "modules/navigation/utils";
+import { RoomService } from "modules/room/service/RoomService";
+import { type FC, useCallback, useRef, useState } from "react";
+import { Button, Input, Loading } from "shared/components";
+import {
+  AppBottomSheet,
+  type AppBottomSheetRef,
+} from "shared/components/bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  isBottomSheetOpen: boolean;
+  setIsBottomSheetOpen: (value: boolean) => void;
+}
+
+const ROOM_ADDRESS_REGEX = /^#.+:.+$/;
+
+export const JoinRoom: FC<Props> = ({
+  isBottomSheetOpen,
+  setIsBottomSheetOpen,
+}) => {
+  const [roomAddress, setRoomAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sheetRef = useRef<AppBottomSheetRef>(null);
+
+  const handleTextChange = (text: string) => {
+    setRoomAddress(text);
+    setError(null);
+  };
+
+  const handleClose = useCallback(() => {
+    setIsBottomSheetOpen(false);
+    setRoomAddress("");
+    setError(null);
+  }, [setIsBottomSheetOpen]);
+
+  const handleCloseOnPress = useCallback(() => {
+    sheetRef.current?.close();
+  }, []);
+
+  const handleJoinRoom = useCallback(async () => {
+    const trimmedAddress = roomAddress.trim();
+
+    if (!trimmedAddress) {
+      setError("Please enter a room address.");
+      return;
+    }
+
+    if (!ROOM_ADDRESS_REGEX.test(trimmedAddress)) {
+      setError("Enter a valid room address.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const roomId = await RoomService.joinRoomByAddress(trimmedAddress);
+
+      resetToRoom(roomId);
+
+      sheetRef.current?.close();
+    } catch (err) {
+      offlineToastHelper("Failed to join room");
+      console.error("Failed to join room:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [roomAddress]);
+
+  useAndroidBackHandler({
+    handlePress: handleCloseOnPress,
+    enabled: isBottomSheetOpen,
+    disableDefault: isBottomSheetOpen,
+  });
+
+  return (
+    <AppBottomSheet
+      ref={sheetRef}
+      isOpen={isBottomSheetOpen}
+      onClose={handleClose}
+      enableContentPanningGesture={false}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+    >
+      <BottomSheetScrollView scrollEnabled={false}>
+        <Block
+          justify="space-between"
+          flexDirection="column"
+          flex={1}
+          width="100%"
+          gap={8}
+          paddings={{
+            paddingHorizontal: 12,
+            paddingBottom: 36,
+          }}
+        >
+          <Text
+            size={TextSize.small}
+            color={Colors.white}
+            font="InstrumentSans-Bold"
+            paddings={{ paddingHorizontal: 14 }}
+          >
+            Join room by address
+          </Text>
+          <Input
+            placeholder="Enter room address"
+            background={Colors.white5}
+            value={roomAddress}
+            onChangeText={handleTextChange}
+            autoCapitalize="none"
+            editable={!loading}
+            InputComponent={BottomSheetTextInput}
+          />
+
+          {error ? (
+            <Text
+              size={TextSize.tiny}
+              color="red"
+              font="InstrumentSans-Regular"
+              paddings={{ paddingHorizontal: 14 }}
+              margins={{ marginBottom: 8 }}
+            >
+              {error}
+            </Text>
+          ) : (
+            <Text
+              size={TextSize.tiny}
+              color={Colors.white50}
+              font="InstrumentSans-Regular"
+              paddings={{ paddingHorizontal: 14 }}
+              margins={{ marginBottom: 8 }}
+            >
+              e.g. #room-name:matrix.org
+            </Text>
+          )}
+          <Button.Primary onPress={handleJoinRoom} disabled={loading}>
+            {loading ? "Joining..." : "Join room"}
+          </Button.Primary>
+          {loading && <Loading text="Joining room..." />}
+        </Block>
+      </BottomSheetScrollView>
+    </AppBottomSheet>
+  );
+};

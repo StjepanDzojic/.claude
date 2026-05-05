@@ -1,0 +1,93 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { MatrixBaseURL } from "modules/matrix-client/const";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { fetchMedia } from "modules/matrix-client/utils";
+import { type FC, useEffect, useState } from "react";
+import { Image, Pressable, StyleSheet } from "react-native";
+import Video from "react-native-video";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  replyPayload: TimelineReplyPayload | null;
+  onPress: () => void;
+}
+
+export const ReplyPayload: FC<Props> = ({ replyPayload, onPress }) => {
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const isVideo = replyPayload?.mediaSource?.mimetype?.startsWith("video/");
+
+  useEffect(() => {
+    if (!replyPayload?.mediaSource) {
+      setMediaUrl(null);
+      return;
+    }
+
+    fetchMedia({
+      serverUrl: MatrixCore.instance?.session().homeserverUrl || MatrixBaseURL,
+      mediaSource: replyPayload.mediaSource.source,
+      mimeType: replyPayload.mediaSource.mimetype,
+    })
+      .then((url) => setMediaUrl(url))
+      .catch(console.error);
+  }, [replyPayload?.mediaSource]);
+
+  if (!replyPayload) return null;
+
+  return (
+    <Block
+      flexDirection="row"
+      align="center"
+      justify="space-between"
+      paddings={[4, mediaUrl ? 4 : 12]}
+      background={Colors.white5}
+      border={{ borderRadius: 12 }}
+    >
+      <Pressable onPress={onPress}>
+        <Block flexDirection="row" gap={10} align="center" flex={1}>
+          {mediaUrl && (
+            <>
+              {isVideo ? (
+                <Block border={{ borderRadius: 6 }} overflow="hidden">
+                  <Video
+                    source={{ uri: mediaUrl }}
+                    style={styles.media}
+                    resizeMode="cover"
+                    paused
+                  />
+                </Block>
+              ) : (
+                <Image
+                  source={{ uri: mediaUrl }}
+                  style={styles.media}
+                  resizeMode="cover"
+                />
+              )}
+            </>
+          )}
+          <Block gap={2}>
+            <Text size={TextSize.tiny} color={Colors.white}>
+              {replyPayload.senderName}
+            </Text>
+            <Text
+              size={TextSize.tiny}
+              color={Colors.white80}
+              font="InstrumentSans-Regular"
+              numberOfLines={1}
+              maxWidth={200}
+            >
+              {replyPayload.content || "History message"}
+            </Text>
+          </Block>
+        </Block>
+      </Pressable>
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  media: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+  },
+});

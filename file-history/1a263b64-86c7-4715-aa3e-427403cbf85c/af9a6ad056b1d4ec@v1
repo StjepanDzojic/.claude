@@ -1,0 +1,103 @@
+import { DoorFrameColorPalette } from '../types/DoorFrameColorPalette';
+
+export const frameColors: Record<DoorFrameColorPalette, DoorItem[]> = {
+  Ral: [
+    {
+      id: 'ral-1013',
+      name: 'Ral 1013',
+      modelSrc: '#844c82',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'ral-1014',
+      name: 'Ral 1014',
+      modelSrc: '#0e0e10',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'ral-1015',
+      name: 'Ral 1015',
+      modelSrc: '#d5654d',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'ral-1016',
+      name: 'Ral 1016',
+      modelSrc: '#ddaf27',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+  ],
+  'Grad-export': [
+    {
+      id: 'grad-export-1013',
+      name: 'Grad-export 1013',
+      modelSrc: '#844c82',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'grad-export-1014',
+      name: 'Grad-export 1014',
+      modelSrc: '#0e0e10',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'grad-export-1015',
+      name: 'Grad-export 1015',
+      modelSrc: '#d5654d',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+  ],
+  Wood: [
+    {
+      id: 'wood-1013',
+      name: 'Wood 1013',
+      modelSrc: '#844c82',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+    {
+      id: 'wood-1014',
+      name: 'Wood 1014',
+      modelSrc: '#0e0e10',
+      imgSrc: '',
+      type: 'frame-color',
+    },
+  ],
+  Mat: [
+    {
+      id: 'mat-frame-ral-1013',
+      name: 'RAL 1013 Matt - Oyster White',
+      modelSrc: '#f3e5ab', // Placeholder: Pale yellowish beige (like oyster/pearl)
+      type: 'frame-color',
+      materialId: 'ral-1013', // Loads Blender material
+    },
+    {
+      id: 'mat-frame-ral-3004',
+      name: 'RAL 3004 Matt - Purple Red',
+      modelSrc: '#75151e', // Placeholder: Deep wine/burgundy red
+      type: 'frame-color',
+      materialId: 'ral-3004', // Loads Blender material
+    },
+    {
+      id: 'mat-frame-ral-5003',
+      name: 'RAL 5003 Matt - Sapphire Blue',
+      modelSrc: '#1f3a5f', // Placeholder: Deep sapphire blue
+      type: 'frame-color',
+      materialId: 'ral-5003', // Loads Blender material
+    },
+    {
+      id: 'mat-frame-ral-6005',
+      name: 'RAL 6005 Matt - Moss Green',
+      modelSrc: '#2f4538', // Placeholder: Dark moss/forest green
+      type: 'frame-color',
+      materialId: 'ral-6005', // Loads Blender material
+    },
+  ],
+};

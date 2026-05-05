@@ -1,0 +1,47 @@
+import { useGLTF } from '@react-three/drei';
+import { FC } from 'react';
+import * as THREE from 'three';
+import { useOuterHandleCalculations } from '../hooks/useOuterHandleCalculations';
+
+interface Props {
+  proposal?: Proposal;
+}
+
+export const OuterHandle: FC<Props> = ({ proposal }) => {
+  const {
+    positionX,
+    positionY,
+    positionZ,
+    selectedHeight,
+    outerHandle,
+    directionId,
+  } = useOuterHandleCalculations(proposal);
+
+  const modelSrc = outerHandle.modelSrc ?? '/models/door/G101.glb';
+  const { nodes, materials } = useGLTF(modelSrc) as unknown as {
+    nodes: Record<string, THREE.Mesh>;
+    materials: Record<string, THREE.MeshStandardMaterial>;
+  };
+
+  const mirrored = directionId === 'left';
+  const handleId = outerHandle.id?.toUpperCase() ?? '';
+  const nodeKey = `${handleId}-L${selectedHeight}`;
+  const node = nodes[nodeKey];
+  const material = Object.values(materials)[0];
+
+  if (!node || !material) return null;
+
+  return (
+    <group
+      dispose={null}
+      position={[positionX, positionY, positionZ]}
+      scale={[mirrored ? -1 : 1, 1, 1]}>
+      <mesh
+        geometry={node.geometry}
+        material={materials.Boja5}
+        castShadow
+        receiveShadow
+      />
+    </group>
+  );
+};

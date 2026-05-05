@@ -1,0 +1,310 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RoomService } from "modules/room/service/RoomService";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, Modal, StyleSheet } from "react-native";
+import type { Asset } from "react-native-image-picker";
+import Toast from "react-native-toast-message";
+import { SingleSendItem } from "screens/room/fragments/single-send-item";
+import {
+  Button,
+  GoBackHeader,
+  Input,
+  Loading,
+  RoomImage,
+  ScreenLayout,
+} from "shared/components";
+import { useUploadPhoto } from "shared/hooks";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+export const EditRoom: React.FC<NativeStackScreenProps<Routes, "editRoom">> = ({
+  route,
+}) => {
+  const { room } = route.params;
+  const {
+    isLoading,
+    selectedAsset,
+    isListOpen,
+    handleChoosePhoto,
+    handleTakePhoto,
+    setIsListOpen,
+    setSelectedAsset,
+  } = useUploadPhoto();
+  const [displayName, setDisplayName] = useState<string | undefined>(
+    room?.displayName(),
+  );
+  const [topic, setTopic] = useState<string | undefined>(room?.topic());
+  const [isSaving, setIsSaving] = useState(false);
+  const [shouldRemoveAvatar, setShouldRemoveAvatar] = useState(false);
+  const [isDirect, setIsDirect] = useState(false);
+  const [userPowerLevel, setUserPowerLevel] = useState(0);
+  const [nameLevel, setNameLevel] = useState(50);
+  const [avatarLevel, setAvatarLevel] = useState(50);
+  const [topicLevel, setTopicLevel] = useState(50);
+  const canEditName = userPowerLevel >= nameLevel;
+  const canEditAvatar = userPowerLevel >= avatarLevel;
+  const canEditTopic = userPowerLevel >= topicLevel;
+
+  const isRemoveDisabled = () => {
+    if (isSaving || isDirect) return true;
+
+    if (selectedAsset) return false;
+
+    if (room.heroes()[0]?.avatarUrl || room.avatarUrl()) return false;
+
+    return true;
+  };
+
+  useEffect(() => {
+    room.isDirect().then(setIsDirect).catch(console.error);
+    RoomService.getUserPowerLevel(room.id())
+      .then((level) => setUserPowerLevel(level ?? 0))
+      .catch(console.error);
+    RoomService.getRoomPowerLevels(room.id())
+      .then((pl) => {
+        if (!pl) return;
+        const vals = pl.values();
+        setNameLevel(Number(vals.roomName));
+        setAvatarLevel(Number(vals.roomAvatar));
+        setTopicLevel(Number(vals.roomTopic));
+      })
+      .catch(console.error);
+  }, [room]);
+
+  const handleRemove = () => {
+    setSelectedAsset(null);
+    setShouldRemoveAvatar(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      let avatarToUpload: Asset | null | undefined;
+
+      if (shouldRemoveAvatar) {
+        avatarToUpload = null; // User wants to remove avatar
+      } else if (selectedAsset) avatarToUpload = selectedAsset;
+
+      await RoomService.updateRoom(
+        room.id(),
+        displayName === room?.displayName() ? undefined : displayName, //if the displayName is the same as the room's displayName, don't update it
+        topic === room?.topic() ? undefined : topic, //if the topic is the same as the room's topic, don't update it
+        avatarToUpload,
+      );
+
+      Toast.show({
+        type: "success",
+        text1: "Room updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update room:", error);
+      offlineToastHelper("Failed to update room. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const rightComponent = () => {
+    const shouldShow =
+      shouldRemoveAvatar ||
+      selectedAsset ||
+      displayName !== room?.displayName() ||
+      topic !== room?.topic();
+
+    if (!shouldShow) return null;
+
+    return (
+      <Button.Wrapper onPress={handleSave} disabled={isSaving}>
+        <Text>{isSaving ? "Saving..." : "Save"}</Text>
+      </Button.Wrapper>
+    );
+  };
+
+  if (!room) return null;
+
+  return (
+    <ScreenLayout>
+      {isSaving && <Loading text="Saving..." />}
+      <Block align="center">
+        <GoBackHeader
+          title="Edit Room Deatils"
+          rightComp={rightComponent()}
+          margins={{ marginBottom: 40 }}
+        />
+        <Block margins={{ marginBottom: 8 }}>
+          {isLoading ? (
+            <Block width={120} height={120} align="center" justify="center">
+              <ActivityIndicator />
+            </Block>
+          ) : selectedAsset?.uri ? (
+            <Block
+              width={120}
+              height={120}
+              align="center"
+              justify="center"
+              border={{ borderRadius: 999 }}
+              overflow="hidden"
+            >
+              <Image
+                source={{ uri: selectedAsset.uri }}
+                width={120}
+                height={120}
+              />
+            </Block>
+          ) : shouldRemoveAvatar ? (
+            <Block
+              width={120}
+              height={120}
+              border={{
+                borderRadius: 999,
+                borderWidth: 2,
+                borderColor: Colors.white20,
+              }}
+              background={Colors.white20}
+              align="center"
+              justify="center"
+            >
+              <Text
+                size={TextSize.large}
+                color="white"
+                textTransform="uppercase"
+              >
+                {room.displayName()?.charAt(0)}
+              </Text>
+            </Block>
+          ) : (
+            <RoomImage
+              borderRadius={999}
+              room={room}
+              width={120}
+              height={120}
+            />
+          )}
+        </Block>
+        {!isDirect && canEditAvatar && (
+          <Block
+            flexDirection="row"
+            align="center"
+            gap={12}
+            margins={{ marginBottom: 40 }}
+          >
+            <Button.Wrapper
+              onPress={() => setIsListOpen(true)}
+              disabled={isLoading || isSaving}
+            >
+              <Block
+                flexDirection="row"
+                align="center"
+                gap={12}
+                paddings={[16, 12]}
+              >
+                <Image
+                  source={require("assets/icons/upload-simple-large.png")}
+                  width={16}
+                  height={16}
+                  style={styles.icon}
+                  tintColor={Colors.primary}
+                />
+                <Text size={TextSize.small} color={Colors.primary}>
+                  Upload
+                </Text>
+              </Block>
+            </Button.Wrapper>
+            <Button.Wrapper
+              onPress={handleRemove}
+              disabled={isRemoveDisabled()}
+            >
+              <Block
+                flexDirection="row"
+                align="center"
+                gap={12}
+                paddings={[16, 12]}
+              >
+                <Image
+                  source={require("assets/icons/trash.png")}
+                  width={16}
+                  height={16}
+                  style={styles.icon}
+                />
+                <Text size={TextSize.small}>Remove</Text>
+              </Block>
+            </Button.Wrapper>
+          </Block>
+        )}
+      </Block>
+      <Block gap={20}>
+        <Block gap={8}>
+          <Text size={TextSize.tiny} color={Colors.white50} paddings={[0, 16]}>
+            Display name
+          </Text>
+          <Input
+            placeholder="Display name"
+            value={displayName}
+            disabled={isDirect || !canEditName}
+            onChangeText={(value) => setDisplayName(value)}
+          />
+        </Block>
+        <Block gap={8}>
+          <Text size={TextSize.tiny} color={Colors.white50} paddings={[0, 16]}>
+            Topic
+          </Text>
+          <Input
+            placeholder="Add a topic"
+            value={topic}
+            disabled={!canEditTopic}
+            onChangeText={(value) => setTopic(value)}
+          />
+        </Block>
+      </Block>
+      <Modal visible={isListOpen} transparent={true} animationType="fade">
+        <Block
+          width="100%"
+          height="100%"
+          justify="flex-end"
+          align="center"
+          background={Colors.black70}
+          paddings={[40, 20]}
+        >
+          {isLoading && <Loading />}
+          <Block width="100%" gap={8}>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Chose photo"
+                showSeparator
+                onPress={handleChoosePhoto}
+              />
+              <SingleSendItem
+                title="Take a photo"
+                showSeparator
+                onPress={handleTakePhoto}
+              />
+            </Block>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Cancel"
+                onPress={() => setIsListOpen(false)}
+              />
+            </Block>
+          </Block>
+        </Block>
+      </Modal>
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  icon: {
+    width: 16,
+    height: 16,
+  },
+});

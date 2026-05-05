@@ -1,0 +1,118 @@
+import type { EventTimelineItem } from "@unomed/react-native-matrix-sdk";
+import { getEventType } from "modules/timeline/utils";
+import type { FC } from "react";
+
+import { CallMessage } from "../call-message";
+import { DeletedMessage } from "../deleted-message";
+import { FileMessage } from "../file-message";
+import { ImageMessage } from "../image-message";
+import { MembershipInfoMessage } from "../membership-info-message/MembershipInfoMessage";
+import { OtherMessage } from "../other-message/OtherMessage";
+import { ProfileInfoMessage } from "../profile-info-message";
+import { RoomInfoMessage } from "../room-info-message";
+import { TextMessage } from "../text-message";
+import { UnableToDecryptMessage } from "../unable-to-decrypt-message";
+import { VideoMessage } from "../video-message";
+import { VoiceMessage } from "../voice-message";
+
+interface Props {
+  roomId: string;
+  event: EventTimelineItem;
+  isPreviousSameSender: boolean;
+  onMemberPress?: (member: MemberDetailsPayload) => void;
+}
+
+export const SingleMessageType: FC<Props> = ({
+  roomId,
+  event,
+  isPreviousSameSender,
+  onMemberPress,
+}) => {
+  if (!event) return null;
+
+  switch (getEventType(event)) {
+    case "text": {
+      return (
+        <TextMessage
+          roomId={roomId}
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "image": {
+      return (
+        <ImageMessage
+          roomId={roomId}
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "audio": {
+      return (
+        <VoiceMessage
+          roomId={roomId}
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "video": {
+      return (
+        <VideoMessage
+          roomId={roomId}
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "file": {
+      return (
+        <FileMessage
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "call": {
+      return (
+        <CallMessage
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+        />
+      );
+    }
+    case "redacted": {
+      return (
+        <DeletedMessage
+          event={event}
+          isPreviousSameSender={isPreviousSameSender}
+          onMemberPress={onMemberPress}
+        />
+      );
+    }
+    case "unableToDecrypt": {
+      return <UnableToDecryptMessage event={event} />;
+    }
+    case "membership": {
+      return <MembershipInfoMessage event={event} />;
+    }
+    case "profile": {
+      return <ProfileInfoMessage event={event} />;
+    }
+    case "room": {
+      return <RoomInfoMessage event={event} />;
+    }
+    case "other": {
+      return <OtherMessage event={event} />;
+    }
+    default:
+      return null;
+  }
+};

@@ -1,0 +1,10 @@
+import { notFound } from 'next/navigation';
+
+export async function getMessages(lang: string) {
+  try {
+    return (await import(`@app/[lang]/(index)/translations/${lang}.json`))
+      .default;
+  } catch {
+    notFound();
+  }
+}

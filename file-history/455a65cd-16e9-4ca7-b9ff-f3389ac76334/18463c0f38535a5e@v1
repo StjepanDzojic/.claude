@@ -1,0 +1,84 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Image, StyleSheet } from "react-native";
+import { Button, Loading, UserImage } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  users: ViolatingUser[];
+  isLoading: boolean;
+  onDismiss: () => void;
+}
+
+export const RoomIdentityBanner: FC<Props> = ({
+  users,
+  isLoading,
+  onDismiss,
+}) => {
+  const isSingle = users.length === 1;
+  const multiNames =
+    users.length > 1
+      ? users
+          .map((u) => u.displayName)
+          .slice(0, -1)
+          .join(", ") +
+        " and " +
+        users[users.length - 1].displayName
+      : "";
+
+  return (
+    <Block
+      paddings={{ paddingHorizontal: 20, paddingVertical: 12 }}
+      background={Colors.white20}
+      gap={12}
+    >
+      {isLoading && <Loading isFullScreen />}
+      <Block flexDirection="row" align="center" gap={12}>
+        {isSingle ? (
+          <UserImage
+            avatarUrl={users[0].avatarUrl}
+            displayName={users[0].displayName}
+            width={32}
+            height={32}
+          />
+        ) : (
+          <Image
+            source={require("assets/icons/warning.png")}
+            style={styles.icon}
+          />
+        )}
+
+        <Text size={TextSize.small} color={Colors.white} flex={1}>
+          {isSingle ? (
+            <>
+              <Text
+                size={TextSize.small}
+                color={Colors.white}
+                font="InstrumentSans-Bold"
+              >
+                {users[0].displayName}
+              </Text>
+              {` (${users[0].userId}) identity was reset.`}
+            </>
+          ) : (
+            `${multiNames}'s identity has changed.`
+          )}
+        </Text>
+      </Block>
+
+      <Block width="100%" paddings={{ paddingHorizontal: 36 }}>
+        <Button.Secondary size="medium" onPress={onDismiss}>
+          Dismiss
+        </Button.Secondary>
+      </Block>
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  icon: {
+    width: 16,
+    height: 16,
+    tintColor: Colors.white,
+  },
+});

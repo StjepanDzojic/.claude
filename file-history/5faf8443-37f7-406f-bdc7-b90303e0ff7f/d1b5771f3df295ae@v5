@@ -1,0 +1,172 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { FlashList } from "@shopify/flash-list";
+import type {
+  EventTimelineItem,
+  TaskHandleInterface,
+} from "@unomed/react-native-matrix-sdk";
+import {
+  DateDividerMode,
+  TimelineDiff_Tags,
+  TimelineFilter,
+  TimelineFocus,
+  TimelineReadReceiptTracking,
+} from "@unomed/react-native-matrix-sdk";
+import { type FC, useEffect, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
+import { SingleMessageType } from "screens/room/fragments";
+import { GoBackHeader, Loading } from "shared/components";
+import { ScreenLayout } from "shared/components/screen-layout/ScreenLayout";
+import { Colors, TextSize } from "shared/styles";
+
+const keyExtractor = (item: EventTimelineItem) => {
+  const eventId = item.eventOrTransactionId;
+  if (eventId?.tag === "EventId") {
+    return eventId.inner.eventId;
+  }
+  if (eventId?.tag === "TransactionId") {
+    return eventId.inner.transactionId;
+  }
+  return String(item.timestamp);
+};
+
+export const PinnedEvents: FC<
+  NativeStackScreenProps<Routes, "pinnedEvents">
+> = ({ route }) => {
+  const { room } = route.params;
+  const [events, setEvents] = useState<EventTimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const itemsRef = useRef<(EventTimelineItem | null)[]>([]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    setEvents([]);
+    setLoading(true);
+    itemsRef.current = [];
+
+    let listenerHandle: TaskHandleInterface | null = null;
+
+    const initPinnedTimeline = async () => {
+      try {
+        const timeline = await room.timelineWithConfiguration({
+          focus: new TimelineFocus.PinnedEvents({
+            maxEventsToLoad: 100,
+            maxConcurrentRequests: 10,
+          }),
+          filter: new TimelineFilter.All(),
+          internalIdPrefix: undefined,
+          dateDividerMode: DateDividerMode.Daily,
+          trackReadReceipts: TimelineReadReceiptTracking.AllEvents,
+          reportUtds: false,
+        });
+
+        listenerHandle = await timeline.addListener({
+          onUpdate: (diffs) => {
+            diffs.forEach((diff) => {
+              switch (diff.tag) {
+                case TimelineDiff_Tags.Reset: {
+                  itemsRef.current = diff.inner.values.map(
+                    (item) => item.asEvent() ?? null,
+                  );
+                  break;
+                }
+                case TimelineDiff_Tags.Append: {
+                  itemsRef.current.push(
+                    ...diff.inner.values.map((item) => item.asEvent() ?? null),
+                  );
+                  break;
+                }
+                case TimelineDiff_Tags.PushBack: {
+                  itemsRef.current.push(diff.inner.value.asEvent() ?? null);
+                  break;
+                }
+                case TimelineDiff_Tags.PushFront: {
+                  itemsRef.current.unshift(diff.inner.value.asEvent() ?? null);
+                  break;
+                }
+                case TimelineDiff_Tags.Insert: {
+                  itemsRef.current.splice(
+                    diff.inner.index,
+                    0,
+                    diff.inner.value.asEvent() ?? null,
+                  );
+                  break;
+                }
+                case TimelineDiff_Tags.Set: {
+                  itemsRef.current[diff.inner.index] =
+                    diff.inner.value.asEvent() ?? null;
+                  break;
+                }
+                case TimelineDiff_Tags.Remove: {
+                  itemsRef.current.splice(diff.inner.index, 1);
+                  break;
+                }
+                case TimelineDiff_Tags.Clear: {
+                  itemsRef.current = [];
+                  break;
+                }
+              }
+            });
+
+            const eventItems = itemsRef.current.filter(
+              (item): item is EventTimelineItem => !!item,
+            );
+            setEvents(eventItems);
+            setLoading(false);
+          },
+        });
+      } catch (error) {
+        console.error("Failed to initialize pinned events timeline:", error);
+        setLoading(false);
+      }
+    };
+
+    initPinnedTimeline();
+
+    return () => {
+      listenerHandle?.cancel();
+    };
+  }, [room]);
+
+  return (
+    <ScreenLayout type="modal">
+      <GoBackHeader title="Pinned Events" margins={{ marginBottom: 20 }} />
+      <FlashList
+        data={events}
+        renderItem={({ item }) => {
+          return (
+            <Block paddings={{ paddingHorizontal: 16 }}>
+              <SingleMessageType
+                roomId={room.id()}
+                event={item}
+                isPreviousSameSender={false}
+              />
+            </Block>
+          );
+        }}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Block align="center" justify="center" flex={1} paddings={40}>
+            {loading ? (
+              <Loading isFullScreen={false} />
+            ) : (
+              <Text size={TextSize.medium} color={Colors.white50}>
+                No pinned events
+              </Text>
+            )}
+          </Block>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </ScreenLayout>
+  );
+};
+
+const styles = StyleSheet.create({
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+});

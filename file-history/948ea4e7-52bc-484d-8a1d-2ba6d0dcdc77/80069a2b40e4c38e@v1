@@ -1,0 +1,74 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { FlashList } from "@shopify/flash-list";
+import { useAtom } from "jotai";
+import { type FC, useCallback, useEffect } from "react";
+import { StyleSheet } from "react-native";
+import { Button } from "shared/components";
+import { SharedAtoms } from "shared/jotai";
+import { Colors, TextSize } from "shared/styles";
+import { isIpad } from "shared/utils/is-ipad";
+
+const FILTERS = [
+  { label: "All", value: "all" },
+  { label: "Unread", value: "unread" },
+  { label: "Favorites", value: "favorites" },
+  { label: "Direct", value: "direct" },
+  { label: "Rooms", value: "rooms" },
+  { label: "Invites", value: "invites" },
+];
+
+type Filter = (typeof FILTERS)[number];
+
+export const Filters: FC = () => {
+  const [activeFilter, setActiveFilter] = useAtom(SharedAtoms.activeFilter);
+
+  useEffect(() => {
+    if (activeFilter) return;
+
+    setActiveFilter(FILTERS[0].value);
+  }, [activeFilter]);
+
+  const renderItem = useCallback(
+    ({ item: f }: { item: Filter }) => (
+      <Button.Wrapper onPress={() => setActiveFilter(f.value)}>
+        <Block
+          border={{
+            borderWidth: 1,
+            borderColor:
+              f.value === activeFilter ? Colors.white50 : "transparent",
+            borderRadius: 32,
+          }}
+          paddings={isIpad() ? [12, 20] : [8, 12]}
+        >
+          <Text
+            color={f.value === activeFilter ? "white" : Colors.white50}
+            textTransform="capitalize"
+            size={TextSize.small}
+          >
+            {f.label}
+          </Text>
+        </Block>
+      </Button.Wrapper>
+    ),
+    [activeFilter, setActiveFilter],
+  );
+
+  return (
+    <Block margins={{ marginBottom: 20 }}>
+      <FlashList
+        horizontal
+        data={FILTERS}
+        keyExtractor={(f) => f.value}
+        renderItem={renderItem}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+      />
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  list: {
+    paddingHorizontal: 20,
+  },
+});

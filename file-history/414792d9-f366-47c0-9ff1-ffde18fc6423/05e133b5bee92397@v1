@@ -1,0 +1,119 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  type EventTimelineItem,
+  type FileMessageContent,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  TimelineItemContent_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { getEventId } from "modules/matrix-client/utils";
+import { NavigationContainerRef } from "modules/navigation/const";
+import type { FC } from "react";
+import { useState } from "react";
+import { Image, Share } from "react-native";
+import { Button, Loading } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { copyToStablePath, formatBytes, isPdf, offlineToastHelper } from "shared/utils";
+
+const getFileContent = (
+  event: EventTimelineItem,
+): FileMessageContent | null => {
+  if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+    const kind = event.content.inner.content.kind;
+    if (kind?.tag === MsgLikeKind_Tags.Message) {
+      const msgType = kind.inner.content.msgType;
+      if (msgType?.tag === MessageType_Tags.File) return msgType.inner.content;
+    }
+  }
+  return null;
+};
+
+interface Props {
+  event: EventTimelineItem;
+}
+
+export const FileListItem: FC<Props> = ({ event }) => {
+  const content = getFileContent(event);
+  const eventId = getEventId(event);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleOpen = async () => {
+    if (!content?.source || !MatrixCore.instance) return;
+
+    try {
+      setIsDownloading(true);
+
+      const ext =
+        content.info?.mimetype?.split("/")[1] ??
+        content.filename?.split(".").pop() ??
+        "bin";
+      const filename = content.filename ?? `file-${eventId}.${ext}`;
+
+      const mediaHandle = await MatrixCore.instance.getMediaFile(
+        content.source,
+        filename,
+        content.info?.mimetype || "application/octet-stream",
+        false,
+        undefined,
+      );
+
+      const filePath = mediaHandle.path();
+
+      if (isPdf(content)) {
+        const stableUrl = await copyToStablePath(filePath, filename);
+        NavigationContainerRef.navigate("pdfViewer", {
+          fileUrl: stableUrl,
+          filename,
+        });
+        return;
+      }
+
+      const fileUrl = filePath.startsWith("file://")
+        ? filePath
+        : `file://${filePath}`;
+      await Share.share({ url: fileUrl });
+    } catch (error) {
+      offlineToastHelper("Failed to open file");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  if (!content) return null;
+
+  return (
+    <Block flexDirection="row" align="center" gap={12} paddings={[12, 16]}>
+      <Button.Wrapper disabled={isDownloading} onPress={handleOpen}>
+        <Block
+          width={40}
+          height={40}
+          align="center"
+          justify="center"
+          background={Colors.white20}
+          border={{ borderRadius: 20 }}
+        >
+          {isDownloading ? (
+            <Loading isFullScreen={false} />
+          ) : (
+            <Image
+              source={require("assets/icons/download.png")}
+              style={{ width: 20, height: 20 }}
+              tintColor={Colors.white}
+            />
+          )}
+        </Block>
+      </Button.Wrapper>
+      <Block flex={1} gap={2}>
+        <Text size={TextSize.small} color="white" numberOfLines={1}>
+          {content.filename ?? "File"}
+        </Text>
+        {content.info?.size != null && (
+          <Text size={TextSize.tiny} color={Colors.white50} numberOfLines={1}>
+            {formatBytes(content.info.size)}
+          </Text>
+        )}
+      </Block>
+    </Block>
+  );
+};

@@ -1,0 +1,13 @@
+import { Dimensions, Platform } from "react-native";
+
+export const isIpad = (): boolean => Platform.OS === "ios" && Platform.isPad;
+
+export const adaptSize = (phone: number, ipad = phone): number =>
+  isIpad() ? ipad : phone;
+
+/** Returns the usable width for content. On iPad the room timeline is rendered
+ * inside a 50% split pane, so we halve the window width there. */
+export const effectiveWindowWidth = (): number => {
+  const { width } = Dimensions.get("window");
+  return isIpad() ? width / 2 : width;
+};

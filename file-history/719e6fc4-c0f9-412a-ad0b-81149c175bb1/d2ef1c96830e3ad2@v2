@@ -1,0 +1,16 @@
+export const COLLECTIONS: DoorItem[] = [
+  {
+    id: 'horizont',
+    name: 'Horizont',
+    modelSrc: '',
+    imgSrc: '',
+    type: 'collection',
+  },
+  {
+    id: 'spectra',
+    name: 'Spectra',
+    modelSrc: '',
+    imgSrc: '',
+    type: 'collection',
+  },
+];

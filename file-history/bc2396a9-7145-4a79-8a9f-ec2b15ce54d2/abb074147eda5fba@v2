@@ -1,0 +1,85 @@
+import { Block } from "@prototyp/skeletor";
+import { openRoom } from "modules/navigation/utils";
+import { RoomService } from "modules/room/service/RoomService";
+import { type FC, useState } from "react";
+import { StyleSheet } from "react-native";
+import { Button, Loading } from "shared/components";
+import { Colors } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  roomId: string;
+}
+
+export const RoomInviteActions: FC<Props> = ({ roomId }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const acceptRoomInvite = async () => {
+    try {
+      setIsLoading(true);
+      await RoomService.acceptRoomInvite(roomId);
+      setTimeout(() => {
+        openRoom(roomId);
+      }, 500);
+    } catch (error) {
+      console.error(error);
+      offlineToastHelper(
+        "Failed to accept room invite. The user may have removed you from the room.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const declineRoomInvite = async () => {
+    try {
+      setIsLoading(true);
+      await RoomService.declineRoomInvite(roomId);
+    } catch (error) {
+      console.error(error);
+      offlineToastHelper("Failed to decline room invite.");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {isLoading && (
+        <Block
+          absolute
+          offsets={[0, 0, 0, 0]}
+          zIndex={9999}
+          background={Colors.black70}
+        >
+          <Loading isFullScreen={false} />
+        </Block>
+      )}
+      <Block
+        flexDirection="row"
+        gap={12}
+        paddings={{ paddingLeft: 60, paddingBottom: 20 }}
+      >
+        <Button.OutlinePrimary
+          size="small"
+          style={styles.button}
+          onPress={declineRoomInvite}
+        >
+          Decline
+        </Button.OutlinePrimary>
+        <Button.Primary
+          size="small"
+          style={styles.button}
+          onPress={acceptRoomInvite}
+        >
+          Accept
+        </Button.Primary>
+      </Block>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    width: 140,
+  },
+});

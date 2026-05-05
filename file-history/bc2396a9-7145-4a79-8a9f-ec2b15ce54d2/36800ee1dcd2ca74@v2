@@ -1,0 +1,114 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Image, Modal } from "react-native";
+import type { Asset } from "react-native-image-picker";
+import { SingleSendItem } from "screens/room/fragments/single-send-item";
+import { Button, Loading } from "shared/components";
+import { useUploadPhoto } from "shared/hooks/useUploadPhoto";
+import { Colors } from "shared/styles";
+
+interface UploadPhotoProps {
+  onImageSelected: (image: Asset | null) => void;
+}
+
+export const UploadPhoto: FC<UploadPhotoProps> = ({ onImageSelected }) => {
+  const {
+    isLoading,
+    isListOpen,
+    selectedImage,
+    setIsListOpen,
+    handleTakePhoto,
+    handleChoosePhoto,
+    handleRemovePhoto,
+  } = useUploadPhoto(onImageSelected);
+
+  return (
+    <Block gap={16}>
+      <Button.Wrapper onPress={() => setIsListOpen(true)} disabled={isLoading}>
+        <Block flexDirection="row" align="center" gap={16}>
+          <Block
+            width={60}
+            height={60}
+            border={{ borderRadius: 30 }}
+            background={selectedImage ? "transparent" : Colors.white10}
+            justify="center"
+            align="center"
+            overflow="hidden"
+          >
+            {selectedImage ? (
+              <Image
+                source={{ uri: selectedImage }}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image
+                source={require("assets/icons/camera.png")}
+                width={24}
+                height={24}
+              />
+            )}
+          </Block>
+          <Text>
+            {isLoading
+              ? "Loading..."
+              : selectedImage
+                ? "Change Photo"
+                : "Upload Photo"}
+          </Text>
+        </Block>
+      </Button.Wrapper>
+      <Modal visible={isListOpen} transparent={true} presentationStyle="overFullScreen" animationType="fade">
+        <Block
+          width="100%"
+          height="100%"
+          justify="flex-end"
+          align="center"
+          background={Colors.black70}
+          paddings={[40, 20]}
+        >
+          {isLoading && <Loading />}
+          <Block width="100%" gap={8}>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Chose photo"
+                showSeparator
+                onPress={handleChoosePhoto}
+              />
+              <SingleSendItem
+                title="Take a photo"
+                showSeparator
+                onPress={handleTakePhoto}
+              />
+              {selectedImage && (
+                <SingleSendItem
+                  title="Remove photo"
+                  textColor={Colors.error}
+                  onPress={handleRemovePhoto}
+                />
+              )}
+            </Block>
+            <Block
+              width="100%"
+              background={Colors.blackMinus3}
+              border={{ borderRadius: 14 }}
+            >
+              <SingleSendItem
+                title="Cancel"
+                onPress={() => setIsListOpen(false)}
+              />
+            </Block>
+          </Block>
+        </Block>
+      </Modal>
+    </Block>
+  );
+};

@@ -1,0 +1,16 @@
+import { createClient } from 'prismicio';
+
+interface Props {
+  type: 'news' | 'event';
+  uid: string;
+}
+
+export const getArticle = async ({ type, uid }: Props) => {
+  try {
+    const client = createClient();
+    const data = await client.getByUID(type, uid);
+    return data;
+  } catch {
+    return null;
+  }
+};

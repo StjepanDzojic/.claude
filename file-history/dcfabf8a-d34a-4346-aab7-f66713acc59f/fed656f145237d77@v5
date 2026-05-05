@@ -1,0 +1,288 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { ImageZoom } from "@likashefqet/react-native-image-zoom";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import { ProfileDetails_Tags } from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import type { FC } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
+import { ImageInfoBottomSheet } from "screens/room/fragments/image-info-bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import {
+  cacheImage,
+  getCachedImagePathByURL,
+} from "shared/utils/image-caching";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const isLocalUri = (uri: string) => uri.startsWith("file://");
+
+export const ImageViewerModal: FC = () => {
+  const [payload, setPayload] = useAtom(TimelineAtoms.imageViewerPayload);
+  const setImageInfoPayload = useSetAtom(TimelineAtoms.imageInfoPayload);
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const uri = payload?.uri ?? null;
+  const event = payload?.event ?? null;
+  const roomId = payload?.roomId ?? null;
+  const visible = !!uri;
+  const hasEventContext = !!event && !!roomId;
+
+  const senderName = useMemo(() => {
+    if (!event) return null;
+    if (event.senderProfile.tag === ProfileDetails_Tags.Ready) {
+      return event.senderProfile.inner.displayName ?? event.sender;
+    }
+    return event.sender;
+  }, [event]);
+
+  const formattedDate = useMemo(() => {
+    if (!event) return null;
+    return format(Number(event.timestamp), "MMM d, HH:mm");
+  }, [event]);
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  useEffect(() => {
+    if (!uri) return;
+
+    let cancelled = false;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    const load = async () => {
+      try {
+        if (isLocalUri(uri)) {
+          setLocalUri(uri);
+          return;
+        }
+
+        await cacheImage(uri);
+        if (cancelled) return;
+        setLocalUri(getCachedImagePathByURL(uri));
+      } catch {
+        if (cancelled) return;
+        setIsLoading(false);
+        setHasError(true);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uri]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+    setLocalUri(null);
+    setHasError(false);
+    setIsLoading(true);
+    setShowControls(true);
+  }, [setPayload]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    if (!uri) return;
+    setLocalUri(null);
+    setIsLoading(true);
+    setHasError(false);
+
+    try {
+      if (isLocalUri(uri)) {
+        setLocalUri(uri);
+        return;
+      }
+
+      await cacheImage(uri);
+      setLocalUri(getCachedImagePathByURL(uri));
+    } catch {
+      setIsLoading(false);
+      setHasError(true);
+    }
+  }, [uri]);
+
+  const handleOpenInfo = useCallback(() => {
+    if (!event || !roomId) return;
+    setImageInfoPayload({ event, roomId, localUri });
+  }, [event, roomId, localUri, setImageInfoPayload]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <BottomSheetModalProvider>
+        <Block
+          background={Colors.black}
+          flex={1}
+          justify="center"
+          align="center"
+        >
+        <Block
+          absolute
+          offsets={{ top: 0, left: 0, right: 0 }}
+          zIndex={10}
+          paddings={[56, 20, 16, 20]}
+          flexDirection="row"
+          align="center"
+          justify="space-between"
+          gap={12}
+          background={Colors.primary}
+          animations={controlsAnimation.animations}
+          pointerEvents={showControls ? "auto" : "none"}
+        >
+          <Block width={60} align="flex-start">
+            {hasEventContext && (
+              <Button.Wrapper onPress={handleOpenInfo}>
+                <Image
+                  source={require("assets/icons/info.png")}
+                  style={styles.infoIcon}
+                  tintColor={Colors.white}
+                />
+              </Button.Wrapper>
+            )}
+          </Block>
+          <Block flex={1} align="center" gap={2}>
+            {senderName && (
+              <Text
+                color={Colors.white}
+                font="InstrumentSans-Semibold"
+                numberOfLines={1}
+              >
+                {senderName}
+              </Text>
+            )}
+            {formattedDate && (
+              <Text
+                size={TextSize.tiny}
+                color={Colors.white80}
+                numberOfLines={1}
+              >
+                {formattedDate}
+              </Text>
+            )}
+          </Block>
+          <Block width={60} align="flex-end">
+            <Button.Wrapper onPress={onClose}>
+              <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                Close
+              </Text>
+            </Button.Wrapper>
+          </Block>
+        </Block>
+
+        <Block width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+          {isLoading && !hasError && (
+            <Block
+              absolute
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+              zIndex={5}
+              background={Colors.white10}
+            >
+              <Loading isFullScreen={false} />
+            </Block>
+          )}
+
+          {hasError ? (
+            <Block
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+            >
+              <Text color={Colors.white}>Failed to load image</Text>
+              <TouchableOpacity
+                onPress={handleRetry}
+                style={styles.retryButton}
+              >
+                <Text size={TextSize.small} color={Colors.white}>
+                  Tap to retry
+                </Text>
+              </TouchableOpacity>
+            </Block>
+          ) : localUri ? (
+            <ImageZoom
+              key={localUri}
+              uri={localUri}
+              minScale={1}
+              maxScale={5}
+              maxPanPointers={2}
+              isPanEnabled
+              isPinchEnabled
+              isDoubleTapEnabled
+              isSingleTapEnabled
+              style={styles.image}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              onSingleTap={handleSingleTap}
+            />
+          ) : null}
+          </Block>
+        </Block>
+        <ImageInfoBottomSheet />
+      </BottomSheetModalProvider>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  image: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  retryButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  infoIcon: {
+    width: 24,
+    height: 24,
+  },
+});

@@ -1,0 +1,165 @@
+import { ImageZoom } from "@likashefqet/react-native-image-zoom";
+import { Block, Text } from "@prototyp/skeletor";
+import type { EventTimelineItem } from "@unomed/react-native-matrix-sdk";
+import { getEventId } from "modules/matrix-client/utils";
+import { type FC, memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+} from "react-native";
+import { Colors, TextSize } from "shared/styles";
+import { resolveEncryptedImage } from "shared/utils/encrypted-image-cache";
+import { Loading } from "../loading";
+import { getImageContent } from "./utils";
+
+interface Props {
+  event: EventTimelineItem;
+  onSingleTap: () => void;
+  onLocalUriChange: (eventId: string | null, uri: string | null) => void;
+}
+
+export const MediaImagePage: FC<Props> = memo(
+  ({ event, onSingleTap, onLocalUriChange }) => {
+    const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
+      useWindowDimensions();
+    const eventId = getEventId(event);
+    const content = getImageContent(event);
+    const [localUri, setLocalUri] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
+
+    const load = useCallback(async () => {
+      if (!content) {
+        setHasError(true);
+        setIsLoading(false);
+        return null;
+      }
+      const mxcUrl = content.source.url();
+      if (!mxcUrl) {
+        setHasError(true);
+        setIsLoading(false);
+        return null;
+      }
+      try {
+        const resolved = await resolveEncryptedImage({
+          cacheKey: mxcUrl,
+          mediaSource: content.source,
+          mimeType: content.info?.mimetype || "image/jpeg",
+        });
+        return resolved ?? null;
+      } catch {
+        return null;
+      }
+    }, [content]);
+
+    // Keyed on eventId so the decrypt only runs once per cell — the FlatList
+    // remounts cells by event key, so eventId is stable for an instance.
+    const loadRef = useRef(load);
+    loadRef.current = load;
+
+    useEffect(() => {
+      let cancelled = false;
+      setLocalUri(null);
+      setIsLoading(true);
+      setHasError(false);
+
+      loadRef.current().then((uri) => {
+        if (cancelled) return;
+        if (uri) {
+          setLocalUri(uri);
+        } else {
+          setHasError(true);
+          setIsLoading(false);
+        }
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [eventId]);
+
+    useEffect(() => {
+      onLocalUriChange(eventId, localUri);
+    }, [eventId, localUri, onLocalUriChange]);
+
+    const handleImageLoad = useCallback(() => {
+      setIsLoading(false);
+      setHasError(false);
+    }, []);
+
+    const handleImageError = useCallback(() => {
+      setIsLoading(false);
+      setHasError(true);
+    }, []);
+
+    const handleRetry = useCallback(async () => {
+      setLocalUri(null);
+      setIsLoading(true);
+      setHasError(false);
+      const uri = await loadRef.current();
+      if (uri) {
+        setLocalUri(uri);
+      } else {
+        setHasError(true);
+        setIsLoading(false);
+      }
+    }, []);
+
+    return (
+      <Block width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+        {isLoading && !hasError && (
+          <Block
+            absolute
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            align="center"
+            justify="center"
+            background={Colors.white10}
+          >
+            <Loading isFullScreen={false} />
+          </Block>
+        )}
+        {hasError ? (
+          <Block
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            align="center"
+            justify="center"
+          >
+            <Text color={Colors.white}>Failed to load image</Text>
+            <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
+              <Text size={TextSize.small} color={Colors.white}>
+                Tap to retry
+              </Text>
+            </TouchableOpacity>
+          </Block>
+        ) : localUri ? (
+          <ImageZoom
+            key={localUri}
+            uri={localUri}
+            minScale={1}
+            maxScale={5}
+            maxPanPointers={2}
+            isPanEnabled
+            isPinchEnabled
+            isDoubleTapEnabled
+            isSingleTapEnabled
+            style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            onSingleTap={onSingleTap}
+          />
+        ) : null}
+      </Block>
+    );
+  },
+);
+
+const styles = StyleSheet.create({
+  retryButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+});

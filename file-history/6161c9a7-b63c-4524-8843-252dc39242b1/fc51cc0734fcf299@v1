@@ -1,0 +1,132 @@
+import { Block, Text } from "@prototyp/skeletor";
+import { BlurView } from "@react-native-community/blur";
+import type { RoomInterface } from "@unomed/react-native-matrix-sdk";
+import { Image, StyleSheet } from "react-native";
+import { Button, RoomImage } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+
+interface RoomHeaderProps {
+  room: RoomInterface;
+  isMembersLoading: boolean;
+  roomMembers: number;
+  hasCallOption: boolean;
+  topInset: number;
+  isDirect?: boolean;
+  hasOngoingRoomCall?: boolean;
+  hasPowerLevelToCall?: boolean;
+  hasActiveCall?: boolean;
+  onBack: () => void;
+  onStartCall?: () => void;
+  onRoomDetails?: () => void;
+}
+
+export const RoomHeader: React.FC<RoomHeaderProps> = ({
+  room,
+  isDirect,
+  isMembersLoading,
+  roomMembers,
+  hasCallOption,
+  hasOngoingRoomCall,
+  topInset,
+  hasActiveCall,
+  onBack,
+  onStartCall,
+  onRoomDetails,
+}) => {
+  return (
+    <Block
+      align="center"
+      flexDirection="row"
+      background={Colors.primary}
+      paddings={{
+        paddingTop: topInset,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+      }}
+      gap={24}
+    >
+      <BlurView blurAmount={12} blurType="light" style={styles.blurOverlay} />
+      <Button.Wrapper style={styles.buttonWrapper} onPress={onBack}>
+        <Image source={require("assets/icons/caret-left.png")} />
+      </Button.Wrapper>
+      <Block flex={1} zIndex={2}>
+        <Button.Wrapper disabled={!onRoomDetails} onPress={onRoomDetails}>
+          <Block flexDirection="row" align="center" gap={12}>
+            <RoomImage room={room} width={32} height={32} />
+            <Block flex={1}>
+              <Text
+                size={TextSize.small}
+                font="InstrumentSans-Bold"
+                numberOfLines={1}
+              >
+                {room?.displayName()}
+              </Text>
+              {!isDirect && (!isMembersLoading || roomMembers > 0) && (
+                <Text size={TextSize.tiny} color={Colors.white50}>
+                  {roomMembers} {roomMembers === 1 ? "member" : "members"}
+                </Text>
+              )}
+            </Block>
+          </Block>
+        </Button.Wrapper>
+      </Block>
+      {hasCallOption && (
+        <>
+          {hasOngoingRoomCall ? (
+            <Button.Wrapper
+              style={styles.buttonWrapper}
+              onPress={onStartCall}
+              disabled={!onStartCall || hasActiveCall}
+            >
+              <Block
+                background={Colors.success}
+                border={{ borderRadius: 18 }}
+                paddings={[8, 12]}
+                flexDirection="row"
+                align="center"
+                justify="space-between"
+                gap={8}
+              >
+                <Image
+                  style={styles.phoneIcon}
+                  source={require("assets/icons/phone.png")}
+                />
+                <Text color={Colors.white}>Join</Text>
+              </Block>
+            </Button.Wrapper>
+          ) : (
+            <Button.Wrapper
+              style={styles.buttonWrapper}
+              onPress={onStartCall}
+              disabled={!onStartCall || hasActiveCall}
+            >
+              <Image source={require("assets/icons/phone-call.png")} />
+            </Button.Wrapper>
+          )}
+        </>
+      )}
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  phoneIcon: {
+    width: 16,
+    height: 16,
+  },
+  buttonWrapper: {
+    zIndex: 2,
+  },
+
+  blurOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+    opacity: 0.5,
+    width: "120%",
+    pointerEvents: "none",
+  },
+});

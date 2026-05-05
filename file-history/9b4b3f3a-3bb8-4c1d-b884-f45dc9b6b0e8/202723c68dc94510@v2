@@ -1,0 +1,11 @@
+import { createClient } from 'prismicio';
+
+export const getProjectsConfiguration = async () => {
+  try {
+    const client = createClient();
+    const data = await client.getSingle('projects_configuration');
+    return data;
+  } catch {
+    return null;
+  }
+};

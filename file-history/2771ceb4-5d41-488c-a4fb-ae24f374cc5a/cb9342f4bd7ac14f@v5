@@ -1,0 +1,368 @@
+# Easy API ↔ Firestore Integration Guide
+
+This doc captures the current Firestore-backed data model and the conventions for layering the Easy API on top of (or eventually replacing) it. It's the working brief for any session that touches Easy API integration — keep it up to date as endpoints are wired in.
+
+> Code entry point: [lib/easy-api/server.ts](lib/easy-api/server.ts) — `EasyApiService` class + `easyApi` singleton.
+> Auth: `x-easy-api-key` header sourced from `process.env.API_SECRET_KEY`. Base URL from `process.env.API_BASE_URL` (no `/v1` suffix — paths in domain modules must include their own version segment if needed).
+
+---
+
+## 0. Product context
+
+Beni Capital is an investment platform where users back **projects** (theatre / film / TV / music — see [types/project.d.ts](types/project.d.ts)) and later receive returns. The end goal of the Easy API integration is to **enable real-money investment payments** — Easy API is the chosen payment provider in place of Stripe.
+
+That means most Easy API endpoints will be in service of the **invest → pay → confirm → record** flow:
+
+1. User picks a project on the dashboard (existing UI).
+2. App initiates a payment via Easy API (new — `lib/easy-api/payments.ts` or similar when endpoints arrive).
+3. Easy API returns a payment intent / checkout URL / status — shape TBD.
+4. On success, a `Transaction` (`type: 'investment'`) is recorded — currently in Firestore via [lib/firebase/transaction-actions.ts](lib/firebase/transaction-actions.ts), eventually mirrored or replaced through Easy API.
+5. Project's `moneyRaised` is updated; user dashboard reflects the new investment.
+
+### When a new endpoint arrives, expect to touch:
+
+| Layer | What may change | Files to check |
+|---|---|---|
+| **Easy API domain module** | New methods on `easyApi` for the endpoint. | [lib/easy-api/](lib/easy-api/) |
+| **Project type** | Payment-related fields on `Project` (e.g. payment account ID, payout config, fee structure). | [types/project.d.ts](types/project.d.ts), `Financials`, `InvestmentTerms` |
+| **Transaction type** | New fields linking to Easy API entities (payment ID, status, settlement date, fee). | [types/transaction.ts](types/transaction.ts) |
+| **Firestore rules / actions** | New collections (e.g. `payments`, `payouts`); new fields under existing docs; rule updates for who can read payment metadata. | [firestore.rules](firestore.rules), [lib/firebase/](lib/firebase/) |
+| **Dashboard UI** | Surfacing payment status, receipts, retry/cancel flows, payout tracking. | [app/(dashboard)/](app/(dashboard)/), [modules/dashboard/](modules/dashboard/) |
+| **API routes** | New `app/api/*` routes that call Easy API on behalf of the user (after Firebase ID-token check). | [app/api/](app/api/) |
+
+When the user provides an endpoint, **don't just wire the HTTP call** — walk this table and ask which layers need to move.
+
+---
+
+## 1. Current Firestore data model
+
+All collections live at the root of the default Firestore database. Type definitions are global ambient interfaces (no exports — referenced by name).
+
+| Collection | Type | File | Notes |
+|---|---|---|---|
+| `projects` | `Project` | [types/project.d.ts](types/project.d.ts) | Public read; admin-only writes. `id` is the Firestore doc ID. Dates stored as unix-ms `number`. |
+| `transactions` | `Transaction` | [types/transaction.ts](types/transaction.ts) | Owner/admin read; admin-only update/delete. `type: 'investment' \| 'return'`. |
+| `users` | `FirestoreUser` | [types/user.d.ts](types/user.d.ts) | Self-read/write only; `role: 'admin'` controls Firestore rules. `watchlist: string[]` of project IDs. |
+| `documents` | `Document` | [types/document.ts](types/document.ts) | Authed read; admin-only write. |
+| `waitlist` | `WaitlistEntry` | [types/waitlist.ts](types/waitlist.ts) | Doc ID is `${userId}_${projectId}`; admin read only, owner can join/leave. |
+
+Security rules: [firestore.rules](firestore.rules). Storage rules: [storage.rules](storage.rules).
+
+### Date convention
+Every timestamp is `number` (ms since epoch) — `Date.now()` on write. The Easy API will likely use ISO 8601 strings; **transform at the boundary** (see §5).
+
+### ID convention
+Firestore-generated IDs come from `addDoc` or `doc(collection)`; the `id` field is denormalized onto the returned object only when read through the action layer. The Easy API likely returns IDs in the body — preserve this shape so consumer types stay stable.
+
+---
+
+## 2. Current Firestore action layout
+
+Two parallel action layers live under [lib/firebase/](lib/firebase/):
+
+- **Server-side** ([lib/firebase/server.ts](lib/firebase/server.ts)) — initializes a separate `'server'` named app, no auth context. Used by route handlers and server components.
+  - [lib/firebase/server-actions.ts](lib/firebase/server-actions.ts) — projects (read all/by-id, create, update), `isUserAdmin`.
+- **Client-side** ([lib/firebase/config.ts](lib/firebase/config.ts)) — default app, runs under user auth. Used by client components.
+  - [lib/firebase/client-project-actions.ts](lib/firebase/client-project-actions.ts)
+  - [lib/firebase/transaction-actions.ts](lib/firebase/transaction-actions.ts)
+  - [lib/firebase/user-actions.ts](lib/firebase/user-actions.ts)
+  - [lib/firebase/waitlist-actions.ts](lib/firebase/waitlist-actions.ts)
+  - [lib/firebase/investment-actions.ts](lib/firebase/investment-actions.ts)
+  - [lib/firebase/check-admin.ts](lib/firebase/check-admin.ts), [lib/firebase/auth.ts](lib/firebase/auth.ts), [lib/firebase/auth-context.tsx](lib/firebase/auth-context.tsx)
+
+Each action file owns one collection and exposes `createX/getX/updateX/deleteX` style helpers that throw on error.
+
+---
+
+## 3. Easy API conventions
+
+### Where things go
+
+```
+lib/easy-api/
+  server.ts        ← base service, exports `easyApi` singleton + types
+  types.ts         ← (when added) shared envelope types from Easy API spec
+  projects.ts      ← domain methods: getProject, listProjects, createProject…
+  transactions.ts  ← domain methods
+  users.ts
+  documents.ts
+  waitlist.ts
+```
+
+Domain modules import `easyApi` and export typed functions — they do **not** create new service instances. One module per Firestore collection mirrors the action-file split, so the call sites change minimally.
+
+### Domain method shape
+
+```ts
+// lib/easy-api/projects.ts
+import { easyApi, type EasyApiResponse } from './server';
+
+export type ProjectDto = Project & { id: string };
+
+export const getProject = (id: string) =>
+  easyApi.get<ProjectDto, ApiErrorBody>(`/projects/${id}`);
+
+export const listProjects = (query?: { status?: ProjectStatus; type?: ProjectType }) =>
+  easyApi.get<ProjectDto[], ApiErrorBody>('/projects', { query });
+
+export const createProject = (body: Omit<Project, 'id' | 'createdAt'>) =>
+  easyApi.post<ProjectDto, ApiErrorBody>('/projects', { body });
+```
+
+Return the `EasyApiResponse<TData, TError>` discriminated union directly — do **not** unwrap `.data` inside the domain layer. Callers (route handlers) decide how to surface the error.
+
+### Validation
+
+Use **zod parsing on the boundary** when the response shape is non-trivial or untrusted; cast for thin pass-throughs. Define schemas in the same domain file:
+
+```ts
+const projectDtoSchema = z.object({ /* mirror Project */ });
+const parsed = await getProject(id);
+if (parsed.ok) projectDtoSchema.parse(parsed.data);
+```
+
+Don't add zod schemas preemptively — wait for the actual Easy API response shape.
+
+---
+
+## 4. Envelope + conventions (confirmed)
+
+Confirmed from `/v1/api/payment-link/` spec:
+
+```ts
+type ApiEnvelope<T> = {
+  success: true;
+  timestamp: string;   // ISO 8601
+  message?: string;
+  data: T;
+};
+// Error shape on non-2xx — TBD, will confirm on first 4xx response.
+```
+
+**Conventions:**
+- **URL prefix:** All endpoints live under `/v1/api/...` — `API_BASE_URL` does **not** include `/v1`, so domain modules write paths like `/v1/api/payment-link/`. Trailing slashes appear in spec — preserve them.
+- **Money:** Integer cents. Field names use `_cents` suffix (`amount_cents`, `min_amount`, `max_amount`). Convert at the boundary — the rest of the app stays in dollars.
+- **Dates:** ISO 8601 strings. The rest of the app uses unix-ms `number` — convert at the boundary.
+- **Casing:** Easy API uses `snake_case` everywhere. Map to `camelCase` in domain modules.
+
+When wiring the typed wrapper to [lib/easy-api/server.ts](lib/easy-api/server.ts), have it unwrap `.data` on success so domain code returns plain `T` (still inside the `EasyApiResponse` discriminated union).
+
+---
+
+## 5. Integration pattern (route handler → Easy API)
+
+Existing example to mirror: [app/api/contact/route.ts](app/api/contact/route.ts) (zod parse → side effect → typed response).
+
+```ts
+// app/api/projects/[id]/route.ts
+import { NextResponse } from 'next/server';
+import { getProject } from '@/lib/easy-api/projects';
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const result = await getProject(params.id);
+  if (!result.ok) {
+    return NextResponse.json(result.error, { status: result.status });
+  }
+  return NextResponse.json(result.data);
+}
+```
+
+### Boundary transforms
+
+If the Easy API uses ISO strings and the existing UI expects unix-ms numbers, transform **inside the domain module** (single responsibility) before returning to the route handler:
+
+```ts
+const toUnixMs = (iso: string) => new Date(iso).getTime();
+
+export const getProject = async (id: string) => {
+  const res = await easyApi.get<RawProjectDto>(`/projects/${id}`);
+  if (!res.ok) return res;
+  return { ...res, data: { ...res.data, createdAt: toUnixMs(res.data.createdAt) /* … */ } };
+};
+```
+
+This keeps `Project` (the global interface) stable across the codebase during migration.
+
+---
+
+## 6. Migration strategy
+
+Pick one per collection — record the choice here as endpoints come online.
+
+| Mode | When to use |
+|---|---|
+| **Read-through** | Route handler reads from Easy API only; writes still go to Firestore. Lowest risk first step. |
+| **Write-through** | Writes go to Easy API only; reads stay on Firestore until backfill is verified. |
+| **Dual-write** | Writes hit both Firestore and Easy API. Use only if Easy API is the source of truth target and Firestore is being decommissioned with a verification window. |
+| **Full swap** | Both read and write go through Easy API. Firestore action file gets deleted. Final state. |
+
+Status table — keep current:
+
+| Collection | Mode | Endpoints wired | Notes |
+|---|---|---|---|
+| `projects` | TBD | — | Public read on Firestore today; check whether Easy API requires auth for browse. |
+| `transactions` | TBD | — | Sensitive — confirm Easy API auth model before swapping. |
+| `users` | TBD | — | Firebase Auth still owns identity; Easy API likely stores app-level profile only. Clarify split. |
+| `documents` | TBD | — | |
+| `waitlist` | TBD | — | Composite key `${userId}_${projectId}` may not survive — check Easy API contract. |
+
+---
+
+## 7. Auth boundaries
+
+- **Firebase Auth** stays as the user-identity layer (sign-in, ID tokens, `request.auth`). [lib/firebase/auth.ts](lib/firebase/auth.ts), [lib/firebase/auth-context.tsx](lib/firebase/auth-context.tsx).
+- **Easy API server key** is a backend secret — never reaches the client. All Easy API calls go through Next.js API routes (`app/api/*`) or server components/actions.
+- **`NEXT_PUBLIC_API_PUBLISHABLE_KEY`** exists but is unused for now. When client-side calls are added, build a separate `lib/easy-api/client.ts` with a different service instance (publishable key, no secret). Do **not** expand `server.ts` with conditional auth.
+- The route handler is responsible for verifying the calling user (Firebase ID token) before forwarding to Easy API. The Easy API call itself uses the server's `x-easy-api-key`, not the user's identity — pass user context through path/query/body if the API needs it.
+
+---
+
+## 8. Naming + housekeeping
+
+- Class is named `EasyApiService` (TS convention) even though the user spells it "EasyAPIService" colloquially. Rename if preferred — single replace in [lib/easy-api/server.ts](lib/easy-api/server.ts).
+- Domain types currently live as global ambient interfaces (`Project`, `Transaction`, etc.). When adding Easy-API-specific DTOs that diverge, **export them as named types** from the domain module rather than polluting the ambient namespace.
+- Don't reuse `lib/firebase/*-actions.ts` filenames for Easy API — keep the layers visibly distinct (`lib/easy-api/projects.ts`, not `lib/easy-api/project-actions.ts`).
+
+---
+
+## 9. Payment-link flow (primary use case)
+
+### Product decision: 6 fixed investment tiers, globally shared
+
+Every project accepts the same six investment amounts: **$5k, $10k, $25k, $50k, $100k, $250k**. This is a product-level decision — not per-project configurable.
+
+Because tiers are shared, we use **global Easy API entities**:
+- 1 Easy API **Product** ("Beni Investment").
+- 6 Easy API **Product-Prices** — one per tier, `recurring: false`, `currency: USD`, `unit_amount` in cents (e.g. `500_000` for $5k).
+- Created **once per environment** via a bootstrap script. Per-project setup in Easy API: **zero**.
+
+Rejected alternative: one Product *per project* (with 6 prices each). Cleaner receipts but 7× more bootstrap surface and couples project creation to Easy API. Revisit post-launch if receipt clarity matters; `tags.projectName` + custom email templates likely cover the gap.
+
+### Tier constants
+Single source of truth at `const/investment-tiers.ts`:
+
+```ts
+export const INVESTMENT_TIERS = [
+  { dollars: 5000,   cents: 500_000,    envKey: 'EASY_API_PRICE_ID_5K'   },
+  { dollars: 10000,  cents: 1_000_000,  envKey: 'EASY_API_PRICE_ID_10K'  },
+  { dollars: 25000,  cents: 2_500_000,  envKey: 'EASY_API_PRICE_ID_25K'  },
+  { dollars: 50000,  cents: 5_000_000,  envKey: 'EASY_API_PRICE_ID_50K'  },
+  { dollars: 100000, cents: 10_000_000, envKey: 'EASY_API_PRICE_ID_100K' },
+  { dollars: 250000, cents: 25_000_000, envKey: 'EASY_API_PRICE_ID_250K' },
+] as const;
+
+export type TierDollars = (typeof INVESTMENT_TIERS)[number]['dollars'];
+```
+
+Dashboard tier buttons render from this array; the route handler resolves `tierDollars → priceId` via env.
+
+### Payment-link body (always FIXED, single price)
+```ts
+easyApi.post('/v1/api/payment-link/', { body: {
+  amount_type: 'FIXED',
+  products: [{ product_prices: [{ id: priceId, quantity: 1, adjustable: false }] }],
+  allowed_payment_methods: ['PAYMENT_CARD', 'BANK_ACCOUNT'],
+  payment_frequency: 'ONE_TIME',
+  is_multiple_use: false,
+  collect_buyer_details: 'email',
+  tags: {
+    projectId, userId, transactionId,
+    tierDollars: String(tier.dollars),
+    type: 'investment',
+  },
+  additional_details: {
+    terms_of_service_url: `${APP_URL}/terms-of-service`,
+    success_return_url:    `${APP_URL}/payment/success?t=${transactionId}`,
+    unsuccessful_return_url: `${APP_URL}/payment/canceled?t=${transactionId}`,
+    expired_session_url:   `${APP_URL}/payment/canceled?t=${transactionId}`,
+    send_receipt: true,
+    expiration_in_minutes: 60,
+  },
+}});
+```
+`adjustable: false` is critical — prevents the user from changing the amount on the hosted page after we've already recorded the pending Transaction.
+
+### Linking back via `tags`
+Webhook handler reads `tags.transactionId` and looks up the pending Transaction directly — no need to index by `pl_xxx`.
+
+### Open product question — tier gating
+For a project with `targetInvestment - moneyRaised = $30k`, does the UI:
+- (a) Show all 6 tiers, allow over-funding;  ← **default unless told otherwise**
+- (b) Hide tiers exceeding remaining capacity;
+- (c) Hide tiers below `Financials.minInvestment`.
+
+### Required env vars
+```
+NEXT_PUBLIC_APP_URL=
+EASY_API_WEBHOOK_SECRET=
+EASY_API_PRODUCT_ID=
+EASY_API_PRICE_ID_5K=
+EASY_API_PRICE_ID_10K=
+EASY_API_PRICE_ID_25K=
+EASY_API_PRICE_ID_50K=
+EASY_API_PRICE_ID_100K=
+EASY_API_PRICE_ID_250K=
+```
+
+### Required type changes
+- [types/project.d.ts](types/project.d.ts) — **no Easy API fields**. Tiers are global. `Financials.minInvestment` becomes display-only (the real minimum is the lowest tier).
+- [types/transaction.ts](types/transaction.ts) —
+  ```ts
+  status: 'pending' | 'succeeded' | 'failed' | 'expired' | 'canceled';
+  amountCents: number;
+  currency: 'USD';
+  tierDollars: 5000 | 10000 | 25000 | 50000 | 100000 | 250000;
+  easyApiPaymentLinkId: string;
+  easyApiPaymentId?: string;
+  ```
+  Pre-launch — convert callers in one pass; don't dual-write `amount`/`amountCents`.
+- [firestore.rules](firestore.rules) — `status`, `easyApiPaymentLinkId`, `easyApiPaymentId`, `amountCents` must be **server-only writes**. Users may not flip their own transaction to `succeeded`.
+
+### Required new code
+- `scripts/setup-easy-api-products.ts` — one-time bootstrap. Creates the Product + 6 Prices via `/v1/api/products/` and `/v1/api/product-prices/`. Prints the 7 IDs. Run once per environment, paste into `.env.local`. Use `metadata.bootstrap_id: 'beni-investment-v1'` so re-runs are detectable.
+- `lib/easy-api/products.ts` — typed `createProduct`, `createProductPrice`. Used only by the bootstrap script.
+- `lib/easy-api/payments.ts` — `createPaymentLink({ project, user, tierDollars, transactionId })`. Resolves tier → priceId from env; builds the body; calls Easy API.
+- `app/api/easy-api/payment-link/route.ts` — verifies Firebase ID token, loads project, validates project status `=== 'fundraising'`, creates a `pending` Transaction in Firestore (server-only fields), then calls `createPaymentLink`, returns `{ url }`. Idempotency workaround: dedupe a pending Transaction for `(userId, projectId, tierDollars)` < 5 min old; reuse the URL.
+- `app/api/easy-api/webhook/route.ts` — **source of truth for payment success**. Verifies signature with `EASY_API_WEBHOOK_SECRET`, switches on event type, reads `tags.transactionId`, idempotently updates Transaction + `Project.moneyRaised`.
+- `app/payment/success/page.tsx`, `app/payment/canceled/page.tsx` — UX only. Don't trust the URL for state; show "confirming…" and let the webhook drive the data (poll the Transaction by `?t=<id>` or use a Firestore listener).
+- Dashboard: 6 tier buttons on project pages; modules under [app/(dashboard)/](app/(dashboard)/) and [modules/dashboard/](modules/dashboard/).
+
+### Webhook events to subscribe to
+Configure in the Easy API dashboard (per the screenshot UI). Endpoint URL: `https://benicapital.com/api/easy-api/webhook`. Must be HTTPS. Subscribe to **only what we handle**:
+
+| Event | Action |
+|---|---|
+| `payment.created` | Optional log. Pending Transaction already exists. |
+| `payment.updated` | **Primary.** Map status → `succeeded`/`failed`/`canceled`/`expired`; on success, increment `Project.moneyRaised` (Firestore transaction). |
+| `refund.created`, `refund.updated` | Mark Transaction refunded; decrement `moneyRaised`. |
+| `dispute.created`, `dispute.updated` | Flag for admin review; **do not** auto-decrement `moneyRaised` — admin decides. |
+
+Skip `authorization.*` (covered by `payment.updated`), `subscription.*` (we're one-time only), `identity.*` (Firebase Auth owns user identity).
+
+### Order of implementation
+1. Pin the open questions in §10 (especially webhook signature scheme).
+2. Bootstrap script → run once → copy 7 IDs into `.env.local`.
+3. Tier constants + env reader util.
+4. Type changes + Firestore rule tightening.
+5. Domain modules + create-link route.
+6. Webhook route.
+7. Dashboard tier buttons + return pages.
+
+---
+
+## 10. Open questions still to resolve
+
+Resolved (folded into the design above):
+- ✅ Product/Price creation: separate endpoints `POST /v1/api/products/` and `/v1/api/product-prices/`.
+- ✅ Currency: set per-Price.
+- ✅ Webhook events list — see screenshot in conversation; subscribed events listed above.
+
+Still blocking real implementation:
+1. **Webhook signature scheme** — header name (`x-easy-api-signature`?), HMAC algorithm, what's signed (raw body? body + timestamp?), where the secret comes from. **Blocks the webhook route entirely.** Check their dashboard or docs.
+2. **`unit_amount` units** — schema types it as `number` (not `integer`); payment-link response uses `amount_cents` as integer cents. Assuming cents in the bootstrap script; verify on first call (a wrong-by-100x response amount will be obvious).
+3. **`adjustable: false` honored** — verify on a real test that the hosted page genuinely locks the amount.
+4. **Idempotency-Key header** — if accepted, use a per-attempt UUID. Otherwise our 5-minute Firestore dedupe is the workaround.
+5. **Error envelope** — trigger a 4xx (e.g. invalid `amount_type`) and capture the shape; update the typed wrapper accordingly.
+6. **Pagination** — when list endpoints arrive, cursor vs offset.
+
+Answer these inline above and remove once resolved.

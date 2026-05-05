@@ -1,0 +1,24 @@
+interface Props {
+  eyebrow: string;
+  title: string;
+  description: string;
+  className?: string;
+}
+
+export function SectionHeader({ eyebrow, title, description, className }: Props) {
+  return (
+    <div className={`mb-14 max-md:mb-8 ${className ?? ''}`}>
+      <div className="font-mono [font-variant-numeric:tabular-nums] font-medium text-[12px] text-ink-3 tracking-[0.08em] mb-4">
+        {eyebrow}
+      </div>
+      <div className="grid grid-cols-[1.4fr_1fr] gap-20 items-start max-md:grid-cols-1 max-md:gap-4 max-md:w-full">
+        <h2 className="font-medium tracking-[-0.025em] leading-[1.02] text-[clamp(40px,5.4vw,88px)] text-balance m-0 max-w-[18ch]">
+          {title}
+        </h2>
+        <p className="max-w-[42ch] text-ink-2 text-base leading-[1.55] justify-self-end self-end max-md:justify-self-start max-md:self-auto">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,273 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  EmbeddedEventDetails_Tags,
+  type EventTimelineItem,
+  type MediaSourceInterface,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  ProfileDetails_Tags,
+  TimelineItemContent_Tags,
+} from "@unomed/react-native-matrix-sdk";
+import { useSetAtom } from "jotai";
+import { MatrixCore } from "modules/matrix-client/services";
+import {
+  cleanMentions,
+  getEventTextContent,
+  getMessageTextContent,
+} from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { Dimensions, Image, StyleSheet } from "react-native";
+import { MessageTimestamp, PinIndicator, SeenBy } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { MentionText } from "../mention-text";
+import { MessageLongPressWrapper } from "../message-long-press-wrapper";
+import { MessageReactionsOverlay } from "../message-reactions-overlay";
+import { MessageSender } from "../message-sender";
+import { ReplyPayload } from "../reply-paylaod";
+
+interface Props {
+  roomId: string;
+  event: EventTimelineItem;
+  isPreviousSameSender: boolean;
+  onMemberPress?: (member: MemberDetailsPayload) => void;
+}
+
+const MAX_WIDTH = Dimensions.get("window").width - 60;
+
+// Parse <a href="https://matrix.to/#/@user:server">@DisplayName</a> tags from
+// formatted_body HTML into a lowercase-displayName → userId map.
+// This is the sync fast path — no profile loading needed.
+const parseMentionMapFromHtml = (html: string): Map<string, string> => {
+  const regex =
+    /<a[^>]+href="https:\/\/matrix\.to\/#\/(@[^"]+)"[^>]*>@?([^<]+)<\/a>/gi;
+  const matches = Array.from(html.matchAll(regex));
+  return new Map(matches.map((m) => [m[2].toLowerCase(), m[1]]));
+};
+
+export const TextMessage: FC<Props> = ({
+  roomId,
+  event,
+  isPreviousSameSender,
+  onMemberPress,
+}) => {
+  const [messageWidth, setMessageWidth] = useState(116);
+  const isUser = event.isOwn;
+  const sender = event.senderProfile;
+  const senderId = event.sender;
+  const seenByUsers = TimelineService.getReadReceiptUsers(event);
+  const [mentionMap, setMentionMap] = useState<Map<string, string>>(new Map());
+  // Some clients (Element X) put raw markdown links in the body:
+  // [@Name](matrix.to/#/@user:server)  — link text has @
+  // [Name](matrix.to/#/@user:server)   — link text without @
+  // Detect by the /#/@ pattern in the URL (user permalink) and normalize to @Name.
+  const content = cleanMentions(getEventTextContent(event));
+  const setScrollToEventId = useSetAtom(TimelineAtoms.scrollToEventId);
+
+  const { formattedBody, mentionUserIds, isEdited } = useMemo(() => {
+    if (event.content.tag !== TimelineItemContent_Tags.MsgLike) {
+      return { formattedBody: undefined, mentionUserIds: [], isEdited: false };
+    }
+    const kind = event.content.inner.content.kind;
+    if (kind?.tag !== MsgLikeKind_Tags.Message) {
+      return { formattedBody: undefined, mentionUserIds: [], isEdited: false };
+    }
+    const msgType = kind.inner.content.msgType;
+    const html =
+      msgType?.tag === MessageType_Tags.Text
+        ? msgType.inner.content.formatted?.body
+        : undefined;
+    return {
+      formattedBody: html,
+      mentionUserIds: kind.inner.content.mentions?.userIds ?? [],
+      isEdited: kind.inner.content.isEdited,
+    };
+  }, [event]);
+
+  const replyPayload = useMemo(() => {
+    if (event.content.tag !== TimelineItemContent_Tags.MsgLike) return null;
+
+    const inReplyTo = event.content.inner.content.inReplyTo;
+
+    if (!inReplyTo) return null;
+
+    const eventDetails = inReplyTo.event();
+
+    if (eventDetails.tag !== EmbeddedEventDetails_Tags.Ready) {
+      return {
+        eventId: inReplyTo.eventId(),
+        senderName: "",
+        content: "",
+        isUnavailable: true,
+      };
+    }
+
+    const senderName =
+      eventDetails.inner.senderProfile.tag === ProfileDetails_Tags.Ready
+        ? (eventDetails.inner.senderProfile.inner.displayName ??
+          eventDetails.inner.sender)
+        : eventDetails.inner.sender;
+
+    let mediaSource: { source: MediaSourceInterface; mimetype: string } | null =
+      null;
+    const replyContent = eventDetails.inner.content;
+
+    if (replyContent.tag === TimelineItemContent_Tags.MsgLike) {
+      const kind = replyContent.inner.content.kind;
+      if (kind?.tag === MsgLikeKind_Tags.Message) {
+        const msgType = kind.inner.content.msgType;
+        if (msgType?.tag === MessageType_Tags.Image) {
+          mediaSource = {
+            source: msgType.inner.content.source,
+            mimetype: msgType.inner.content.info?.mimetype || "image/jpeg",
+          };
+        }
+        if (msgType?.tag === MessageType_Tags.Video) {
+          mediaSource = {
+            source: msgType.inner.content.source,
+            mimetype: msgType.inner.content.info?.mimetype || "video/mp4",
+          };
+        }
+      }
+    }
+
+    return {
+      eventId: inReplyTo.eventId(),
+      senderName,
+      content: getMessageTextContent(eventDetails.inner.content),
+      mediaSource,
+    };
+  }, [event]);
+
+  const handleReplyPress = useCallback(() => {
+    if (replyPayload) setScrollToEventId(replyPayload.eventId);
+  }, [replyPayload, setScrollToEventId]);
+
+  useEffect(() => {
+    // Fast path: extract mention map directly from formatted_body HTML
+    if (formattedBody) {
+      const map = parseMentionMapFromHtml(formattedBody);
+      if (map.size > 0) {
+        setMentionMap(map);
+        return;
+      }
+    }
+
+    // Fallback: load profiles for mentioned user IDs (messages without formatted_body)
+    if (!mentionUserIds.length) return;
+    const client = MatrixCore.getClient();
+    Promise.allSettled(mentionUserIds.map((id) => client.getProfile(id))).then(
+      (results) => {
+        const map = new Map<string, string>();
+        results.forEach((result, i) => {
+          const userId = mentionUserIds[i];
+          const displayName =
+            result.status === "fulfilled"
+              ? (result.value.displayName ?? userId)
+              : userId;
+          map.set(displayName.toLowerCase(), userId);
+        });
+        setMentionMap(map);
+      },
+    );
+  }, [formattedBody, mentionUserIds]);
+
+  return (
+    <Block
+      align={isUser ? "flex-end" : "flex-start"}
+      margins={{ marginTop: isPreviousSameSender ? 6 : 16 }}
+    >
+      <MessageSender
+        sender={sender}
+        senderId={senderId}
+        isUser={isUser}
+        isPreviousSameSender={isPreviousSameSender}
+        onMemberPress={onMemberPress}
+      />
+      <MessageLongPressWrapper event={event} content={content}>
+        <Block flexDirection={isUser ? "row-reverse" : "row"}>
+          <Block
+            paddings={12}
+            background={isUser ? Colors.primary : Colors.message}
+            border={{ borderRadius: 24 }}
+            align="stretch"
+            gap={12}
+            onLayout={(e) => setMessageWidth(e.nativeEvent.layout.width)}
+            maxWidth={MAX_WIDTH}
+          >
+            <ReplyPayload
+              replyPayload={replyPayload}
+              onPress={handleReplyPress}
+            />
+            <Block
+              flexDirection={isUser ? "row-reverse" : "row"}
+              align="flex-end"
+              justify="space-between"
+              flex={{ flexWrap: "wrap" }}
+              gap={{ row: 4, col: 16 }}
+              // Some short strings (e.ag., "aa", "ai") wrap unexpectedly, while others ("dd", "a") do not.
+              // Add this value to prevent unwanted wrapping for short text.
+              minWidth={116}
+            >
+              {mentionMap.size > 0 ? (
+                <MentionText
+                  isUser={isUser}
+                  body={content}
+                  mentionMap={mentionMap}
+                  onMentionPress={onMemberPress}
+                />
+              ) : (
+                <Text size={TextSize.small} color="white">
+                  {content}
+                </Text>
+              )}
+              <MessageTimestamp
+                event={event}
+                isUser={isUser}
+                isEdited={isEdited}
+              />
+            </Block>
+            {isPreviousSameSender && (
+              <Block
+                absolute
+                offsets={
+                  isUser
+                    ? {
+                        right: 6,
+                        bottom: 2,
+                      }
+                    : {
+                        left: 6,
+                        bottom: 2,
+                      }
+                }
+              >
+                <Image
+                  source={
+                    isUser
+                      ? require("assets/icons/polygon.png")
+                      : require("assets/icons/guest-polygon.png")
+                  }
+                  width={7}
+                  height={6}
+                  style={styles.polygon}
+                />
+              </Block>
+            )}
+          </Block>
+          <PinIndicator event={event} />
+        </Block>
+      </MessageLongPressWrapper>
+      <MessageReactionsOverlay event={event} roomId={roomId} isUser={isUser} />
+      <SeenBy users={seenByUsers} messageWidth={messageWidth} isUser={isUser} />
+    </Block>
+  );
+};
+
+const styles = StyleSheet.create({
+  polygon: {
+    width: 7,
+    height: 6,
+  },
+});

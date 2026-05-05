@@ -1,0 +1,215 @@
+import { Block } from "@prototyp/skeletor";
+import {
+  type EventTimelineItem,
+  MessageType_Tags,
+  MsgLikeKind_Tags,
+  TimelineItemContent_Tags,
+  type VideoMessageContent,
+} from "@unomed/react-native-matrix-sdk";
+import { useSetAtom } from "jotai";
+import { getEventTextContent } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { Image } from "react-native";
+import { Blurhash } from "react-native-blurhash";
+import { MessageTimestamp, PinIndicator, SeenBy } from "shared/components";
+import { MAX_MEDIA_WIDTH } from "shared/const";
+import { Colors } from "shared/styles";
+import { resolveEncryptedImage } from "shared/utils/encrypted-image-cache";
+import { LinkifiedText } from "../linkified-text";
+import { MessageLongPressWrapper } from "../message-long-press-wrapper";
+import { MessageReactionsOverlay } from "../message-reactions-overlay";
+import { MessageSender } from "../message-sender";
+
+interface Props {
+  roomId: string;
+  event: EventTimelineItem;
+  isPreviousSameSender: boolean;
+  onMemberPress?: (member: MemberDetailsPayload) => void;
+}
+
+const getVideoContent = (
+  event: EventTimelineItem,
+): VideoMessageContent | null => {
+  if (event.content.tag === TimelineItemContent_Tags.MsgLike) {
+    const kind = event.content.inner.content.kind;
+    if (kind?.tag === MsgLikeKind_Tags.Message) {
+      const msgType = kind.inner.content.msgType;
+      if (msgType?.tag === MessageType_Tags.Video) {
+        return msgType.inner.content;
+      }
+    }
+  }
+  return null;
+};
+
+export const VideoMessage: FC<Props> = ({
+  roomId,
+  event,
+  isPreviousSameSender,
+  onMemberPress,
+}) => {
+  const content = getVideoContent(event);
+  const [messageWidth, setMessageWidth] = useState(40);
+  const thumbInfoWidth = Number(content?.info?.thumbnailInfo?.width) || 0;
+  const thumbInfoHeight = Number(content?.info?.thumbnailInfo?.height) || 0;
+  const originalWidth = thumbInfoWidth || Number(content?.info?.width) || 0;
+  const originalHeight = thumbInfoHeight || Number(content?.info?.height) || 0;
+  const scaleRatio = Math.min(MAX_MEDIA_WIDTH / originalWidth, 1);
+  const targetWidth = Math.round(originalWidth * scaleRatio);
+  const targetHeight = Math.round(originalHeight * scaleRatio);
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  const isUser = event.isOwn;
+  const sender = event.senderProfile;
+  const senderId = event.sender;
+  const caption = content?.caption;
+  const blurhash = content?.info?.blurhash;
+  const background = useMemo(() => {
+    if (!caption) return "transparent";
+    return isUser ? Colors.primary : Colors.message;
+  }, [caption, isUser]);
+  const seenByUsers = TimelineService.getReadReceiptUsers(event);
+  const setVideoViewerContent = useSetAtom(TimelineAtoms.videoViewerContent);
+
+  const openVideoViewer = useCallback(() => {
+    if (!content) return;
+    setVideoViewerContent(content);
+  }, [content, setVideoViewerContent]);
+
+  useEffect(() => {
+    const thumbSource = content?.info?.thumbnailSource;
+    if (!thumbSource) return;
+    const mxcUrl = thumbSource.url();
+    if (!mxcUrl) return;
+
+    const load = async () => {
+      try {
+        const resolved = await resolveEncryptedImage({
+          cacheKey: mxcUrl,
+          mediaSource: thumbSource,
+          mimeType: "image/jpeg",
+        });
+        if (resolved) setThumbnailUri(resolved);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    load();
+  }, [content]);
+
+  if (!content) return null;
+
+  return (
+    <Block
+      align={isUser ? "flex-end" : "flex-start"}
+      margins={{ marginTop: isPreviousSameSender ? 6 : 16 }}
+    >
+      <MessageSender
+        sender={sender}
+        senderId={senderId}
+        isUser={isUser}
+        isPreviousSameSender={isPreviousSameSender}
+        onMemberPress={onMemberPress}
+      />
+
+      <Block flexDirection={isUser ? "row-reverse" : "row"}>
+        <Block
+          background={background}
+          border={{ borderRadius: 12 }}
+          paddings={caption ? [4, 4, 12] : 0}
+          gap={8}
+        >
+          <Block
+            background="transparent"
+            border={{ borderRadius: 12 }}
+            align="center"
+            overflow="hidden"
+            width={targetWidth}
+            height={targetHeight}
+            onLayout={(e) => setMessageWidth(e.nativeEvent.layout.width)}
+          >
+            <MessageLongPressWrapper
+              event={event}
+              content={getEventTextContent(event)}
+              onFinalize={openVideoViewer}
+            >
+              {blurhash && !thumbnailUri && (
+                <Blurhash
+                  blurhash={blurhash}
+                  style={{ width: targetWidth, height: targetHeight }}
+                  resizeMode="cover"
+                />
+              )}
+
+              {thumbnailUri && (
+                <Image
+                  source={{ uri: thumbnailUri }}
+                  style={{ width: targetWidth, height: targetHeight }}
+                  resizeMode="cover"
+                />
+              )}
+
+              {/* Play button overlay */}
+              <Block
+                absolute
+                offsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                zIndex={10}
+                border={{ borderRadius: 12 }}
+                align="center"
+                justify="center"
+                pointerEvents="none"
+              >
+                <Block
+                  background={Colors.primary}
+                  width={40}
+                  height={40}
+                  align="center"
+                  justify="center"
+                  border={{ borderRadius: 999 }}
+                >
+                  <Image
+                    tintColor={Colors.white}
+                    source={require("assets/icons/play.png")}
+                  />
+                </Block>
+              </Block>
+            </MessageLongPressWrapper>
+          </Block>
+
+          {caption ? (
+            <Block
+              maxWidth={targetWidth}
+              justify="space-between"
+              flexDirection={isUser ? "row-reverse" : "row"}
+              gap={{
+                row: 4,
+                col: 16,
+              }}
+              align="center"
+              flex={{ flexWrap: "wrap" }}
+              paddings={[0, 8]}
+              onLayout={(e) => setMessageWidth(e.nativeEvent.layout.width)}
+            >
+              <LinkifiedText body={caption} />
+              <MessageTimestamp event={event} isUser={isUser} />
+            </Block>
+          ) : (
+            <Block
+              flexDirection={isUser ? "row" : "row-reverse"}
+              gap={4}
+              align="center"
+              margins={{ marginLeft: isUser ? 0 : "auto" }}
+            >
+              <MessageTimestamp event={event} isUser={isUser} />
+            </Block>
+          )}
+        </Block>
+        <PinIndicator event={event} />
+      </Block>
+      <MessageReactionsOverlay event={event} roomId={roomId} isUser={isUser} />
+      <SeenBy users={seenByUsers} messageWidth={messageWidth} isUser={isUser} />
+    </Block>
+  );
+};

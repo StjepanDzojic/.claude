@@ -1,0 +1,216 @@
+import { Block, Text } from "@prototyp/skeletor";
+import {
+  type RoomInterface,
+  StateEventType,
+  type UserProfile,
+} from "@unomed/react-native-matrix-sdk";
+import { useAtomValue } from "jotai";
+import { CallAtoms } from "modules/call/jotai";
+import { CallOverlayService } from "modules/call/service/CallOverlayService";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { resetToRoom } from "modules/navigation/utils";
+import { NetworkAtoms } from "modules/network/jotai";
+import { useRoomInfo } from "modules/room/hooks";
+import { RoomService } from "modules/room/service/RoomService";
+import { type FC, useEffect, useRef, useState } from "react";
+import { findNodeHandle, Image, StyleSheet, type View } from "react-native";
+import Share, { type ShareOptions } from "react-native-share";
+import { Button, Loading } from "shared/components";
+import { Colors, TextSize } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+
+interface Props {
+  userProfile: UserProfile;
+}
+
+export const ActionButtons: FC<Props> = ({ userProfile }) => {
+  const [loading, setLoading] = useState(false);
+  const [existingDirectRoom, setExistingDirectRoom] = useState<
+    RoomInterface | undefined
+  >(undefined);
+  const shareButtonRef = useRef<View | null>(null);
+  const hasActiveCall = useAtomValue(CallAtoms.hasActiveCall);
+  const isOffline = useAtomValue(NetworkAtoms.isOffline);
+  const roomInfo = useRoomInfo(existingDirectRoom);
+  const hasPowerLevelToCall = existingDirectRoom
+    ? (roomInfo?.powerLevels?.canOwnUserSendState(StateEventType.CallMember) ??
+      false)
+    : true;
+
+  useEffect(() => {
+    RoomService.getExistingDirectRoom(userProfile.userId).then((roomId) => {
+      if (!roomId) return;
+      const room = MatrixCore.instance?.getRoom(roomId);
+      setExistingDirectRoom(room ?? undefined);
+    });
+  }, [userProfile.userId]);
+
+  const handleShare = () => {
+    Share.open({
+      message:
+        "Hey, I'm using Cloak and Dagger! Download it now: https://cloak.app",
+      anchor: findNodeHandle(shareButtonRef.current) ?? undefined,
+    } as ShareOptions & { anchor?: number });
+  };
+
+  const handleStartChat = async () => {
+    if (!userProfile) return;
+
+    try {
+      setLoading(true);
+      const roomId = await RoomService.getOrCreateDirectRoom(
+        userProfile.userId,
+      );
+
+      setTimeout(() => {
+        resetToRoom(roomId);
+      }, 300);
+    } catch (error) {
+      console.error("Failed to start chat:", error);
+      offlineToastHelper("Failed to start chat");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCall = async () => {
+    if (!userProfile) return;
+
+    if (hasActiveCall) {
+      offlineToastHelper("You are already in a call");
+      return;
+    }
+
+    if (isOffline) {
+      offlineToastHelper("No internet connection");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const roomId = await RoomService.getOrCreateDirectRoom(
+        userProfile.userId,
+      );
+
+      const room = MatrixCore.instance?.getRoom(roomId);
+      const roomName = room?.displayName();
+
+      setTimeout(() => {
+        resetToRoom(roomId);
+        CallOverlayService.openCall(roomId, roomName);
+      }, 300);
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      offlineToastHelper("Failed to start call");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {loading && <Loading />}
+      <Block
+        flexDirection="row"
+        gap={8}
+        margins={{ marginTop: 32, marginBottom: 20 }}
+      >
+        <Button.Wrapper style={styles.button} onPress={handleStartChat}>
+          <Block
+            width="100%"
+            align="center"
+            justify="center"
+            paddings={12}
+            background={Colors.white10}
+            border={{ borderRadius: 16 }}
+            gap={8}
+          >
+            <Image
+              source={require("assets/icons/chat-cloud.png")}
+              tintColor={Colors.white}
+            />
+
+            <Text
+              size={TextSize.small}
+              font="InstrumentSans-Medium"
+              color={Colors.white}
+            >
+              Message
+            </Text>
+          </Block>
+        </Button.Wrapper>
+        {hasPowerLevelToCall && (
+          <Button.Wrapper
+            style={styles.button}
+            disabled={hasActiveCall}
+            onPress={handleCall}
+          >
+            <Block
+              width="100%"
+              align="center"
+              justify="center"
+              paddings={12}
+              background={Colors.white10}
+              border={{ borderRadius: 16 }}
+              gap={8}
+            >
+              <Image
+                source={require("assets/icons/phone-call.png")}
+                tintColor={Colors.white}
+              />
+
+              <Text
+                size={TextSize.small}
+                font="InstrumentSans-Medium"
+                color={Colors.white}
+              >
+                Call
+              </Text>
+            </Block>
+          </Button.Wrapper>
+        )}
+        <Button.Wrapper
+          ref={shareButtonRef}
+          style={styles.button}
+          onPress={handleShare}
+        >
+          <Block
+            width="100%"
+            align="center"
+            justify="center"
+            paddings={12}
+            background={Colors.white10}
+            border={{ borderRadius: 16 }}
+            gap={8}
+          >
+            <Image
+              source={require("assets/icons/upload-simple-large.png")}
+              tintColor={Colors.white}
+              style={styles.buttonIcon}
+              width={24}
+              height={24}
+            />
+
+            <Text
+              size={TextSize.small}
+              font="InstrumentSans-Medium"
+              color={Colors.white}
+            >
+              Share
+            </Text>
+          </Block>
+        </Button.Wrapper>
+      </Block>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    flex: 1,
+  },
+  buttonIcon: {
+    width: 24,
+    height: 24,
+  },
+});

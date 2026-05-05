@@ -1,0 +1,29 @@
+import { ReactNode } from 'react';
+
+type PlaceholderVariant = 'default' | 'blue' | 'green' | 'dark';
+
+interface PlaceholderProps {
+  variant?: PlaceholderVariant;
+  corner?: string;
+  label?: string;
+  children?: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const variantClass: Record<PlaceholderVariant, string> = {
+  default: 'ph',
+  blue: 'ph ph--blue',
+  green: 'ph ph--green',
+  dark: 'ph ph--dark',
+};
+
+export function Placeholder({ variant = 'default', corner, label, children, className = '', style }: PlaceholderProps) {
+  return (
+    <div className={`${variantClass[variant]} ${className}`} style={style}>
+      {corner && <div className="ph__corner">{corner}</div>}
+      {label && <div className="ph__label">{label}</div>}
+      {children}
+    </div>
+  );
+}

@@ -1,0 +1,35 @@
+export const Routes = {
+  home: '/',
+  news: '/vijesti',
+  events: '/dogadaji',
+  about: '/o-nama',
+  members: '/clanice',
+  contact: '/kontakt',
+  info: '/informacije',
+  documents: '/propisi-i-dokumenti',
+  stories: '/price-osjeckih-sportasa',
+  projects: '/projekti',
+};
+
+export const RoutesList = [
+  {
+    name: 'Vijesti',
+    path: Routes.news,
+  },
+  {
+    name: 'Događaji',
+    path: Routes.events,
+  },
+  {
+    name: 'Projekti',
+    path: Routes.projects,
+  },
+  {
+    name: 'Članice',
+    path: Routes.members,
+  },
+  {
+    name: 'O nama',
+    path: Routes.about,
+  },
+];

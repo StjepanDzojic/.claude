@@ -1,0 +1,50 @@
+import { MMKV } from "react-native-mmkv";
+
+const secondaryMMKV = new MMKV({ id: "matrix-secondary-storage" });
+
+const KEYS = {
+  ACCESS_TOKEN: "secondary_access_token",
+  REFRESH_TOKEN: "secondary_refresh_token",
+  USER_ID: "secondary_user_id",
+  DEVICE_ID: "secondary_device_id",
+  BASE_URL: "secondary_base_url",
+};
+
+export const SecondaryMatrixStorage = {
+  save: (creds: {
+    accessToken: string;
+    refreshToken?: string;
+    userId: string;
+    deviceId: string;
+    baseUrl: string;
+  }) => {
+    secondaryMMKV.set(KEYS.ACCESS_TOKEN, creds.accessToken);
+    secondaryMMKV.set(KEYS.USER_ID, creds.userId);
+    secondaryMMKV.set(KEYS.DEVICE_ID, creds.deviceId);
+    secondaryMMKV.set(KEYS.BASE_URL, creds.baseUrl);
+    if (creds.refreshToken) {
+      secondaryMMKV.set(KEYS.REFRESH_TOKEN, creds.refreshToken);
+    }
+  },
+
+  get: () => {
+    const accessToken = secondaryMMKV.getString(KEYS.ACCESS_TOKEN);
+    const userId = secondaryMMKV.getString(KEYS.USER_ID);
+    const deviceId = secondaryMMKV.getString(KEYS.DEVICE_ID);
+    const baseUrl = secondaryMMKV.getString(KEYS.BASE_URL);
+    const refreshToken = secondaryMMKV.getString(KEYS.REFRESH_TOKEN);
+
+    if (!accessToken || !userId || !deviceId || !baseUrl) return null;
+
+    return { accessToken, userId, deviceId, baseUrl, refreshToken };
+  },
+
+  clear: () => {
+    Object.values(KEYS).forEach((k) => secondaryMMKV.delete(k));
+  },
+
+  has: () => {
+    const creds = SecondaryMatrixStorage.get();
+    return !!creds;
+  },
+};

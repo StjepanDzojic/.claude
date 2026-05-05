@@ -1,0 +1,94 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Image, Modal, StyleSheet } from "react-native";
+import { Button } from "shared/components";
+import { Colors } from "shared/styles";
+import { getLevelLabel } from "shared/utils";
+
+interface Props {
+  visible: boolean;
+  selectedLevel: number;
+  availableLevels: number[];
+  onSelect: (level: number) => void;
+  onClose: () => void;
+}
+
+export const PermissionValueModal: FC<Props> = ({
+  visible,
+  selectedLevel,
+  availableLevels,
+  onSelect,
+  onClose,
+}) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      presentationStyle="overFullScreen"
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Button.Wrapper style={styles.overlay} onPress={onClose}>
+        <Block
+          width="100%"
+          height="100%"
+          justify="center"
+          align="center"
+          background={Colors.black70}
+          paddings={[40, 20]}
+        >
+          <Block
+            width="100%"
+            background={Colors.blackMinus2}
+            border={{ borderRadius: 24 }}
+            overflow="hidden"
+          >
+            {availableLevels.map((level, index) => {
+              const isLast = index === availableLevels.length - 1;
+              const isSelected = selectedLevel === level;
+              return (
+                <Button.Wrapper key={level} onPress={() => onSelect(level)}>
+                  <Block
+                    paddings={[18, 20]}
+                    flexDirection="row"
+                    align="center"
+                    justify="space-between"
+                    border={
+                      !isLast
+                        ? {
+                            borderBottomWidth: 1,
+                            borderColor: Colors.white5,
+                          }
+                        : undefined
+                    }
+                  >
+                    <Text>{getLevelLabel(level)}</Text>
+                    {isSelected && (
+                      <Image
+                        source={require("assets/icons/check.png")}
+                        width={20}
+                        height={20}
+                        style={styles.checkIcon}
+                        tintColor={Colors.success}
+                      />
+                    )}
+                  </Block>
+                </Button.Wrapper>
+              );
+            })}
+          </Block>
+        </Block>
+      </Button.Wrapper>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+  },
+  checkIcon: {
+    width: 20,
+    height: 20,
+  },
+});

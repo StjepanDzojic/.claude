@@ -1,0 +1,54 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Modal } from "react-native";
+import { Button } from "shared/components/button";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  visible: boolean;
+  isRed: boolean;
+  message: string;
+  onClose: () => void;
+}
+
+export const ShieldModal: FC<Props> = ({
+  visible,
+  isRed,
+  message,
+  onClose,
+}) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      presentationStyle="overFullScreen"
+      animationType="fade"
+    >
+      <Block
+        width="100%"
+        height="100%"
+        justify="center"
+        align="center"
+        background={Colors.black70}
+        paddings={[40, 20]}
+      >
+        <Block
+          width="100%"
+          background={Colors.blackMinus2}
+          paddings={20}
+          border={{ borderRadius: 36 }}
+          gap={12}
+          maxWidth={600}
+        >
+          <Text size={TextSize.large}>{isRed ? "Warning" : "Info"}</Text>
+          <Text size={TextSize.small} color={Colors.white50}>
+            {message}
+          </Text>
+          <Button.Secondary onPress={onClose} width="100%" size="medium">
+            I understand
+          </Button.Secondary>
+        </Block>
+      </Block>
+    </Modal>
+  );
+};

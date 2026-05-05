@@ -1,0 +1,3 @@
+import { effectiveWindowWidth } from "shared/utils";
+
+export const MAX_MEDIA_WIDTH = effectiveWindowWidth() - 160;

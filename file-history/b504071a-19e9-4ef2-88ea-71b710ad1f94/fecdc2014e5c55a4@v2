@@ -1,0 +1,3 @@
+@import '../styles/tailwind.css';
+@import '../styles/shadcn.css';
+@import '../styles/hidroing.css';

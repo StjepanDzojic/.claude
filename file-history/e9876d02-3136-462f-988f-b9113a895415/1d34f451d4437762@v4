@@ -1,0 +1,129 @@
+import ReactNativeBlobUtil from "react-native-blob-util";
+import * as Keychain from "react-native-keychain";
+import QuickCrypto, { Buffer } from "react-native-quick-crypto";
+
+// Service identifier under which the AES-256 data key is stored in the
+// iOS Keychain / Android Keystore. The key is hardware-backed where available
+// and lives outside the app sandbox. Shared by the encrypted image and
+// video caches.
+const KEYCHAIN_SERVICE = "com.prototyp.cloak.media-cache";
+
+const KEY_LENGTH = 32; // AES-256
+const IV_LENGTH = 12; // GCM nonce
+const TAG_LENGTH = 16; // GCM auth tag
+const FORMAT_VERSION = 1;
+
+let cachedKey: Buffer | null = null;
+let keyPromise: Promise<Buffer> | null = null;
+
+async function loadOrCreateKey(): Promise<Buffer> {
+  const stored = await Keychain.getGenericPassword({
+    service: KEYCHAIN_SERVICE,
+  });
+  if (stored && "password" in stored && stored.password) {
+    return Buffer.from(stored.password, "base64");
+  }
+
+  const fresh = QuickCrypto.randomBytes(KEY_LENGTH);
+  await Keychain.setGenericPassword("media-cache", fresh.toString("base64"), {
+    service: KEYCHAIN_SERVICE,
+    accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+  });
+  return fresh;
+}
+
+async function getKey(): Promise<Buffer> {
+  if (cachedKey) return cachedKey;
+  if (!keyPromise) {
+    keyPromise = loadOrCreateKey()
+      .then((k) => {
+        cachedKey = k;
+        return k;
+      })
+      .finally(() => {
+        keyPromise = null;
+      });
+  }
+  return keyPromise;
+}
+
+function stripFilePrefix(path: string): string {
+  return path.startsWith("file://") ? path.slice("file://".length) : path;
+}
+
+/**
+ * Reads `plaintextPath`, encrypts with AES-256-GCM, and writes the result to
+ * `ciphertextPath`. File format: [1B version][12B IV][ciphertext][16B tag].
+ *
+ * Whole-file in-memory round trip via base64. Fine for images and typical
+ * chat videos; videos larger than ~50 MB will put sustained pressure on the
+ * JS heap.
+ */
+export async function encryptFile(
+  plaintextPath: string,
+  ciphertextPath: string,
+): Promise<void> {
+  const key = await getKey();
+  const base64 = await ReactNativeBlobUtil.fs.readFile(
+    stripFilePrefix(plaintextPath),
+    "base64",
+  );
+  const plaintext = Buffer.from(base64, "base64");
+
+  const iv = QuickCrypto.randomBytes(IV_LENGTH);
+  const cipher = QuickCrypto.createCipheriv("aes-256-gcm", key, iv);
+  const body = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  const out = Buffer.concat([Buffer.from([FORMAT_VERSION]), iv, body, tag]);
+  await ReactNativeBlobUtil.fs.writeFile(
+    stripFilePrefix(ciphertextPath),
+    out.toString("base64"),
+    "base64",
+  );
+}
+
+/**
+ * Reads ciphertext at `ciphertextPath`, decrypts, and writes plaintext to
+ * `plaintextPath`. Throws if the auth tag doesn't verify.
+ */
+export async function decryptFile(
+  ciphertextPath: string,
+  plaintextPath: string,
+): Promise<void> {
+  const key = await getKey();
+  const base64 = await ReactNativeBlobUtil.fs.readFile(
+    stripFilePrefix(ciphertextPath),
+    "base64",
+  );
+  const buf = Buffer.from(base64, "base64");
+
+  const version = buf[0];
+  if (version !== FORMAT_VERSION) {
+    throw new Error(`Unsupported media cache format: ${version}`);
+  }
+  const iv = buf.subarray(1, 1 + IV_LENGTH);
+  const tag = buf.subarray(buf.length - TAG_LENGTH);
+  const body = buf.subarray(1 + IV_LENGTH, buf.length - TAG_LENGTH);
+
+  const decipher = QuickCrypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  const plaintext = Buffer.concat([decipher.update(body), decipher.final()]);
+
+  await ReactNativeBlobUtil.fs.writeFile(
+    stripFilePrefix(plaintextPath),
+    plaintext.toString("base64"),
+    "base64",
+  );
+}
+
+/** Drops the key from memory and the Keychain. Call on logout. */
+export async function clearMediaEncryptionKey(): Promise<void> {
+  cachedKey = null;
+  keyPromise = null;
+  try {
+    await Keychain.resetGenericPassword({ service: KEYCHAIN_SERVICE });
+  } catch (e) {
+    console.warn("Failed to clear media encryption key:", e);
+  }
+}

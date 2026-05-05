@@ -1,0 +1,371 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { animateParallel, Block, Text } from "@prototyp/skeletor";
+import {
+  type EventTimelineItem,
+  ProfileDetails_Tags,
+  type RoomInterface,
+} from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom, useSetAtom } from "jotai";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import { getEventId } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  View,
+} from "react-native";
+import { useMediaTimeline } from "screens/room-media/hooks";
+import { ImageInfoBottomSheet } from "screens/room/fragments/image-info-bottom-sheet";
+import { VideoInfoBottomSheet } from "screens/room/fragments/video-info-bottom-sheet";
+import { Colors, TextSize } from "shared/styles";
+import { BlurGradientOverlay } from "../blur-gradient-overlay";
+import { Button } from "../button";
+import { MediaEdgePage } from "./MediaEdgePage";
+import { MediaImagePage } from "./MediaImagePage";
+import { MediaVideoPage } from "./MediaVideoPage";
+import { getMediaKind } from "./utils";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const OLDER_EDGE_KEY = "__older_edge__";
+
+type ViewerPage =
+  | { kind: "event"; event: EventTimelineItem }
+  | { kind: "older-edge" };
+
+interface Props {
+  payload: MediaViewerPayload;
+}
+
+export const MediaViewerModalContent: FC<Props> = ({ payload }) => {
+  const [, setPayload] = useAtom(TimelineAtoms.mediaViewerPayload);
+  const setImageInfoPayload = useSetAtom(TimelineAtoms.imageInfoPayload);
+  const setVideoInfoPayload = useSetAtom(TimelineAtoms.videoInfoPayload);
+  const listRef = useRef<FlatList<ViewerPage>>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const localUriByEventIdRef = useRef<Map<string, string | null>>(new Map());
+
+  const room = useMemo<RoomInterface | undefined>(() => {
+    try {
+      return MatrixCore.getRoom(payload.roomId);
+    } catch {
+      return undefined;
+    }
+  }, [payload.roomId]);
+
+  const { mediaItems, loading, reachedStart, paginationCount, loadMore } =
+    useMediaTimeline({
+      room,
+      roomId: payload.roomId,
+    });
+
+  /** Filtered events sorted newest-first. */
+  const events = useMemo<EventTimelineItem[]>(() => {
+    const filtered = mediaItems.filter((item) => getMediaKind(item) !== null);
+    return filtered.length === 0 ? [payload.initialEvent] : filtered;
+  }, [mediaItems, payload.initialEvent]);
+
+  /** FlashList data: events + the older-edge sentinel when more history
+  remains. Sentinel is a trailing "loading" page: swiping into it triggers
+  `loadMore`, and when new events arrive they're inserted between the last
+  real event and the sentinel, so the user slides from the spinner straight
+  onto the newest item of the just-loaded batch. We suppress the sentinel
+  while the hook's initial pagination is still in flight so the seeded
+  single-item render can't accidentally land on it. */
+  const pages = useMemo<ViewerPage[]>(() => {
+    const result: ViewerPage[] = events.map((event) => ({
+      kind: "event",
+      event,
+    }));
+    if (!loading && !reachedStart) {
+      result.push({ kind: "older-edge" });
+    }
+    return result;
+  }, [events, loading, reachedStart]);
+
+  /** Pages-index for the tapped event — resolved against the hydrated list. */
+  const initialPageIndex = useMemo(() => {
+    const eventIdx = events.findIndex(
+      (event) => getEventId(event) === payload.initialEventId,
+    );
+    return eventIdx >= 0 ? eventIdx : 0;
+  }, [events, payload.initialEventId]);
+
+  // Sync `currentIndex` with `initialPageIndex` until the list mounts against
+  // the hydrated data — otherwise the header reads from pages[0] (wrong
+  // event) while the seeded-single-item pass is still on screen.
+  const syncedIndexRef = useRef(false);
+  useEffect(() => {
+    if (loading) return;
+    if (syncedIndexRef.current) return;
+    syncedIndexRef.current = true;
+    setCurrentIndex(initialPageIndex);
+  }, [loading, initialPageIndex]);
+
+  const currentPage = pages[currentIndex];
+  const currentEvent =
+    currentPage?.kind === "event"
+      ? currentPage.event
+      : loading
+        ? payload.initialEvent
+        : null;
+  const currentKind = currentEvent ? getMediaKind(currentEvent) : null;
+
+  // If `reachedStart` flips while the user is on the older-edge sentinel, the
+  // sentinel disappears from `pages` and the current index points past the
+  // end. Snap back to the last real event so the viewer isn't blank.
+  useEffect(() => {
+    if (!reachedStart) return;
+    if (currentIndex < events.length) return;
+    const targetIndex = Math.max(0, events.length - 1);
+    listRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+    setCurrentIndex(targetIndex);
+  }, [reachedStart, events.length, currentIndex]);
+
+  const senderName = useMemo(() => {
+    if (!currentEvent) return null;
+    if (currentEvent.senderProfile.tag === ProfileDetails_Tags.Ready) {
+      return (
+        currentEvent.senderProfile.inner.displayName ?? currentEvent.sender
+      );
+    }
+    return currentEvent.sender;
+  }, [currentEvent]);
+
+  const formattedDate = useMemo(() => {
+    if (!currentEvent) return null;
+    return format(Number(currentEvent.timestamp), "MMM d, HH:mm");
+  }, [currentEvent]);
+
+  const controlsAnimation = useRef(
+    animateParallel(
+      { translateY: [-120, 0], opacity: [0, 1] },
+      { duration: 280 },
+    ),
+  ).current;
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  const onClose = useCallback(() => {
+    setPayload(null);
+  }, [setPayload]);
+
+  const handleSingleTap = useCallback(() => {
+    setShowControls((prev) => !prev);
+  }, []);
+
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      const first = viewableItems[0];
+      if (first?.index == null) return;
+      setCurrentIndex(first.index);
+    },
+    [],
+  );
+
+  // Keep paginating while on the older-edge sentinel until at least one
+  // image/video appears. Re-fires on paginationCount (increments after every
+  // completed paginateBackwards) so batches with only File/Audio items
+  // automatically kick off the next fetch without waiting for events to grow.
+  useEffect(() => {
+    if (currentPage?.kind === "older-edge" && !reachedStart) loadMore();
+  }, [currentPage, loadMore, reachedStart, paginationCount]);
+
+  const handleLocalUriChange = useCallback(
+    (eventId: string | null, uri: string | null) => {
+      if (!eventId) return;
+      localUriByEventIdRef.current.set(eventId, uri);
+    },
+    [],
+  );
+
+  const handleOpenInfo = useCallback(() => {
+    if (!currentEvent) return;
+    const eventId = getEventId(currentEvent);
+    const localUri = eventId
+      ? (localUriByEventIdRef.current.get(eventId) ?? null)
+      : null;
+    if (currentKind === "image") {
+      setImageInfoPayload({
+        event: currentEvent,
+        roomId: payload.roomId,
+        localUri,
+      });
+    } else if (currentKind === "video") {
+      setVideoInfoPayload({
+        event: currentEvent,
+        roomId: payload.roomId,
+        localUri,
+      });
+    }
+  }, [
+    currentEvent,
+    currentKind,
+    payload.roomId,
+    setImageInfoPayload,
+    setVideoInfoPayload,
+  ]);
+
+  const keyExtractor = useCallback((page: ViewerPage) => {
+    if (page.kind === "older-edge") return OLDER_EDGE_KEY;
+    return getEventId(page.event) ?? "";
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: ViewerPage; index: number }) => {
+      if (item.kind === "older-edge") {
+        return <MediaEdgePage />;
+      }
+      const event = item.event;
+      const kind = getMediaKind(event);
+      const eventId = getEventId(event);
+      const onUriChange = (uri: string | null) =>
+        handleLocalUriChange(eventId, uri);
+      return (
+        <View style={styles.page}>
+          {kind === "image" ? (
+            <MediaImagePage
+              event={event}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : kind === "video" ? (
+            <MediaVideoPage
+              event={event}
+              isActive={index === currentIndex}
+              onSingleTap={handleSingleTap}
+              onLocalUriChange={onUriChange}
+            />
+          ) : null}
+        </View>
+      );
+    },
+    [currentIndex, handleSingleTap, handleLocalUriChange],
+  );
+
+  const getItemLayout = useCallback(
+    (_: ArrayLike<ViewerPage> | null | undefined, index: number) => ({
+      length: SCREEN_WIDTH,
+      offset: SCREEN_WIDTH * index,
+      index,
+    }),
+    [],
+  );
+
+  return (
+    <Modal
+      visible
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <BottomSheetModalProvider>
+        <Block background={Colors.black} flex={1}>
+          <FlatList
+            // Remount when the hook's initial pagination completes so that
+            // `initialScrollIndex` is re-evaluated against the hydrated list
+            // and lands on the tapped event's real index. `initialScrollIndex`
+            // is applied only once at mount, so without this remount the list
+            // stays anchored to the seeded single-item position.
+            key={loading ? "loading" : "hydrated"}
+            ref={listRef}
+            data={pages}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            getItemLayout={getItemLayout}
+            horizontal
+            inverted
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialPageIndex}
+            onViewableItemsChanged={handleViewableItemsChanged}
+          />
+
+          <Block
+            absolute
+            offsets={{ top: 0, left: 0, right: 0 }}
+            zIndex={10}
+            paddings={[56, 20, 16, 20]}
+            flexDirection="row"
+            align="center"
+            justify="space-between"
+            gap={12}
+            background={Colors.primary}
+            animations={controlsAnimation.animations}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BlurGradientOverlay />
+            <Block width={60} align="flex-start" zIndex={2}>
+              {!!currentEvent && (
+                <Button.Wrapper onPress={handleOpenInfo}>
+                  <Image
+                    source={require("assets/icons/info.png")}
+                    style={styles.infoIcon}
+                    tintColor={Colors.white}
+                  />
+                </Button.Wrapper>
+              )}
+            </Block>
+            <Block flex={1} align="center" gap={2} zIndex={2}>
+              {senderName && (
+                <Text
+                  color={Colors.white}
+                  font="InstrumentSans-Semibold"
+                  numberOfLines={1}
+                >
+                  {senderName}
+                </Text>
+              )}
+              {formattedDate && (
+                <Text
+                  size={TextSize.tiny}
+                  color={Colors.white80}
+                  numberOfLines={1}
+                >
+                  {formattedDate}
+                </Text>
+              )}
+            </Block>
+            <Block width={60} align="flex-end" zIndex={2}>
+              <Button.Wrapper onPress={onClose}>
+                <Text font="InstrumentSans-Semibold" color={Colors.white}>
+                  Close
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          </Block>
+        </Block>
+        <ImageInfoBottomSheet />
+        <VideoInfoBottomSheet />
+      </BottomSheetModalProvider>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  page: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  infoIcon: {
+    width: 24,
+    height: 24,
+  },
+});

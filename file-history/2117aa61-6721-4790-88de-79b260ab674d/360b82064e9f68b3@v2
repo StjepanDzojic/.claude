@@ -1,0 +1,36 @@
+import { getDefaultStore } from "jotai";
+import { RoomAtoms } from "modules/room/jotai";
+import { isIpad } from "shared/utils";
+import { NavigationContainerRef } from "../const";
+
+export const openRoom = (roomId: string) => {
+  if (isIpad()) {
+    const route = NavigationContainerRef.getCurrentRoute();
+    if (route?.name !== "home") {
+      NavigationContainerRef.navigate("home");
+    }
+    getDefaultStore().set(RoomAtoms.selectedRoomId, roomId);
+    return;
+  }
+
+  NavigationContainerRef.navigate("room", { roomId });
+};
+
+/** Reset the navigation stack so the user lands on the room. On iPad the stack
+ * is reset to home and the room is shown in the right pane via the selected
+ * room atom. */
+export const resetToRoom = (roomId: string) => {
+  if (isIpad()) {
+    NavigationContainerRef.reset({
+      index: 0,
+      routes: [{ name: "home" }],
+    });
+    getDefaultStore().set(RoomAtoms.selectedRoomId, roomId);
+    return;
+  }
+
+  NavigationContainerRef.reset({
+    index: 1,
+    routes: [{ name: "home" }, { name: "room", params: { roomId } }],
+  });
+};

@@ -1,0 +1,137 @@
+import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { Block, Text } from "@prototyp/skeletor";
+import Clipboard from "@react-native-clipboard/clipboard";
+import { ProfileDetails_Tags } from "@unomed/react-native-matrix-sdk";
+import { format } from "date-fns";
+import { useAtom } from "jotai";
+import { isFailedEcho } from "modules/matrix-client/utils";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { TimelineService } from "modules/timeline/service/TimelineService";
+import { useCallback, useMemo, useRef } from "react";
+import Toast from "react-native-toast-message";
+import { UserImage } from "shared/components";
+import {
+  AppBottomSheet,
+  type AppBottomSheetRef,
+} from "shared/components/bottom-sheet";
+import { usePreventSwipeBack } from "shared/hooks";
+import { Colors } from "shared/styles";
+import { offlineToastHelper } from "shared/utils";
+import { MessageContentListItem } from "../message-content-item-list";
+
+export const FailedEchoBottomSheet: React.FC = () => {
+  const sheetRef = useRef<AppBottomSheetRef>(null);
+  const [payload, setPayload] = useAtom(TimelineAtoms.longPressPayload);
+
+  const isFailed = !!payload && isFailedEcho(payload.event);
+
+  const avatarUrl = useMemo(() => {
+    return payload?.event.senderProfile.tag === ProfileDetails_Tags.Ready
+      ? payload?.event.senderProfile.inner.avatarUrl
+      : null;
+  }, [payload]);
+  const displayName = useMemo(() => {
+    return payload?.event.senderProfile.tag === ProfileDetails_Tags.Ready
+      ? payload?.event.senderProfile.inner.displayName
+      : undefined;
+  }, [payload]);
+  const isTextMessage = payload?.messageType === "text";
+
+  const handleRetry = useCallback(async () => {
+    if (!payload) return;
+    try {
+      await TimelineService.resendMessage(payload.event);
+    } catch (error) {
+      console.error("Failed to resend message:", error);
+      offlineToastHelper("Failed to retry. Check your connection.");
+    } finally {
+      sheetRef.current?.close();
+    }
+  }, [payload]);
+
+  const handleRemove = useCallback(async () => {
+    if (!payload) return;
+    try {
+      await TimelineService.abortLocalEcho(payload.event);
+    } catch (error) {
+      console.error("Failed to remove failed echo:", error);
+      offlineToastHelper("Failed to remove message");
+    } finally {
+      sheetRef.current?.close();
+    }
+  }, [payload]);
+
+  const handleCopy = useCallback(() => {
+    if (!payload?.content) return;
+    Clipboard.setString(payload.content);
+    Toast.show({ text1: "Message copied to clipboard", type: "success" });
+    sheetRef.current?.close();
+  }, [payload]);
+
+  usePreventSwipeBack(isFailed);
+
+  return (
+    <AppBottomSheet
+      ref={sheetRef}
+      isOpen={isFailed}
+      onClose={() => setPayload(null)}
+    >
+      <BottomSheetView>
+        <Block
+          paddings={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          gap={16}
+          align="center"
+        >
+          <Block
+            width="100%"
+            flexDirection="row"
+            gap={16}
+            align="center"
+            justify="space-between"
+            margins={{ marginBottom: 32 }}
+          >
+            <Block flexDirection="row" gap={16} align="center" flex={1}>
+              <UserImage
+                avatarUrl={avatarUrl}
+                displayName={displayName}
+                height={40}
+                width={40}
+              />
+              <Block flex={1}>
+                <Text color={Colors.primary}>{displayName}</Text>
+                <Text numberOfLines={2} flex={1}>
+                  {payload?.content}
+                </Text>
+              </Block>
+            </Block>
+            <Text color={Colors.white50}>
+              {payload && format(Number(payload.event.timestamp), "HH:mm")}
+            </Text>
+          </Block>
+          <Block width="100%">
+            <MessageContentListItem
+              title="Retry sending"
+              icon={require("assets/icons/paper-plane-right.png")}
+              onPress={handleRetry}
+            />
+            {isTextMessage && (
+              <MessageContentListItem
+                title="Copy"
+                icon={require("assets/icons/copy.png")}
+                onPress={handleCopy}
+              />
+            )}
+            <MessageContentListItem
+              title="Remove message"
+              icon={require("assets/icons/trash.png")}
+              onPress={handleRemove}
+              tintColor={Colors.error}
+              textColor={Colors.error}
+              hasSeparator={false}
+            />
+          </Block>
+        </Block>
+      </BottomSheetView>
+    </AppBottomSheet>
+  );
+};

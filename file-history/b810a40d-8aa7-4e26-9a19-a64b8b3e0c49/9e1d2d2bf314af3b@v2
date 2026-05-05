@@ -1,0 +1,79 @@
+import { Block, Text } from "@prototyp/skeletor";
+import type { FC } from "react";
+import { Modal } from "react-native";
+import { Button } from "shared/components";
+import { MAX_MODAL_WIDTH } from "shared/const/max-modal-width";
+import { Colors, TextSize } from "shared/styles";
+
+interface Props {
+  visible: boolean;
+  userPowerLevel: number;
+  isLoading?: boolean;
+  onClose: () => void;
+  onDemote: (targetLevel: 0 | 50) => void;
+}
+
+export const ChangeMyRoleModal: FC<Props> = ({
+  visible,
+  userPowerLevel,
+  isLoading = false,
+  onClose,
+  onDemote,
+}) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      presentationStyle="overFullScreen"
+      animationType="fade"
+    >
+      <Block
+        width="100%"
+        height="100%"
+        justify="center"
+        align="center"
+        background={Colors.black70}
+        paddings={[40, 20]}
+      >
+        <Block
+          width="100%"
+          background={Colors.blackMinus2}
+          paddings={20}
+          border={{ borderRadius: 36 }}
+          gap={12}
+          maxWidth={MAX_MODAL_WIDTH}
+        >
+          <Text size={TextSize.large}>Change my role</Text>
+          <Text size={TextSize.small} color={Colors.white50}>
+            Demoting your role is permanent and cannot be undone without another
+            admin promoting you again.
+          </Text>
+
+          <Block gap={8} width="100%">
+            {userPowerLevel >= 100 && (
+              <Button.Warning
+                onPress={() => onDemote(50)}
+                disabled={isLoading}
+                width="100%"
+              >
+                Demote to moderator
+              </Button.Warning>
+            )}
+            {userPowerLevel >= 50 && (
+              <Button.Warning
+                onPress={() => onDemote(0)}
+                disabled={isLoading}
+                width="100%"
+              >
+                Demote to member
+              </Button.Warning>
+            )}
+            <Button.Ghost onPress={onClose} disabled={isLoading} width="100%">
+              Cancel
+            </Button.Ghost>
+          </Block>
+        </Block>
+      </Block>
+    </Modal>
+  );
+};

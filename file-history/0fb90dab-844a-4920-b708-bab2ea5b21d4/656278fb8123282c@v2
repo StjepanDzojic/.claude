@@ -1,0 +1,52 @@
+import { useAtomValue, useSetAtom } from "jotai";
+import { CallAtoms } from "modules/call/jotai";
+import { ScreenLockAtoms } from "modules/screen-lock/jotai";
+import { StorageAtoms } from "modules/storage/jotai/atoms";
+import { type FC, useEffect, useRef } from "react";
+import { AppState, type AppStateStatus } from "react-native";
+
+/**
+ * Drives the screen-lock overlay state.
+ *
+ * Policy:
+ *  - Cold start: locked if a PIN is set.
+ *  - background → active: re-lock if a PIN is set.
+ *  - Active call in progress: do not re-lock (CallKit / Element Call must stay usable).
+ *  - PIN cleared (e.g. after logout): unlock.
+ */
+export const ScreenLockProvider: FC = () => {
+  const screenLockPin = useAtomValue(StorageAtoms.screenLockPin);
+  const hasActiveCall = useAtomValue(CallAtoms.hasActiveCall);
+  const setIsLocked = useSetAtom(ScreenLockAtoms.isLocked);
+
+  const hasActiveCallRef = useRef(hasActiveCall);
+  hasActiveCallRef.current = hasActiveCall;
+
+  // Cold-start + PIN-state reactivity.
+  useEffect(() => {
+    if (!screenLockPin) {
+      setIsLocked(false);
+      return;
+    }
+    setIsLocked(true);
+  }, [screenLockPin, setIsLocked]);
+
+  // Re-lock on foreground transitions.
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState !== "active") return;
+      if (!screenLockPin) return;
+      if (hasActiveCallRef.current) return;
+      setIsLocked(true);
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
+
+    return () => subscription.remove();
+  }, [screenLockPin, setIsLocked]);
+
+  return <></>;
+};

@@ -1,0 +1,154 @@
+import { Block, Text, useAnimateParallel } from "@prototyp/skeletor";
+import { useAtom } from "jotai";
+import { TimelineAtoms } from "modules/timeline/jotai";
+import { type FC, useCallback, useEffect, useState } from "react";
+import { Dimensions, Modal, StyleSheet } from "react-native";
+import Video from "react-native-video";
+import { Colors } from "shared/styles";
+import { Button } from "../button";
+import { Loading } from "../loading";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+export const VideoViewerModal: FC = () => {
+  const [videoViewerUri, setVideoViewerUri] = useAtom(
+    TimelineAtoms.videoViewerUri,
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const visible = !!videoViewerUri;
+
+  const controlsAnimation = useAnimateParallel(
+    { translateY: [-120, 0], opacity: [0, 1] },
+    { duration: 280 },
+  );
+
+  useEffect(() => {
+    if (showControls) controlsAnimation.start();
+    else controlsAnimation.reverse();
+  }, [showControls]);
+
+  const onClose = useCallback(() => {
+    setVideoViewerUri(null);
+    setHasError(false);
+    setIsLoading(false);
+    setShowControls(true);
+  }, [setVideoViewerUri]);
+
+  const handleVideoLoad = useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  const handleLoadStart = useCallback(() => {
+    setIsLoading(true);
+    setHasError(false);
+  }, []);
+
+  // const handleControlsVisibilityChange = useCallback(
+  //   () => {
+  //     setShowControls(isVisible);
+  //   },
+  //   [],
+  // );
+
+  const handleRetry = useCallback(() => {
+    if (!videoViewerUri) return;
+    setIsLoading(true);
+    setHasError(false);
+    setVideoViewerUri(videoViewerUri);
+  }, [videoViewerUri, setVideoViewerUri]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
+      <Block background={Colors.black} flex={1} justify="center" align="center">
+        <Block
+          absolute
+          offsets={{ top: 0, left: 0, right: 0 }}
+          zIndex={10}
+          paddings={[56, 20, 16, 20]}
+          align="flex-end"
+          background={Colors.primary}
+          animations={controlsAnimation.animations}
+          pointerEvents={showControls ? "auto" : "none"}
+        >
+          <Button.Wrapper onPress={onClose}>
+            <Text size={17} font="InstrumentSans-Semibold" color={Colors.white}>
+              Close
+            </Text>
+          </Button.Wrapper>
+        </Block>
+
+        <Block width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+          {isLoading && !hasError && (
+            <Block
+              absolute
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+              zIndex={5}
+              background={Colors.black70}
+            >
+              <Loading isFullScreen={false} />
+            </Block>
+          )}
+
+          {hasError ? (
+            <Block
+              width={SCREEN_WIDTH}
+              height={SCREEN_HEIGHT}
+              align="center"
+              justify="center"
+            >
+              <Text size={16} color={Colors.white}>
+                Failed to load video
+              </Text>
+              <Button.Wrapper onPress={handleRetry}>
+                <Text size={14} color={Colors.white}>
+                  Tap to retry
+                </Text>
+              </Button.Wrapper>
+            </Block>
+          ) : (
+            <Video
+              source={{ uri: videoViewerUri }}
+              style={styles.video}
+              resizeMode="contain"
+              controls
+              paused={false}
+              onLoad={handleVideoLoad}
+              onError={handleVideoError}
+              onLoadStart={handleLoadStart}
+              onControlsVisibilityChange={(e) => {
+                console.log("e", e);
+                setShowControls(e.isVisible);
+              }}
+            />
+          )}
+        </Block>
+      </Block>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  video: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.7,
+  },
+});

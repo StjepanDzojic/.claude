@@ -1,0 +1,51 @@
+import { MatrixBaseURL } from "modules/matrix-client/const";
+import { MatrixCore } from "modules/matrix-client/services/MatrixCore";
+import {
+  cacheImageWithKey,
+  getCachedImagePathByURL,
+  isCached,
+} from "shared/utils/image-caching";
+import { fetchMedia } from "./fetchMedia";
+
+interface Props {
+  mxcUrl: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Resolves an MXC URL to a locally cached file path for the requested size,
+ * downloading it if necessary. The cache is keyed by size so the same MXC
+ * can be stored at multiple resolutions (e.g. small avatar + full-screen).
+ */
+export const resolveMatrixImage = async ({
+  mxcUrl,
+  width,
+  height,
+}: Props): Promise<string | null> => {
+  const cacheKey = `${mxcUrl}@${width}x${height}`;
+
+  try {
+    if (await isCached(cacheKey)) {
+      return getCachedImagePathByURL(cacheKey);
+    }
+
+    const url = await fetchMedia({
+      url: mxcUrl,
+      width,
+      height,
+      serverUrl:
+        MatrixCore.instance?.session().homeserverUrl || MatrixBaseURL,
+    });
+    if (!url) return null;
+
+    await cacheImageWithKey(cacheKey, url);
+    if (await isCached(cacheKey)) {
+      return getCachedImagePathByURL(cacheKey);
+    }
+    return null;
+  } catch (e) {
+    console.log(e);
+    return null;
+  }
+};
