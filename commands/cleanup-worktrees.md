@@ -1,30 +1,26 @@
 ---
-description: Remove Claude Code worktrees whose PRs have been merged or closed.
+description: Remove leftover Claude Code worktrees under .claude/worktrees/.
 allowed-tools: Bash(git worktree:*), Bash(gh pr view:*), Bash(gh pr list:*)
 ---
 
-Scan `.claude/worktrees/` in the current repo and remove any whose PR has been merged or closed.
+Remove all leftover Claude worktrees in the current repo. The intent of this command is full cleanup — prompt for every worktree regardless of PR state.
 
 Procedure:
 
 1. Run `git worktree list --porcelain` to enumerate worktrees. Filter to ones whose path contains `/.claude/worktrees/`.
-2. For each, extract the branch (typically `claude/<name>`) and query its PR state:
+2. If none found, report "No Claude worktrees found" and stop.
+3. For each, extract the branch (typically `claude/<name>`) and query its PR state:
    ```bash
    gh pr list --head <branch> --state all --json number,state,mergedAt,url --limit 1
    ```
-3. Classify each worktree:
-   - **MERGED** — PR `state` is `MERGED`. Safe to remove.
-   - **CLOSED** — PR `state` is `CLOSED` (not merged). Safe to remove, but flag separately.
-   - **OPEN** — PR still open. Skip.
-   - **NO PR** — branch has no PR. Skip and report; the user may want to handle manually.
-4. Show the user a summary table: worktree path, branch, status, PR URL. List what would be removed.
-5. Ask for confirmation before removing.
-6. On confirmation, for each to-remove worktree run:
+4. Show the user a summary table: worktree path, branch, PR status (MERGED / CLOSED / OPEN / NO PR), PR URL. Include all worktrees.
+5. Ask for confirmation: "Remove all of the above worktrees and their branches?" Single confirmation covers all of them.
+6. On confirmation, for each worktree run:
    ```bash
    git worktree remove <path>
    git branch -D <branch>
    ```
-   If `git worktree remove` fails because of uncommitted changes, stop and report — do not use `--force`.
+   If `git worktree remove` fails due to uncommitted changes, stop and report — do not use `--force`.
 7. Report what was removed and what remains.
 
 Do not touch worktrees outside `.claude/worktrees/`. Do not delete branches that have no associated worktree in that directory.
