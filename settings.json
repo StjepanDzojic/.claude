@@ -95,6 +95,8 @@
     }
   },
   "effortLevel": "medium",
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "agentPushNotifEnabled": true,
-  "skipWorkflowUsageWarning": true
+  "tui": "fullscreen"
 }
