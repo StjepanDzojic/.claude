@@ -16,7 +16,8 @@
       "Grep",
       "WebSearch",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__codegraph__*"
     ],
     "additionalDirectories": [
       "/private/tmp",
@@ -70,6 +71,16 @@
           {
             "type": "command",
             "command": "cd ~/.claude 2>/dev/null || exit 0; [ -z \"$(git status --porcelain 2>/dev/null)\" ] && exit 0; git add -A >/dev/null 2>&1; files=$(git diff --cached --name-only | paste -sd, - | head -c 200); { echo \"--- $(date) ---\"; git commit -m \"auto-sync: $files\"; git push; } >>~/.claude/.sync.log 2>&1; exit 0"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codegraph prompt-hook"
           }
         ]
       }
