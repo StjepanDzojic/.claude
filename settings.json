@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); marker=\"$HOME/.claude/state/askuserquestion-$sid.needs\"; [ ! -f \"$marker\" ] && exit 0; tool=$(echo \"$input\" | jq -r '.tool_name // empty'); query=$(echo \"$input\" | jq -r '.tool_input.query // empty'); if [ \"$tool\" = \"ToolSearch\" ] && echo \"$query\" | grep -q 'select:AskUserQuestion'; then exit 0; fi; echo 'Call ToolSearch with query select:AskUserQuestion before any other tool this session. See ~/.claude/settings.json SessionStart hook.' >&2; exit 2"
+            "command": "input=$(cat); sid=$(printf \"%s\" \"$input\" | jq -r '.session_id // empty'); marker=\"$HOME/.claude/state/askuserquestion-$sid.needs\"; [ ! -f \"$marker\" ] && exit 0; tool=$(printf \"%s\" \"$input\" | jq -r '.tool_name // empty'); query=$(printf \"%s\" \"$input\" | jq -r '.tool_input.query // empty'); if [ \"$tool\" = \"ToolSearch\" ] && echo \"$query\" | grep -q 'select:AskUserQuestion'; then exit 0; fi; echo 'Call ToolSearch with query select:AskUserQuestion before any other tool this session. See ~/.claude/settings.json SessionStart hook.' >&2; exit 2"
           }
         ]
       },
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); if echo \"$input\" | grep -q '\"gh pr create'; then git fetch origin main && BEHIND=$(git rev-list --count HEAD..origin/main) && if [ \"$BEHIND\" -gt 0 ]; then git rebase origin/main && git push --force-with-lease origin \"$(git branch --show-current)\"; fi; fi"
+            "command": "input=$(cat); if printf \"%s\" \"$input\" | grep -q '\"gh pr create'; then git fetch origin main && BEHIND=$(git rev-list --count HEAD..origin/main) && if [ \"$BEHIND\" -gt 0 ]; then git rebase origin/main && git push --force-with-lease origin \"$(git branch --show-current)\"; fi; fi"
           }
         ]
       }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); query=$(echo \"$input\" | jq -r '.tool_input.query // empty'); if echo \"$query\" | grep -q 'select:AskUserQuestion'; then rm -f \"$HOME/.claude/state/askuserquestion-$sid.needs\"; fi; exit 0"
+            "command": "input=$(cat); sid=$(printf \"%s\" \"$input\" | jq -r '.session_id // empty'); query=$(printf \"%s\" \"$input\" | jq -r '.tool_input.query // empty'); if echo \"$query\" | grep -q 'select:AskUserQuestion'; then rm -f \"$HOME/.claude/state/askuserquestion-$sid.needs\"; fi; exit 0"
           }
         ]
       },
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); printf \"%s\" \"$input\" | jq -e '(.tool_name == \"Bash\" and ((.tool_input.command // \"\") | test(\"\\\\bgh pr create\\\\b\"))) or (.tool_name | test(\"create_pull_request$\"))' >/dev/null || exit 0; url=$(printf \"%s\" \"$input\" | jq -r '.tool_response | tostring' | grep -oE 'https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | head -1); [ -z \"$url\" ] && exit 0; jq -n --arg url \"$url\" '{systemMessage: (\"PR created: \" + $url + \" - starting pr-check review\"), hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"A pull request was just created: \" + $url + \". Standing instruction from the user: every PR they create gets reviewed. Right away, invoke the pr-check skill (anthropic-skills:pr-check) on \" + $url + \" - it fans out its six finder subagents in parallel - and report its ranked findings to the user. Review only: do not push fixes, post PR comments, or edit the PR unless the user asks.\")}}'"
+            "command": "input=$(cat); printf \"%s\" \"$input\" | jq -e '(.tool_name == \"Bash\" and ((.tool_input.command // \"\") | test(\"\\\\bgh pr create\\\\b\"))) or (.tool_name | test(\"create_pull_request$\"))' >/dev/null || exit 0; url=$(printf \"%s\" \"$input\" | jq -r '.tool_response | tostring' | grep -oE 'https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | head -1); [ -z \"$url\" ] && exit 0; jq -n --arg url \"$url\" '{systemMessage: (\"PR created: \" + $url + \" - starting pr-check review\"), hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"A pull request was just created: \" + $url + \". Standing instruction from the user: every PR they create gets reviewed. Unless this session is already reviewing this PR (for example inside /ship), invoke the pr-check skill (anthropic-skills:pr-check) on it now and report the ranked findings to the user. Scale effort to the change: if the PR only touches docs, lockfiles or generated files, or changes fewer than ~30 lines, do a single-pass review yourself instead of the six-agent fan-out. Review only: do not push fixes, post PR comments, or edit the PR unless the user asks.\")}}'"
           }
         ]
       }
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); mkdir -p \"$HOME/.claude/state\"; [ -n \"$sid\" ] && touch \"$HOME/.claude/state/askuserquestion-$sid.needs\"; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Your first tool call MUST be ToolSearch with query select:AskUserQuestion. A PreToolUse hook blocks all other tools until this is done.\"}}'"
+            "command": "input=$(cat); sid=$(printf \"%s\" \"$input\" | jq -r '.session_id // empty'); mkdir -p \"$HOME/.claude/state\"; [ -n \"$sid\" ] && touch \"$HOME/.claude/state/askuserquestion-$sid.needs\"; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"Your first tool call MUST be ToolSearch with query select:AskUserQuestion. A PreToolUse hook blocks all other tools until this is done.\"}}'"
           }
         ]
       }
