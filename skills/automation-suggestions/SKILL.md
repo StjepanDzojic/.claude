@@ -119,7 +119,7 @@ Before suggesting the skill, explicitly enumerate:
 >
 > **Why a skill, not a subagent**: it's a policy/procedure reused across agents, not a single responsibility to own.
 > **Why a skill, not a hook**: requires model judgment (context-dependent decisions, not a deterministic command).
-> **Affected files if created**: `~/.claude/skills/<slug>.md` (new), and lightweight "see `<slug>` skill" pointers in each affected subagent (replacing the duplicated content).
+> **Affected files if created**: `~/.claude/skills/<slug>/SKILL.md` (new), and lightweight "see `<slug>` skill" pointers in each affected subagent (replacing the duplicated content).
 >
 > My recommendation: **<one shared skill | split into two | variation stays in subagent C>**.
 >
@@ -202,7 +202,7 @@ Never have the subagent *duplicate* the script's logic "for safety" — that rei
 Once approved:
 
 - **Hook** → invoke the `update-config` skill to write the hook into `settings.json`.
-- **Skill** → invoke `anthropic-skills:skill-creator` if the user prefers, or draft the `.md` file directly.
+- **Skill** → invoke `anthropic-skills:skill-creator` if the user prefers, or draft `~/.claude/skills/<slug>/SKILL.md` directly.
 - **Subagent** → draft the `.md` file in `~/.claude/agents/<slug>.md` following the same frontmatter + body format as existing agents (`scaffold-action-repo`, `doc-template-manager`, etc.).
 - **Script** → draft the bash file at the chosen location with `chmod +x`, then update the calling subagent/skill to delegate to it in a single commit.
 
