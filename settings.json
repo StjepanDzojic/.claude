@@ -54,6 +54,15 @@
             "command": "input=$(cat); sid=$(echo \"$input\" | jq -r '.session_id // empty'); query=$(echo \"$input\" | jq -r '.tool_input.query // empty'); if echo \"$query\" | grep -q 'select:AskUserQuestion'; then rm -f \"$HOME/.claude/state/askuserquestion-$sid.needs\"; fi; exit 0"
           }
         ]
+      },
+      {
+        "matcher": "Bash|mcp__.*create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); printf \"%s\" \"$input\" | jq -e '(.tool_name == \"Bash\" and ((.tool_input.command // \"\") | test(\"\\\\bgh pr create\\\\b\"))) or (.tool_name | test(\"create_pull_request$\"))' >/dev/null || exit 0; url=$(printf \"%s\" \"$input\" | jq -r '.tool_response | tostring' | grep -oE 'https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | head -1); [ -z \"$url\" ] && exit 0; jq -n --arg url \"$url\" '{systemMessage: (\"PR created: \" + $url + \" - starting pr-check review\"), hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"A pull request was just created: \" + $url + \". Standing instruction from the user: every PR they create gets reviewed. Right away, invoke the pr-check skill (anthropic-skills:pr-check) on \" + $url + \" - it fans out its six finder subagents in parallel - and report its ranked findings to the user. Review only: do not push fixes, post PR comments, or edit the PR unless the user asks.\")}}'"
+          }
+        ]
       }
     ],
     "SessionStart": [
